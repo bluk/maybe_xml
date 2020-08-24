@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<rss version="0.91">
+	<channel>
+		<title>Lorem ipsum dolor sit amet.</title> 
+		<link>https://example.com</link> 
+		<description>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur condimentum erat nec metus velit.</description> 
+		<language>en-us</language> 
+		<copyright>Copyright 2020, Lorem ipsum dolor.</copyright> 
+		<managingEditor>editor@example.com</managingEditor> 
+		<webMaster>webmaster@example.com</webMaster> 
+		<image>
+			<title>Lorem ipsum dolor sit.</title> 
+			<url>https://example.com/image1.png</url> 
+			<link>https://example.com</link> 
+			<width>1024</width> 
+			<height>768</height> 
+			<description>Lorem ipsum dolor sit amet, consectetur adipiscing.</description> 
+			</image>
+		<item>
+			<title>In accumsan elit a faucibus fermentum. Suspendisse eget ultricies molestie.</title> 
+			<link>https://example.com/1</link> 
+			<description>Phasellus maximus porttitor ullamcorper. Duis pellentesque, diam scelerisque fermentum vehicula, ex quam semper augue, porta malesuada velit arcu nec sapien. Vestibulum consequat erat a ante ultrices viverra. Donec ornare enim eu lectus aliquet hendrerit. Pellentesque a justo vel est pulvinar lacinia id sit amet felis. Aliquam sed venenatis eros, ac efficitur lectus. Nam sollicitudin, orci vitae luctus luctus, magna sem accumsan nibh, nec consequat magna magna a diam. Fusce rhoncus, mauris vitae commodo tristique, ipsum neque imperdiet diam, nec convallis orci nisl eu urna. Donec mauris augue, cursus ut semper eget, consequat id ante. In hac habitasse platea dictumst. Nulla maximus scelerisque urna, tristique tristique nisl efficitur a. Curabitur finibus dui id enim tempus aliquam. Morbi pharetra purus eget laoreet auctor. Aenean non lorem et neque varius commodo eu et sapien. Proin convallis pharetra erat sed consequat.</description> 
+			</item>
+		<item>
+			<title>Praesent eu ultricies nibh. Vestibulum ante.</title> 
+			<link>https://example.com/2</link> 
+			<description>Phasellus eu feugiat enim, mattis finibus nunc. Nam ornare ultricies enim, nec pulvinar nibh egestas eget. Maecenas mattis arcu at tortor gravida, eget varius dolor sollicitudin. Aliquam pulvinar convallis ipsum id tempor. Integer dolor sapien, mollis non scelerisque sed, imperdiet eget ex. Vivamus congue neque a arcu accumsan, blandit aliquet turpis hendrerit. Suspendisse quis massa et magna porttitor consectetur eu quis magna. Sed augue erat, faucibus malesuada diam et, sagittis porta neque. Sed dignissim nisi ligula, gravida convallis tellus consectetur sit amet. Phasellus augue nibh, rhoncus sed sodales nec, mollis eget nisl.</description> 
+			</item>
+		<item>
+			<title>Vivamus condimentum, tortor et consequat auctor, urna quam.</title> 
+			<link>https://example.com/3</link> 
+			<description>Curabitur gravida lectus vitae nulla accumsan luctus. Nam ac elit tristique, vehicula orci sed, sollicitudin nisl. Nunc quis ante et tellus tempus congue ut ut velit. Pellentesque at fringilla libero. Proin elementum dapibus imperdiet. Quisque nec consequat nulla. Nam et tellus sollicitudin, gravida sem et, suscipit massa. Aenean vehicula nisl mattis, condimentum elit sit amet, varius sem. Aenean eros arcu, ultrices in lectus eget, mollis laoreet justo. Curabitur vestibulum, neque ut sagittis congue, massa nulla rutrum libero, sed aliquet nisl diam vel diam.</description> 
+			</item>
+		<item>
+			<title>Mauris cursus ullamcorper.</title> 
+			<link>https://example.com/5</link> 
+			<description>Curabitur rutrum dolor vel dui sodales, sed consequat justo tincidunt. Nulla a augue porta, placerat nisi ac, pulvinar odio. Duis quis libero quam. Maecenas volutpat metus nec erat tristique dignissim. Donec nec tempus quam, in porttitor metus. Sed sed urna velit. Vivamus sed laoreet ipsum, sed vehicula nunc. Curabitur tristique ante erat.</description> 
+			</item>
+		<item>
+			<title>Quisque ut lacinia massa, ut fermentum orci.</title> 
+			<link>https://example.com/6</link> 
+			<description>Nunc ultricies sagittis dolor sit amet fringilla. Vivamus porttitor elit nibh, non dignissim dui vestibulum eu. Etiam facilisis nec mi vel rutrum. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Cras nec massa id est lacinia ornare dictum vitae elit. Mauris dignissim tellus et odio dapibus, in pellentesque mi dignissim. Nullam eget dui nec odio imperdiet viverra. Pellentesque elementum ante ac fermentum fringilla. Suspendisse id suscipit massa. Aliquam aliquam finibus lectus mollis ultrices. Morbi in pulvinar tellus.</description> 
+			</item>
+		</channel>
+	</rss>
