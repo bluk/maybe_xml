@@ -4,6 +4,8 @@ MaybeXml is a library to scan and evaluate [XML][xml]-like data into tokens. In
 effect, the library provides a non-validating lexer. The interface is similar to many
 XML pull parsers.
 
+* [Latest API Documentation][api_docs]
+
 The library does 3 things:
 
 1. A `Scanner` receives byte slices and identifies the start and end of tokens like
@@ -119,3 +121,4 @@ dual licensed as above, without any additional terms or conditions.
 [LICENSE_APACHE]: LICENSE-APACHE
 [LICENSE_MIT]: LICENSE-MIT
 [xml]: https://www.w3.org/TR/2006/REC-xml11-20060816/
+[api_docs]: https://docs.rs/maybe_xml/
