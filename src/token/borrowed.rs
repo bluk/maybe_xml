@@ -294,6 +294,29 @@ pub struct ProcessingInstruction<'a> {
 
 converters!(ProcessingInstruction);
 
+impl<'a> ProcessingInstruction<'a> {
+    /// The name of the tag.
+    pub fn name(&self) -> TagName<'_> {
+        let index = self
+            .bytes
+            .iter()
+            .position(|b| super::is_space(*b))
+            .unwrap_or_else(|| self.bytes.len() - 2);
+        TagName::from(&self.bytes[1..index])
+    }
+
+    /// The attributes of the tag.
+    pub fn attributes(&self) -> Option<Attributes<'_>> {
+        if let Some(index) = self.bytes.iter().position(|b| super::is_space(*b)) {
+            Some(Attributes::from(
+                &self.bytes[index + 1..self.bytes.len() - 2],
+            ))
+        } else {
+            None
+        }
+    }
+}
+
 /// Bytes not evaluated when an end of file is reached.
 ///
 /// If a markup starting delimiter (e.g. a `<`) was read but there was no closing
