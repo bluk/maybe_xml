@@ -15,9 +15,9 @@ use maybe_xml::{
 };
 
 #[cfg(feature = "std")]
-const SIMPLE_1_XML_BYTES: &[u8] = include_bytes!("../tests/resources/simple-1.xml");
+const SIMPLE_1_XML_STR: &str = include_str!("../tests/resources/simple-1.xml");
 #[cfg(feature = "std")]
-const SVG_1_XML_BYTES: &[u8] = include_bytes!("../tests/resources/svg-1.xml");
+const SVG_1_XML_STR: &str = include_str!("../tests/resources/svg-1.xml");
 
 #[cfg(feature = "std")]
 fn bufread_eval(bytes: &[u8], expected_tokens: &[Token]) {
@@ -54,8 +54,9 @@ fn bufread_eval(bytes: &[u8], expected_tokens: &[Token]) {
 #[cfg(feature = "std")]
 #[test]
 fn bufread_eval_simple_1_xml() {
+    let simple_1_xml_string = SIMPLE_1_XML_STR.replace("\r\n", "\n");
     bufread_eval(
-        SIMPLE_1_XML_BYTES,
+        simple_1_xml_string.as_bytes(),
         &[
             Token::ProcessingInstruction(ProcessingInstruction::from(
                 r#"<?xml version="1.0"?>"#.as_bytes(),
@@ -72,8 +73,9 @@ fn bufread_eval_simple_1_xml() {
 #[cfg(feature = "std")]
 #[test]
 fn bufread_eval_svg_1_xml() {
+    let svg_1_xml_string = SVG_1_XML_STR.replace("\r\n", "\n");
     bufread_eval(
-        SVG_1_XML_BYTES,
+        svg_1_xml_string.as_bytes(),
         &[
             Token::ProcessingInstruction(ProcessingInstruction::from(
                 r#"<?xml version="1.0"?>"#.as_bytes(),
