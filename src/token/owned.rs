@@ -32,7 +32,7 @@ use std::vec::{self, Vec};
 
 use core::fmt;
 
-use super::prop::{Attributes, Content, TagName};
+use super::prop::{Attributes, Content, Instructions, TagName, Target};
 
 macro_rules! converters {
     ($name:ident) => {
@@ -354,20 +354,20 @@ pub struct ProcessingInstruction {
 converters!(ProcessingInstruction);
 
 impl ProcessingInstruction {
-    /// The name of the tag.
-    pub fn name(&self) -> TagName<'_> {
+    /// The target of the tag.
+    pub fn target(&self) -> Target<'_> {
         let index = self
             .bytes
             .iter()
             .position(|b| super::is_space(*b))
             .unwrap_or_else(|| self.bytes.len() - 2);
-        TagName::from(&self.bytes[1..index])
+        Target::from(&self.bytes[2..index])
     }
 
-    /// The attributes of the tag.
-    pub fn attributes(&self) -> Option<Attributes<'_>> {
+    /// The instructions of the tag.
+    pub fn instructions(&self) -> Option<Instructions<'_>> {
         if let Some(index) = self.bytes.iter().position(|b| super::is_space(*b)) {
-            Some(Attributes::from(
+            Some(Instructions::from(
                 &self.bytes[index + 1..self.bytes.len() - 2],
             ))
         } else {

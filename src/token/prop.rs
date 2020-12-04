@@ -502,6 +502,20 @@ pub struct Content<'a> {
 
 converters!(Content);
 
+/// The target of the processing instruction (e.g. `xml` in `<?xml ?>`).
+pub struct Target<'a> {
+    bytes: &'a [u8],
+}
+
+converters!(Target);
+
+/// The content of the processing instruction (e.g. `encoding="utf8"` in `<?xml encoding="utf-8"?>`).
+pub struct Instructions<'a> {
+    bytes: &'a [u8],
+}
+
+converters!(Instructions);
+
 #[cfg(test)]
 mod tests {
     use super::*;
