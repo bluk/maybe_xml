@@ -492,7 +492,7 @@ mod tests {
             expected_token: Option<Token>,
         ) -> bool {
             let mut rng = thread_rng();
-            let mut fill_size = rng.gen_range(1, self.bytes.len() - self.index + 2);
+            let mut fill_size = rng.gen_range(1..self.bytes.len() - self.index + 2);
             loop {
                 let end = usize::min(self.index + fill_size, self.bytes.len());
                 let bytes = &self.bytes[self.index..end];
@@ -518,7 +518,7 @@ mod tests {
                 }
 
                 if self.index + fill_size < self.bytes.len() {
-                    fill_size += rng.gen_range(1, self.bytes.len() - self.index - fill_size + 2);
+                    fill_size += rng.gen_range(1..self.bytes.len() - self.index - fill_size + 2);
                 }
             }
         }

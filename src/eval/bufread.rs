@@ -599,7 +599,7 @@ mod tests {
             if self.index + self.fill_size < self.bytes.len() {
                 let mut rng = thread_rng();
                 self.fill_size +=
-                    rng.gen_range(1, 2 + self.bytes.len() - self.index - self.fill_size);
+                    rng.gen_range(1..2 + self.bytes.len() - self.index - self.fill_size);
             }
         }
     }
