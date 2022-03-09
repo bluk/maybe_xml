@@ -27,7 +27,7 @@ fn recv_eval(bytes: &[u8], expected_tokens: &[Token]) {
     let mut bytes = bytes;
 
     loop {
-        let read = eval.recv(&bytes);
+        let read = eval.recv(bytes);
         bytes = &bytes[read..];
         let token = eval.next_token().unwrap();
         assert_eq!(token.as_ref(), expected_token_iter.next());

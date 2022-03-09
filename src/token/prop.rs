@@ -183,13 +183,9 @@ impl<'a> TagName<'a> {
     ///
     /// For example if `xml:example` was the tag name, then `xml` would be the namespace prefix.
     pub fn namespace_prefix(&self) -> Option<NamespacePrefix<'a>> {
-        if let Some(index) = self.bytes.iter().position(|b| *b == b':') {
-            Some(NamespacePrefix {
+        self.bytes.iter().position(|b| *b == b':').map(|index| NamespacePrefix {
                 bytes: &self.bytes[..index],
             })
-        } else {
-            None
-        }
     }
 }
 
@@ -387,7 +383,7 @@ impl<'a> Attribute<'a> {
                 };
             }
         }
-        AttributeName { bytes: &self.bytes }
+        AttributeName { bytes: self.bytes }
     }
 
     /// The optional attribute value with the quotes removed.

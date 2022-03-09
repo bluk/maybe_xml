@@ -543,14 +543,11 @@ mod tests {
         let mut tester = TestRecv::with_bytes(xml);
         let mut eval = RecvEvaluator::new();
         let text_content = Characters::from(b"hello world".as_ref());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::Characters(text_content))),
-            true
-        );
+        assert!(tester.assert_next_token(&mut eval, Some(Token::Characters(text_content))));
         assert_eq!(eval.position(), 11);
-        assert_eq!(tester.assert_next_token(&mut eval, Some(Token::Eof)), true);
+        assert!(tester.assert_next_token(&mut eval, Some(Token::Eof)));
         assert_eq!(eval.position(), 11);
-        assert_eq!(tester.assert_next_token(&mut eval, None), true);
+        assert!(tester.assert_next_token(&mut eval, None));
         assert_eq!(eval.position(), 11);
         Ok(())
     }
@@ -561,14 +558,11 @@ mod tests {
         let mut tester = TestRecv::with_bytes(xml);
         let mut eval = RecvEvaluator::new();
         let start_tag = StartTag::from(b"<hello>".as_ref());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::StartTag(start_tag))),
-            true
-        );
+        assert!(tester.assert_next_token(&mut eval, Some(Token::StartTag(start_tag))));
         assert_eq!(eval.position(), 7);
-        assert_eq!(tester.assert_next_token(&mut eval, Some(Token::Eof)), true);
+        assert!(tester.assert_next_token(&mut eval, Some(Token::Eof)));
         assert_eq!(eval.position(), 7);
-        assert_eq!(tester.assert_next_token(&mut eval, None), true);
+        assert!(tester.assert_next_token(&mut eval, None));
         assert_eq!(eval.position(), 7);
         Ok(())
     }
@@ -579,14 +573,11 @@ mod tests {
         let mut tester = TestRecv::with_bytes(xml);
         let mut eval = RecvEvaluator::new();
         let start_tag = StartTag::from(r#"<hello name="rust">"#.as_bytes());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::StartTag(start_tag))),
-            true
-        );
+        assert!(tester.assert_next_token(&mut eval, Some(Token::StartTag(start_tag))));
         assert_eq!(eval.position(), 19);
-        assert_eq!(tester.assert_next_token(&mut eval, Some(Token::Eof)), true);
+        assert!(tester.assert_next_token(&mut eval, Some(Token::Eof)));
         assert_eq!(eval.position(), 19);
-        assert_eq!(tester.assert_next_token(&mut eval, None), true);
+        assert!(tester.assert_next_token(&mut eval, None));
         assert_eq!(eval.position(), 19);
         Ok(())
     }
@@ -597,14 +588,11 @@ mod tests {
         let mut tester = TestRecv::with_bytes(xml);
         let mut eval = RecvEvaluator::new();
         let start_tag = StartTag::from(r#"<hello name="ru>st">"#.as_bytes());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::StartTag(start_tag))),
-            true
-        );
+        assert!(tester.assert_next_token(&mut eval, Some(Token::StartTag(start_tag))),);
         assert_eq!(eval.position(), 20);
-        assert_eq!(tester.assert_next_token(&mut eval, Some(Token::Eof)), true);
+        assert!(tester.assert_next_token(&mut eval, Some(Token::Eof)));
         assert_eq!(eval.position(), 20);
-        assert_eq!(tester.assert_next_token(&mut eval, None), true);
+        assert!(tester.assert_next_token(&mut eval, None));
         assert_eq!(eval.position(), 20);
         Ok(())
     }
@@ -615,14 +603,11 @@ mod tests {
         let mut tester = TestRecv::with_bytes(xml);
         let mut eval = RecvEvaluator::new();
         let start_tag = StartTag::from(r#"<hello name='rust'>"#.as_bytes());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::StartTag(start_tag))),
-            true
-        );
+        assert!(tester.assert_next_token(&mut eval, Some(Token::StartTag(start_tag))));
         assert_eq!(eval.position(), 19);
-        assert_eq!(tester.assert_next_token(&mut eval, Some(Token::Eof)), true);
+        assert!(tester.assert_next_token(&mut eval, Some(Token::Eof)));
         assert_eq!(eval.position(), 19);
-        assert_eq!(tester.assert_next_token(&mut eval, None), true);
+        assert!(tester.assert_next_token(&mut eval, None));
         assert_eq!(eval.position(), 19);
         Ok(())
     }
@@ -633,14 +618,11 @@ mod tests {
         let mut tester = TestRecv::with_bytes(xml);
         let mut eval = RecvEvaluator::new();
         let start_tag = StartTag::from(r#"<hello name='ru>st'>"#.as_bytes());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::StartTag(start_tag))),
-            true
-        );
+        assert!(tester.assert_next_token(&mut eval, Some(Token::StartTag(start_tag))));
         assert_eq!(eval.position(), 20);
-        assert_eq!(tester.assert_next_token(&mut eval, Some(Token::Eof)), true);
+        assert!(tester.assert_next_token(&mut eval, Some(Token::Eof)));
         assert_eq!(eval.position(), 20);
-        assert_eq!(tester.assert_next_token(&mut eval, None), true);
+        assert!(tester.assert_next_token(&mut eval, None));
         assert_eq!(eval.position(), 20);
         Ok(())
     }
@@ -651,14 +633,11 @@ mod tests {
         let mut tester = TestRecv::with_bytes(xml);
         let mut eval = RecvEvaluator::new();
         let end_tag = EndTag::from(r#"</goodbye>"#.as_bytes());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::EndTag(end_tag))),
-            true
-        );
+        assert!(tester.assert_next_token(&mut eval, Some(Token::EndTag(end_tag))));
         assert_eq!(eval.position(), 10);
-        assert_eq!(tester.assert_next_token(&mut eval, Some(Token::Eof)), true);
+        assert!(tester.assert_next_token(&mut eval, Some(Token::Eof)));
         assert_eq!(eval.position(), 10);
-        assert_eq!(tester.assert_next_token(&mut eval, None), true);
+        assert!(tester.assert_next_token(&mut eval, None));
         assert_eq!(eval.position(), 10);
         Ok(())
     }
@@ -669,14 +648,11 @@ mod tests {
         let mut tester = TestRecv::with_bytes(xml);
         let mut eval = RecvEvaluator::new();
         let end_tag = EndTag::from(r#"</>"#.as_bytes());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::EndTag(end_tag))),
-            true
-        );
+        assert!(tester.assert_next_token(&mut eval, Some(Token::EndTag(end_tag))));
         assert_eq!(eval.position(), 3);
-        assert_eq!(tester.assert_next_token(&mut eval, Some(Token::Eof)), true);
+        assert!(tester.assert_next_token(&mut eval, Some(Token::Eof)));
         assert_eq!(eval.position(), 3);
-        assert_eq!(tester.assert_next_token(&mut eval, None), true);
+        assert!(tester.assert_next_token(&mut eval, None));
         assert_eq!(eval.position(), 3);
         Ok(())
     }
@@ -687,14 +663,13 @@ mod tests {
         let mut tester = TestRecv::with_bytes(xml);
         let mut eval = RecvEvaluator::new();
         let empty_element_tag = EmptyElementTag::from(r#"<standalone/>"#.as_bytes());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::EmptyElementTag(empty_element_tag))),
-            true
+        assert!(
+            tester.assert_next_token(&mut eval, Some(Token::EmptyElementTag(empty_element_tag)))
         );
         assert_eq!(eval.position(), 13);
-        assert_eq!(tester.assert_next_token(&mut eval, Some(Token::Eof)), true);
+        assert!(tester.assert_next_token(&mut eval, Some(Token::Eof)));
         assert_eq!(eval.position(), 13);
-        assert_eq!(tester.assert_next_token(&mut eval, None), true);
+        assert!(tester.assert_next_token(&mut eval, None));
         assert_eq!(eval.position(), 13);
         Ok(())
     }
@@ -707,17 +682,14 @@ mod tests {
         let processing_instruction = ProcessingInstruction::from(
             r#"<?xml-stylesheet type="text/css" href="example.css"?>"#.as_bytes(),
         );
-        assert_eq!(
-            tester.assert_next_token(
-                &mut eval,
-                Some(Token::ProcessingInstruction(processing_instruction))
-            ),
-            true
-        );
+        assert!(tester.assert_next_token(
+            &mut eval,
+            Some(Token::ProcessingInstruction(processing_instruction))
+        ));
         assert_eq!(eval.position(), 53);
-        assert_eq!(tester.assert_next_token(&mut eval, Some(Token::Eof)), true);
+        assert!(tester.assert_next_token(&mut eval, Some(Token::Eof)));
         assert_eq!(eval.position(), 53);
-        assert_eq!(tester.assert_next_token(&mut eval, None), true);
+        assert!(tester.assert_next_token(&mut eval, None));
         assert_eq!(eval.position(), 53);
         Ok(())
     }
@@ -728,14 +700,11 @@ mod tests {
         let mut tester = TestRecv::with_bytes(xml);
         let mut eval = RecvEvaluator::new();
         let declaration = Declaration::from(r#"<!DOCTYPE example>"#.as_bytes());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::Declaration(declaration))),
-            true
-        );
+        assert!(tester.assert_next_token(&mut eval, Some(Token::Declaration(declaration))));
         assert_eq!(eval.position(), 18);
-        assert_eq!(tester.assert_next_token(&mut eval, Some(Token::Eof)), true);
+        assert!(tester.assert_next_token(&mut eval, Some(Token::Eof)));
         assert_eq!(eval.position(), 18);
-        assert_eq!(tester.assert_next_token(&mut eval, None), true);
+        assert!(tester.assert_next_token(&mut eval, None));
         assert_eq!(eval.position(), 18);
         Ok(())
     }
@@ -746,14 +715,11 @@ mod tests {
         let mut tester = TestRecv::with_bytes(xml);
         let mut eval = RecvEvaluator::new();
         let comment = Comment::from(r#"<!-- Example -->"#.as_bytes());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::Comment(comment))),
-            true
-        );
+        assert!(tester.assert_next_token(&mut eval, Some(Token::Comment(comment))));
         assert_eq!(eval.position(), 16);
-        assert_eq!(tester.assert_next_token(&mut eval, Some(Token::Eof)), true);
+        assert!(tester.assert_next_token(&mut eval, Some(Token::Eof)));
         assert_eq!(eval.position(), 16);
-        assert_eq!(tester.assert_next_token(&mut eval, None), true);
+        assert!(tester.assert_next_token(&mut eval, None));
         assert_eq!(eval.position(), 16);
         Ok(())
     }
@@ -764,14 +730,11 @@ mod tests {
         let mut tester = TestRecv::with_bytes(xml);
         let mut eval = RecvEvaluator::new();
         let cdata = Cdata::from(r#"<![CDATA[ <Example> ]]>"#.as_bytes());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::Cdata(cdata))),
-            true
-        );
+        assert!(tester.assert_next_token(&mut eval, Some(Token::Cdata(cdata))));
         assert_eq!(eval.position(), 23);
-        assert_eq!(tester.assert_next_token(&mut eval, Some(Token::Eof)), true);
+        assert!(tester.assert_next_token(&mut eval, Some(Token::Eof)));
         assert_eq!(eval.position(), 23);
-        assert_eq!(tester.assert_next_token(&mut eval, None), true);
+        assert!(tester.assert_next_token(&mut eval, None));
         assert_eq!(eval.position(), 23);
         Ok(())
     }
@@ -782,15 +745,12 @@ mod tests {
         let mut tester = TestRecv::with_bytes(xml);
         let mut eval = RecvEvaluator::new();
         let bytes_not_evaluated = BytesNotEvaluated::from(r#"<unfinished name="xml""#.as_bytes());
-        assert_eq!(
-            tester.assert_next_token(
-                &mut eval,
-                Some(Token::EofWithBytesNotEvaluated(bytes_not_evaluated))
-            ),
-            true
-        );
+        assert!(tester.assert_next_token(
+            &mut eval,
+            Some(Token::EofWithBytesNotEvaluated(bytes_not_evaluated))
+        ));
         assert_eq!(eval.position(), 22);
-        assert_eq!(tester.assert_next_token(&mut eval, None), true);
+        assert!(tester.assert_next_token(&mut eval, None));
         assert_eq!(eval.position(), 22);
         Ok(())
     }
@@ -801,51 +761,35 @@ mod tests {
         let mut tester = TestRecv::with_bytes(xml);
         let mut eval = RecvEvaluator::new();
         let start_tag = StartTag::from(r#"<hello name="rust">"#.as_bytes());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::StartTag(start_tag))),
-            true
-        );
+        assert!(tester.assert_next_token(&mut eval, Some(Token::StartTag(start_tag))));
         assert_eq!(eval.position(), 19);
 
         let text_content = Characters::from(r#"Welcome!"#.as_bytes());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::Characters(text_content))),
-            true
-        );
+        assert!(tester.assert_next_token(&mut eval, Some(Token::Characters(text_content))));
         assert_eq!(eval.position(), 27);
 
         let empty_element_tag = EmptyElementTag::from(r#"<goodbye/>"#.as_bytes());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::EmptyElementTag(empty_element_tag))),
-            true
+        assert!(
+            tester.assert_next_token(&mut eval, Some(Token::EmptyElementTag(empty_element_tag)))
         );
         assert_eq!(eval.position(), 37);
 
         let end_tag = EndTag::from(r#"</hello>"#.as_bytes());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::EndTag(end_tag))),
-            true
-        );
+        assert!(tester.assert_next_token(&mut eval, Some(Token::EndTag(end_tag))));
         assert_eq!(eval.position(), 45);
 
         let start_tag = StartTag::from(r#"<abcd>"#.as_bytes());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::StartTag(start_tag))),
-            true
-        );
+        assert!(tester.assert_next_token(&mut eval, Some(Token::StartTag(start_tag))));
         assert_eq!(eval.position(), 51);
 
         let end_tag = EndTag::from(r#"</abcd>"#.as_bytes());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::EndTag(end_tag))),
-            true
-        );
+        assert!(tester.assert_next_token(&mut eval, Some(Token::EndTag(end_tag))));
         assert_eq!(eval.position(), 58);
 
-        assert_eq!(tester.assert_next_token(&mut eval, Some(Token::Eof)), true);
+        assert!(tester.assert_next_token(&mut eval, Some(Token::Eof)));
         assert_eq!(eval.position(), 58);
 
-        assert_eq!(tester.assert_next_token(&mut eval, None), true);
+        assert!(tester.assert_next_token(&mut eval, None));
         assert_eq!(eval.position(), 58);
 
         Ok(())
@@ -858,86 +802,55 @@ mod tests {
         let mut eval = RecvEvaluator::new();
 
         let text_content = Characters::from(b"   ".as_ref());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::Characters(text_content))),
-            true
-        );
+        assert!(tester.assert_next_token(&mut eval, Some(Token::Characters(text_content))));
         assert_eq!(eval.position(), 3);
 
         let start_tag = StartTag::from(r#"<hello name="rust">"#.as_bytes());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::StartTag(start_tag))),
-            true
-        );
+        assert!(tester.assert_next_token(&mut eval, Some(Token::StartTag(start_tag))));
         assert_eq!(eval.position(), 22);
 
         let text_content = Characters::from(b" Welcome! ".as_ref());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::Characters(text_content))),
-            true
-        );
+        assert!(tester.assert_next_token(&mut eval, Some(Token::Characters(text_content))));
         assert_eq!(eval.position(), 32);
 
         let empty_element_tag = EmptyElementTag::from(r#"<goodbye  />"#.as_bytes());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::EmptyElementTag(empty_element_tag))),
-            true
+        assert!(
+            tester.assert_next_token(&mut eval, Some(Token::EmptyElementTag(empty_element_tag)))
         );
         assert_eq!(eval.position(), 44);
 
         let text_content = Characters::from(b"  ".as_ref());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::Characters(text_content))),
-            true
-        );
+        assert!(tester.assert_next_token(&mut eval, Some(Token::Characters(text_content))));
         assert_eq!(eval.position(), 46);
 
         let end_tag = EndTag::from(r#"</hello>"#.as_bytes());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::EndTag(end_tag))),
-            true
-        );
+        assert!(tester.assert_next_token(&mut eval, Some(Token::EndTag(end_tag))));
         assert_eq!(eval.position(), 54);
 
         let text_content = Characters::from(b"  ".as_ref());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::Characters(text_content))),
-            true
-        );
+        assert!(tester.assert_next_token(&mut eval, Some(Token::Characters(text_content))));
         assert_eq!(eval.position(), 56);
 
         let start_tag = StartTag::from(r#"<abcd>"#.as_bytes());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::StartTag(start_tag))),
-            true
-        );
+        assert!(tester.assert_next_token(&mut eval, Some(Token::StartTag(start_tag))));
         assert_eq!(eval.position(), 62);
 
         let text_content = Characters::from(b" ".as_ref());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::Characters(text_content))),
-            true
-        );
+        assert!(tester.assert_next_token(&mut eval, Some(Token::Characters(text_content))));
         assert_eq!(eval.position(), 63);
 
         let end_tag = EndTag::from(r#"</abcd>"#.as_bytes());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::EndTag(end_tag))),
-            true
-        );
+        assert!(tester.assert_next_token(&mut eval, Some(Token::EndTag(end_tag))));
         assert_eq!(eval.position(), 70);
 
         let text_content = Characters::from(b" ".as_ref());
-        assert_eq!(
-            tester.assert_next_token(&mut eval, Some(Token::Characters(text_content))),
-            true
-        );
+        assert!(tester.assert_next_token(&mut eval, Some(Token::Characters(text_content))));
         assert_eq!(eval.position(), 71);
 
-        assert_eq!(tester.assert_next_token(&mut eval, Some(Token::Eof)), true);
+        assert!(tester.assert_next_token(&mut eval, Some(Token::Eof)));
         assert_eq!(eval.position(), 71);
 
-        assert_eq!(tester.assert_next_token(&mut eval, None), true);
+        assert!(tester.assert_next_token(&mut eval, None));
         assert_eq!(eval.position(), 71);
 
         Ok(())

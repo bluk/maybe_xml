@@ -691,30 +691,25 @@ impl Scanner {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn scan<'a>(&mut self, bytes: &'a [u8]) -> Option<State> {
+    pub fn scan(&mut self, bytes: &[u8]) -> Option<State> {
         match self.state {
             InternalState::Reset => match bytes::peek(bytes) {
                 None => {
                     self.state = InternalState::Eof;
                     None
                 }
-                Some(b'<') => self.scan_markup(&bytes),
-                Some(_) => self.scan_text_content(&bytes),
+                Some(b'<') => self.scan_markup(bytes),
+                Some(_) => self.scan_text_content(bytes),
             },
-            InternalState::ScanningMarkup => self.scan_markup2(&bytes),
+            InternalState::ScanningMarkup => self.scan_markup2(bytes),
             InternalState::ScanningStartOrEmptyElementTag(quote_state, is_last_char_slash) => self
-                .scan_start_or_empty_element_tag(
-                    &bytes,
-                    quote_state,
-                    is_last_char_slash,
-                    Offset(0),
-                ),
+                .scan_start_or_empty_element_tag(bytes, quote_state, is_last_char_slash, Offset(0)),
             InternalState::ScanningEndTag(quote_state) => {
-                self.scan_end_tag(&bytes, quote_state, Offset(0))
+                self.scan_end_tag(bytes, quote_state, Offset(0))
             }
-            InternalState::ScanningCharacters => self.scan_text_content(&bytes),
+            InternalState::ScanningCharacters => self.scan_text_content(bytes),
             InternalState::ScanningProcessingInstruction(already_found_byte_seq_count) => {
-                self.scan_processing_instruction(&bytes, already_found_byte_seq_count, Offset(0))
+                self.scan_processing_instruction(bytes, already_found_byte_seq_count, Offset(0))
             }
             InternalState::ScanningDeclarationCommentOrCdata(filled_array, filled_count) => {
                 self.scan_declaration_comment_or_cdata(bytes, filled_array, filled_count, Offset(0))
@@ -765,13 +760,13 @@ mod tests {
     fn text_content() {
         let mut scanner = Scanner::new();
         let bytes = r"Hello".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningCharacters));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningCharacters));
         assert_eq!(scanner.state, InternalState::ScanningCharacters);
         let bytes = r"wo".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningCharacters));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningCharacters));
         let bytes = r"rld!<".as_bytes();
         assert_eq!(scanner.state, InternalState::ScanningCharacters);
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedCharacters(4)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedCharacters(4)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -779,10 +774,10 @@ mod tests {
     fn text_content_finish_on_empty_bytes() {
         let mut scanner = Scanner::new();
         let bytes = r"Hello".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningCharacters));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningCharacters));
         assert_eq!(scanner.state, InternalState::ScanningCharacters);
         let bytes = r"".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedCharacters(0)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedCharacters(0)));
         assert_eq!(scanner.state, InternalState::Eof);
         assert_eq!(scanner.scan(b"<hello>"), None);
         assert_eq!(scanner.state, InternalState::Eof);
@@ -792,7 +787,7 @@ mod tests {
     fn start_of_markup() {
         let mut scanner = Scanner::new();
         let bytes = r"<".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningMarkup));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningMarkup));
         assert_eq!(scanner.state, InternalState::ScanningMarkup);
     }
 
@@ -800,10 +795,10 @@ mod tests {
     fn start_of_markup_eof() {
         let mut scanner = Scanner::new();
         let bytes = r"<".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningMarkup));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningMarkup));
         assert_eq!(scanner.state, InternalState::ScanningMarkup);
         let bytes = r"".as_bytes();
-        assert_eq!(scanner.scan(&bytes), None);
+        assert_eq!(scanner.scan(bytes), None);
         assert_eq!(scanner.state, InternalState::Eof);
         assert_eq!(scanner.scan(b"<hello>"), None);
         assert_eq!(scanner.state, InternalState::Eof);
@@ -813,7 +808,7 @@ mod tests {
     fn start_tag_in_one_pass() {
         let mut scanner = Scanner::new();
         let bytes = r"<hello>".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedStartTag(7)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedStartTag(7)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -822,7 +817,7 @@ mod tests {
         let mut scanner = Scanner::new();
         let bytes = r"<hello".as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningStartOrEmptyElementTag)
         );
         assert_eq!(
@@ -830,7 +825,7 @@ mod tests {
             InternalState::ScanningStartOrEmptyElementTag(QuoteState::None, false)
         );
         let bytes = r"".as_bytes();
-        assert_eq!(scanner.scan(&bytes), None);
+        assert_eq!(scanner.scan(bytes), None);
         assert_eq!(scanner.state, InternalState::Eof);
         assert_eq!(scanner.scan(b"<hello>"), None);
         assert_eq!(scanner.state, InternalState::Eof);
@@ -840,12 +835,12 @@ mod tests {
     fn start_tag_with_only_markup_in_first_part() {
         let mut scanner = Scanner::new();
         let bytes = r"<".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningMarkup));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningMarkup));
         assert_eq!(scanner.state, InternalState::ScanningMarkup);
 
         let bytes = r"hello".as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningStartOrEmptyElementTag)
         );
         assert_eq!(
@@ -854,7 +849,7 @@ mod tests {
         );
 
         let bytes = r">Content".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedStartTag(1)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedStartTag(1)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -863,7 +858,7 @@ mod tests {
         let mut scanner = Scanner::new();
         let bytes = r"<hello".as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningStartOrEmptyElementTag)
         );
         assert_eq!(
@@ -872,7 +867,7 @@ mod tests {
         );
 
         let bytes = r">Some content".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedStartTag(1)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedStartTag(1)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -880,7 +875,7 @@ mod tests {
     fn start_tag_with_single_quotes_one_pass() {
         let mut scanner = Scanner::new();
         let bytes = r#"<hello a='val>'>Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedStartTag(16)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedStartTag(16)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -889,7 +884,7 @@ mod tests {
         let mut scanner = Scanner::new();
         let bytes = r#"<hello a='"#.as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningStartOrEmptyElementTag)
         );
         assert_eq!(
@@ -898,7 +893,7 @@ mod tests {
         );
 
         let bytes = r#"val>'>Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedStartTag(6)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedStartTag(6)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -906,7 +901,7 @@ mod tests {
     fn start_tag_with_double_quotes_one_pass() {
         let mut scanner = Scanner::new();
         let bytes = r#"<hello a="val>">Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedStartTag(16)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedStartTag(16)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -915,7 +910,7 @@ mod tests {
         let mut scanner = Scanner::new();
         let bytes = r#"<hello a=""#.as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningStartOrEmptyElementTag)
         );
         assert_eq!(
@@ -924,7 +919,7 @@ mod tests {
         );
 
         let bytes = r#"val>">Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedStartTag(6)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedStartTag(6)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -932,7 +927,7 @@ mod tests {
     fn empty_element_tag_in_one_pass() {
         let mut scanner = Scanner::new();
         let bytes = r"<hello/>".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedEmptyElementTag(8)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedEmptyElementTag(8)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -941,7 +936,7 @@ mod tests {
         let mut scanner = Scanner::new();
         let bytes = r"<hello/".as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningStartOrEmptyElementTag)
         );
         assert_eq!(
@@ -949,7 +944,7 @@ mod tests {
             InternalState::ScanningStartOrEmptyElementTag(QuoteState::None, true)
         );
         let bytes = r"".as_bytes();
-        assert_eq!(scanner.scan(&bytes), None);
+        assert_eq!(scanner.scan(bytes), None);
         assert_eq!(scanner.state, InternalState::Eof);
         assert_eq!(scanner.scan(b">"), None);
         assert_eq!(scanner.state, InternalState::Eof);
@@ -959,12 +954,12 @@ mod tests {
     fn empty_element_tag_with_slash_in_standalone_part() {
         let mut scanner = Scanner::new();
         let bytes = r"<".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningMarkup));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningMarkup));
         assert_eq!(scanner.state, InternalState::ScanningMarkup);
 
         let bytes = r"hello".as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningStartOrEmptyElementTag)
         );
         assert_eq!(
@@ -974,7 +969,7 @@ mod tests {
 
         let bytes = r"/".as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningStartOrEmptyElementTag)
         );
         assert_eq!(
@@ -983,7 +978,7 @@ mod tests {
         );
 
         let bytes = r">Content".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedEmptyElementTag(1)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedEmptyElementTag(1)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -991,12 +986,12 @@ mod tests {
     fn empty_element_tag_with_only_markup_in_first_part() {
         let mut scanner = Scanner::new();
         let bytes = r"<".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningMarkup));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningMarkup));
         assert_eq!(scanner.state, InternalState::ScanningMarkup);
 
         let bytes = r"hello".as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningStartOrEmptyElementTag)
         );
         assert_eq!(
@@ -1005,7 +1000,7 @@ mod tests {
         );
 
         let bytes = r"/>Content".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedEmptyElementTag(2)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedEmptyElementTag(2)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1013,10 +1008,7 @@ mod tests {
     fn empty_element_tag_with_double_quotes_one_pass() {
         let mut scanner = Scanner::new();
         let bytes = r#"<hello a="val/>"/>Content"#.as_bytes();
-        assert_eq!(
-            scanner.scan(&bytes),
-            Some(State::ScannedEmptyElementTag(18))
-        );
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedEmptyElementTag(18)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1025,7 +1017,7 @@ mod tests {
         let mut scanner = Scanner::new();
         let bytes = r#"<hello a=""#.as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningStartOrEmptyElementTag)
         );
         assert_eq!(
@@ -1034,7 +1026,7 @@ mod tests {
         );
 
         let bytes = r#"val/>"/>Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedEmptyElementTag(8)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedEmptyElementTag(8)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1043,7 +1035,7 @@ mod tests {
         let mut scanner = Scanner::new();
         let bytes = r#"<hello/"#.as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningStartOrEmptyElementTag)
         );
         assert_eq!(
@@ -1052,7 +1044,7 @@ mod tests {
         );
 
         let bytes = r#">Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedEmptyElementTag(1)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedEmptyElementTag(1)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1061,7 +1053,7 @@ mod tests {
         let mut scanner = Scanner::new();
         let bytes = r#"<hello attr='/"#.as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningStartOrEmptyElementTag)
         );
         assert_eq!(
@@ -1070,7 +1062,7 @@ mod tests {
         );
 
         let bytes = r#">'/>Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedEmptyElementTag(4)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedEmptyElementTag(4)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1079,7 +1071,7 @@ mod tests {
         let mut scanner = Scanner::new();
         let bytes = r#"<hello attr="/"#.as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningStartOrEmptyElementTag)
         );
         assert_eq!(
@@ -1088,7 +1080,7 @@ mod tests {
         );
 
         let bytes = r#">"/>Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedEmptyElementTag(4)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedEmptyElementTag(4)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1097,7 +1089,7 @@ mod tests {
         let mut scanner = Scanner::new();
         let bytes = r#"<hello/"#.as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningStartOrEmptyElementTag)
         );
         assert_eq!(
@@ -1106,7 +1098,7 @@ mod tests {
         );
 
         let bytes = r#" invalid>Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedStartTag(9)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedStartTag(9)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1114,7 +1106,7 @@ mod tests {
     fn end_tag_in_one_pass() {
         let mut scanner = Scanner::new();
         let bytes = r"</goodbye>".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedEndTag(10)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedEndTag(10)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1122,13 +1114,13 @@ mod tests {
     fn end_tag_eof() {
         let mut scanner = Scanner::new();
         let bytes = r"</hello".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningEndTag));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningEndTag));
         assert_eq!(
             scanner.state,
             InternalState::ScanningEndTag(QuoteState::None)
         );
         let bytes = r"".as_bytes();
-        assert_eq!(scanner.scan(&bytes), None);
+        assert_eq!(scanner.scan(bytes), None);
         assert_eq!(scanner.state, InternalState::Eof);
         assert_eq!(scanner.scan(b">"), None);
         assert_eq!(scanner.state, InternalState::Eof);
@@ -1138,18 +1130,18 @@ mod tests {
     fn end_tag_with_only_markup_in_first_part() {
         let mut scanner = Scanner::new();
         let bytes = r"<".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningMarkup));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningMarkup));
         assert_eq!(scanner.state, InternalState::ScanningMarkup);
 
         let bytes = r"/goodbye".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningEndTag));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningEndTag));
         assert_eq!(
             scanner.state,
             InternalState::ScanningEndTag(QuoteState::None)
         );
 
         let bytes = r">Content".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedEndTag(1)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedEndTag(1)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1157,18 +1149,18 @@ mod tests {
     fn end_tag_with_slash_as_only_part() {
         let mut scanner = Scanner::new();
         let bytes = r"<".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningMarkup));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningMarkup));
         assert_eq!(scanner.state, InternalState::ScanningMarkup);
 
         let bytes = r"/".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningEndTag));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningEndTag));
         assert_eq!(
             scanner.state,
             InternalState::ScanningEndTag(QuoteState::None)
         );
 
         let bytes = r"goodbye>Content".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedEndTag(8)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedEndTag(8)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1176,14 +1168,14 @@ mod tests {
     fn end_tag_in_parts() {
         let mut scanner = Scanner::new();
         let bytes = r"</goodbye".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningEndTag));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningEndTag));
         assert_eq!(
             scanner.state,
             InternalState::ScanningEndTag(QuoteState::None)
         );
 
         let bytes = r">Some content".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedEndTag(1)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedEndTag(1)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1191,7 +1183,7 @@ mod tests {
     fn end_tag_with_single_quotes_one_pass() {
         let mut scanner = Scanner::new();
         let bytes = r#"</goodbye a='val>'>Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedEndTag(19)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedEndTag(19)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1199,14 +1191,14 @@ mod tests {
     fn end_tag_with_single_quotes_in_parts() {
         let mut scanner = Scanner::new();
         let bytes = r#"</goodbye a='"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningEndTag));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningEndTag));
         assert_eq!(
             scanner.state,
             InternalState::ScanningEndTag(QuoteState::Single)
         );
 
         let bytes = r#"val>'>Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedEndTag(6)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedEndTag(6)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1214,7 +1206,7 @@ mod tests {
     fn end_tag_with_double_quotes_one_pass() {
         let mut scanner = Scanner::new();
         let bytes = r#"</goodbye a="val>">Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedEndTag(19)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedEndTag(19)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1222,14 +1214,14 @@ mod tests {
     fn end_tag_with_double_quotes_in_parts() {
         let mut scanner = Scanner::new();
         let bytes = r#"</goodbye a=""#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningEndTag));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningEndTag));
         assert_eq!(
             scanner.state,
             InternalState::ScanningEndTag(QuoteState::Double)
         );
 
         let bytes = r#"val>">Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedEndTag(6)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedEndTag(6)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1238,7 +1230,7 @@ mod tests {
         let mut scanner = Scanner::new();
         let bytes = r#"<?test a="b" ?>"#.as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScannedProcessingInstruction(15))
         );
         assert_eq!(scanner.state, InternalState::Reset);
@@ -1249,7 +1241,7 @@ mod tests {
         let mut scanner = Scanner::new();
         let bytes = r#"<?test a="b" ?"#.as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningProcessingInstruction)
         );
         assert_eq!(
@@ -1257,7 +1249,7 @@ mod tests {
             InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(1))
         );
         let bytes = r"".as_bytes();
-        assert_eq!(scanner.scan(&bytes), None);
+        assert_eq!(scanner.scan(bytes), None);
         assert_eq!(scanner.state, InternalState::Eof);
         assert_eq!(scanner.scan(b">"), None);
         assert_eq!(scanner.state, InternalState::Eof);
@@ -1267,12 +1259,12 @@ mod tests {
     fn pi_with_only_markup_in_first_part() {
         let mut scanner = Scanner::new();
         let bytes = r"<".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningMarkup));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningMarkup));
         assert_eq!(scanner.state, InternalState::ScanningMarkup);
 
         let bytes = r"?test".as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningProcessingInstruction)
         );
         assert_eq!(
@@ -1282,7 +1274,7 @@ mod tests {
 
         let bytes = r"?>Content".as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScannedProcessingInstruction(2))
         );
         assert_eq!(scanner.state, InternalState::Reset);
@@ -1292,12 +1284,12 @@ mod tests {
     fn pi_with_question_mark_as_only_part() {
         let mut scanner = Scanner::new();
         let bytes = r"<".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningMarkup));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningMarkup));
         assert_eq!(scanner.state, InternalState::ScanningMarkup);
 
         let bytes = r"?".as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningProcessingInstruction)
         );
         assert_eq!(
@@ -1307,7 +1299,7 @@ mod tests {
 
         let bytes = r"test ?>Content".as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScannedProcessingInstruction(7))
         );
         assert_eq!(scanner.state, InternalState::Reset);
@@ -1318,7 +1310,7 @@ mod tests {
         let mut scanner = Scanner::new();
         let bytes = r"<?test".as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningProcessingInstruction)
         );
         assert_eq!(
@@ -1328,7 +1320,7 @@ mod tests {
 
         let bytes = r">invalid?>Some content".as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScannedProcessingInstruction(10))
         );
         assert_eq!(scanner.state, InternalState::Reset);
@@ -1339,7 +1331,7 @@ mod tests {
         let mut scanner = Scanner::new();
         let bytes = r"<?".as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningProcessingInstruction)
         );
         assert_eq!(
@@ -1349,7 +1341,7 @@ mod tests {
 
         let bytes = r">invalid?>Some content".as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScannedProcessingInstruction(10))
         );
         assert_eq!(scanner.state, InternalState::Reset);
@@ -1360,7 +1352,7 @@ mod tests {
         let mut scanner = Scanner::new();
         let bytes = r"<?test".as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningProcessingInstruction)
         );
         assert_eq!(
@@ -1370,7 +1362,7 @@ mod tests {
 
         let bytes = r"?".as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningProcessingInstruction)
         );
         assert_eq!(
@@ -1380,7 +1372,7 @@ mod tests {
 
         let bytes = r#" > a="v""#.as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningProcessingInstruction)
         );
         assert_eq!(
@@ -1390,7 +1382,7 @@ mod tests {
 
         let bytes = r#"?"#.as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningProcessingInstruction)
         );
         assert_eq!(
@@ -1400,7 +1392,7 @@ mod tests {
 
         let bytes = r#">"#.as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScannedProcessingInstruction(1))
         );
         assert_eq!(scanner.state, InternalState::Reset);
@@ -1411,7 +1403,7 @@ mod tests {
         let mut scanner = Scanner::new();
         let bytes = r#"<?goodbye a='val>'?>Content"#.as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScannedProcessingInstruction(20))
         );
         assert_eq!(scanner.state, InternalState::Reset);
@@ -1422,7 +1414,7 @@ mod tests {
         let mut scanner = Scanner::new();
         let bytes = r#"<?goodbye a='?"#.as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningProcessingInstruction)
         );
         assert_eq!(
@@ -1432,7 +1424,7 @@ mod tests {
 
         let bytes = r#"val?>'?>Content"#.as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScannedProcessingInstruction(5))
         );
         assert_eq!(scanner.state, InternalState::Reset);
@@ -1443,7 +1435,7 @@ mod tests {
         let mut scanner = Scanner::new();
         let bytes = r#"<?goodbye a="val?>"?>Content"#.as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScannedProcessingInstruction(18))
         );
         assert_eq!(scanner.state, InternalState::Reset);
@@ -1454,7 +1446,7 @@ mod tests {
         let mut scanner = Scanner::new();
         let bytes = r#"<?goodbye a="?"#.as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningProcessingInstruction)
         );
         assert_eq!(
@@ -1464,7 +1456,7 @@ mod tests {
 
         let bytes = r#"val?>"?>Content"#.as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScannedProcessingInstruction(5))
         );
         assert_eq!(scanner.state, InternalState::Reset);
@@ -1475,7 +1467,7 @@ mod tests {
         let mut scanner = Scanner::new();
         let bytes = r#"<?>"#.as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningProcessingInstruction)
         );
         assert_eq!(
@@ -1489,7 +1481,7 @@ mod tests {
         let mut scanner = Scanner::new();
         let bytes = r#"<?"#.as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningProcessingInstruction)
         );
         assert_eq!(
@@ -1499,7 +1491,7 @@ mod tests {
 
         let bytes = r#">"#.as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningProcessingInstruction)
         );
         assert_eq!(
@@ -1513,7 +1505,7 @@ mod tests {
         let mut scanner = Scanner::new();
         let bytes = r#"<!DOCTYPE test [<!ELEMENT test (#PCDATA)>]>"#.as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScannedDeclaration(bytes.len()))
         );
         assert_eq!(scanner.state, InternalState::Reset);
@@ -1523,7 +1515,7 @@ mod tests {
     fn declaration_eof() {
         let mut scanner = Scanner::new();
         let bytes = r#"<!DOCTYPE test ["#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningDeclaration));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningDeclaration));
         assert_eq!(
             scanner.state,
             InternalState::ScanningDeclaration(
@@ -1533,7 +1525,7 @@ mod tests {
             )
         );
         let bytes = r"".as_bytes();
-        assert_eq!(scanner.scan(&bytes), None);
+        assert_eq!(scanner.scan(bytes), None);
         assert_eq!(scanner.state, InternalState::Eof);
         assert_eq!(scanner.scan(b">"), None);
         assert_eq!(scanner.state, InternalState::Eof);
@@ -1543,11 +1535,11 @@ mod tests {
     fn declaration_with_only_markup_in_first_part() {
         let mut scanner = Scanner::new();
         let bytes = r"<".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningMarkup));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningMarkup));
         assert_eq!(scanner.state, InternalState::ScanningMarkup);
 
         let bytes = r"!ELEMENT".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningDeclaration));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningDeclaration));
         assert_eq!(
             scanner.state,
             InternalState::ScanningDeclaration(
@@ -1558,7 +1550,7 @@ mod tests {
         );
 
         let bytes = r">Content".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedDeclaration(1)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedDeclaration(1)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1566,12 +1558,12 @@ mod tests {
     fn declaration_with_exclamation_as_only_part() {
         let mut scanner = Scanner::new();
         let bytes = r"<".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningMarkup));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningMarkup));
         assert_eq!(scanner.state, InternalState::ScanningMarkup);
 
         let bytes = r"!".as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningDeclarationCommentOrCdata)
         );
         assert_eq!(
@@ -1580,7 +1572,7 @@ mod tests {
         );
 
         let bytes = r"test >Content".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedDeclaration(6)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedDeclaration(6)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1588,7 +1580,7 @@ mod tests {
     fn declaration_in_parts() {
         let mut scanner = Scanner::new();
         let bytes = r"<!test".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningDeclaration));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningDeclaration));
         assert_eq!(
             scanner.state,
             InternalState::ScanningDeclaration(
@@ -1599,7 +1591,7 @@ mod tests {
         );
 
         let bytes = r">Some content".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedDeclaration(1)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedDeclaration(1)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1607,7 +1599,7 @@ mod tests {
     fn declaration_with_single_quotes_one_pass() {
         let mut scanner = Scanner::new();
         let bytes = r#"<!goodbye a='val>'>Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedDeclaration(19)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedDeclaration(19)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1615,7 +1607,7 @@ mod tests {
     fn declaration_with_single_quotes_in_parts() {
         let mut scanner = Scanner::new();
         let bytes = r#"<!goodbye a='>"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningDeclaration));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningDeclaration));
         assert_eq!(
             scanner.state,
             InternalState::ScanningDeclaration(
@@ -1626,7 +1618,7 @@ mod tests {
         );
 
         let bytes = r#"val>'>Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedDeclaration(6)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedDeclaration(6)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1634,7 +1626,7 @@ mod tests {
     fn declaration_with_double_quotes_one_pass() {
         let mut scanner = Scanner::new();
         let bytes = r#"<!goodbye a="val>">Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedDeclaration(19)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedDeclaration(19)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1642,7 +1634,7 @@ mod tests {
     fn declaration_with_double_quotes_in_parts() {
         let mut scanner = Scanner::new();
         let bytes = r#"<!goodbye a=">"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningDeclaration));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningDeclaration));
         assert_eq!(
             scanner.state,
             InternalState::ScanningDeclaration(
@@ -1653,7 +1645,7 @@ mod tests {
         );
 
         let bytes = r#"val>">Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedDeclaration(6)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedDeclaration(6)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1662,7 +1654,7 @@ mod tests {
         let mut scanner = Scanner::new();
         let bytes = r#"<![%test;[<!ELEMENT test (something*)>]]>"#.as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScannedDeclaration(bytes.len()))
         );
         assert_eq!(scanner.state, InternalState::Reset);
@@ -1672,7 +1664,7 @@ mod tests {
     fn declaration_with_unclosed_single_bracket() {
         let mut scanner = Scanner::new();
         let bytes = r#"<![test>"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningDeclaration));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningDeclaration));
         assert_eq!(
             scanner.state,
             InternalState::ScanningDeclaration(
@@ -1683,7 +1675,7 @@ mod tests {
         );
 
         let bytes = r#">] >Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedDeclaration(4)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedDeclaration(4)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1691,7 +1683,7 @@ mod tests {
     fn declaration_with_unclosed_double_bracket() {
         let mut scanner = Scanner::new();
         let bytes = r#"<![test>"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningDeclaration));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningDeclaration));
         assert_eq!(
             scanner.state,
             InternalState::ScanningDeclaration(
@@ -1702,7 +1694,7 @@ mod tests {
         );
 
         let bytes = r#"[more"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningDeclaration));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningDeclaration));
         assert_eq!(
             scanner.state,
             InternalState::ScanningDeclaration(
@@ -1713,7 +1705,7 @@ mod tests {
         );
 
         let bytes = r#">] >Content>"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningDeclaration));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningDeclaration));
         assert_eq!(
             scanner.state,
             InternalState::ScanningDeclaration(
@@ -1724,7 +1716,7 @@ mod tests {
         );
 
         let bytes = r#">] >Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedDeclaration(4)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedDeclaration(4)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1733,7 +1725,7 @@ mod tests {
         let mut scanner = Scanner::new();
         let bytes = r#"<!-- Comment -->"#.as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScannedComment(bytes.len()))
         );
         assert_eq!(scanner.state, InternalState::Reset);
@@ -1743,13 +1735,13 @@ mod tests {
     fn comment_eof() {
         let mut scanner = Scanner::new();
         let bytes = r#"<!-- Comment"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningComment));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningComment));
         assert_eq!(
             scanner.state,
             InternalState::ScanningComment(AlreadyFoundByteSeqCount(0))
         );
         let bytes = r"".as_bytes();
-        assert_eq!(scanner.scan(&bytes), None);
+        assert_eq!(scanner.scan(bytes), None);
         assert_eq!(scanner.state, InternalState::Eof);
         assert_eq!(scanner.scan(b">"), None);
         assert_eq!(scanner.state, InternalState::Eof);
@@ -1759,18 +1751,18 @@ mod tests {
     fn comment_with_only_markup_in_first_part() {
         let mut scanner = Scanner::new();
         let bytes = r"<".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningMarkup));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningMarkup));
         assert_eq!(scanner.state, InternalState::ScanningMarkup);
 
         let bytes = r"!--".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningComment));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningComment));
         assert_eq!(
             scanner.state,
             InternalState::ScanningComment(AlreadyFoundByteSeqCount(0))
         );
 
         let bytes = r" Comment --> Content".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedComment(12)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedComment(12)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1778,12 +1770,12 @@ mod tests {
     fn comment_with_exclamation_as_only_part() {
         let mut scanner = Scanner::new();
         let bytes = r"<".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningMarkup));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningMarkup));
         assert_eq!(scanner.state, InternalState::ScanningMarkup);
 
         let bytes = r"!".as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningDeclarationCommentOrCdata)
         );
         assert_eq!(
@@ -1792,7 +1784,7 @@ mod tests {
         );
 
         let bytes = r"-- Comment -->Content".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedComment(14)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedComment(14)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1800,14 +1792,14 @@ mod tests {
     fn comment_in_parts() {
         let mut scanner = Scanner::new();
         let bytes = r"<!-- test".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningComment));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningComment));
         assert_eq!(
             scanner.state,
             InternalState::ScanningComment(AlreadyFoundByteSeqCount(0))
         );
 
         let bytes = r" -->Some content".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedComment(4)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedComment(4)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1815,7 +1807,7 @@ mod tests {
     fn comment_with_single_quotes_one_pass() {
         let mut scanner = Scanner::new();
         let bytes = r#"<!-- goodbye a='val-->'-->Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedComment(22)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedComment(22)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1823,14 +1815,14 @@ mod tests {
     fn comment_with_single_quotes_in_parts() {
         let mut scanner = Scanner::new();
         let bytes = r#"<!--goodbye a='--"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningComment));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningComment));
         assert_eq!(
             scanner.state,
             InternalState::ScanningComment(AlreadyFoundByteSeqCount(2))
         );
 
         let bytes = r#"val>'-->Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedComment(8)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedComment(8)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1838,7 +1830,7 @@ mod tests {
     fn comment_with_double_quotes_one_pass() {
         let mut scanner = Scanner::new();
         let bytes = r#"<!--goodbye a="val-->"-->Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedComment(21)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedComment(21)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1846,14 +1838,14 @@ mod tests {
     fn comment_with_double_quotes_in_parts() {
         let mut scanner = Scanner::new();
         let bytes = r#"<!--goodbye a="--"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningComment));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningComment));
         assert_eq!(
             scanner.state,
             InternalState::ScanningComment(AlreadyFoundByteSeqCount(2))
         );
 
         let bytes = r#"val-->"-->Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedComment(6)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedComment(6)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1861,7 +1853,7 @@ mod tests {
     fn comment_with_invalid_start() {
         let mut scanner = Scanner::new();
         let bytes = r#"<!-goodbye a="-->"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningDeclaration));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningDeclaration));
         assert_eq!(
             scanner.state,
             InternalState::ScanningDeclaration(
@@ -1872,7 +1864,7 @@ mod tests {
         );
 
         let bytes = r#"val-->">Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedDeclaration(8)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedDeclaration(8)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1880,14 +1872,14 @@ mod tests {
     fn comment_with_double_dash_inside() {
         let mut scanner = Scanner::new();
         let bytes = r#"<!--goodbye a="--"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningComment));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningComment));
         assert_eq!(
             scanner.state,
             InternalState::ScanningComment(AlreadyFoundByteSeqCount(2))
         );
 
         let bytes = r#"val-->"-- test -->Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedComment(6)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedComment(6)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1895,21 +1887,21 @@ mod tests {
     fn comment_with_single_dash() {
         let mut scanner = Scanner::new();
         let bytes = r#"<!--goodbye a="--"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningComment));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningComment));
         assert_eq!(
             scanner.state,
             InternalState::ScanningComment(AlreadyFoundByteSeqCount(2))
         );
 
         let bytes = r#"val--" test ->Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningComment));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningComment));
         assert_eq!(
             scanner.state,
             InternalState::ScanningComment(AlreadyFoundByteSeqCount(0))
         );
 
         let bytes = r#"More -->Real Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedComment(8)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedComment(8)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1917,28 +1909,28 @@ mod tests {
     fn comment_with_split_terminating_delimiter() {
         let mut scanner = Scanner::new();
         let bytes = r#"<!--goodbye a="--"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningComment));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningComment));
         assert_eq!(
             scanner.state,
             InternalState::ScanningComment(AlreadyFoundByteSeqCount(2))
         );
 
         let bytes = r#"val->" -"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningComment));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningComment));
         assert_eq!(
             scanner.state,
             InternalState::ScanningComment(AlreadyFoundByteSeqCount(1))
         );
 
         let bytes = r#"-"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningComment));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningComment));
         assert_eq!(
             scanner.state,
             InternalState::ScanningComment(AlreadyFoundByteSeqCount(2))
         );
 
         let bytes = r#">"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedComment(1)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedComment(1)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1946,14 +1938,14 @@ mod tests {
     fn comment_not_reused_dashes() {
         let mut scanner = Scanner::new();
         let bytes = r#"<!-->"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningComment));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningComment));
         assert_eq!(
             scanner.state,
             InternalState::ScanningComment(AlreadyFoundByteSeqCount(0))
         );
 
         let bytes = r#"-->"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedComment(3)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedComment(3)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1961,14 +1953,14 @@ mod tests {
     fn comment_not_reused_dashes_across_scans() {
         let mut scanner = Scanner::new();
         let bytes = r#"<!--"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningComment));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningComment));
         assert_eq!(
             scanner.state,
             InternalState::ScanningComment(AlreadyFoundByteSeqCount(0))
         );
 
         let bytes = r#">"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningComment));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningComment));
         assert_eq!(
             scanner.state,
             InternalState::ScanningComment(AlreadyFoundByteSeqCount(0))
@@ -1979,7 +1971,7 @@ mod tests {
     fn cdata_in_one_pass() {
         let mut scanner = Scanner::new();
         let bytes = r#"<![CDATA[ Content ]]>"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedCdata(bytes.len())));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedCdata(bytes.len())));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -1988,7 +1980,7 @@ mod tests {
         let mut scanner = Scanner::new();
         let bytes = r#"<![&random[ Declaration ]]]>"#.as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScannedDeclaration(bytes.len()))
         );
         assert_eq!(scanner.state, InternalState::Reset);
@@ -1998,13 +1990,13 @@ mod tests {
     fn cdata_eof() {
         let mut scanner = Scanner::new();
         let bytes = r#"<![CDATA[ Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningCdata));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningCdata));
         assert_eq!(
             scanner.state,
             InternalState::ScanningCdata(AlreadyFoundByteSeqCount(0))
         );
         let bytes = r"".as_bytes();
-        assert_eq!(scanner.scan(&bytes), None);
+        assert_eq!(scanner.scan(bytes), None);
         assert_eq!(scanner.state, InternalState::Eof);
         assert_eq!(scanner.scan(b"]]>"), None);
         assert_eq!(scanner.state, InternalState::Eof);
@@ -2014,12 +2006,12 @@ mod tests {
     fn cdata_with_only_markup_in_first_part() {
         let mut scanner = Scanner::new();
         let bytes = r"<".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningMarkup));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningMarkup));
         assert_eq!(scanner.state, InternalState::ScanningMarkup);
 
         let bytes = r"![CDAT".as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningDeclarationCommentOrCdata)
         );
         assert_eq!(
@@ -2031,7 +2023,7 @@ mod tests {
         );
 
         let bytes = r"A[ Content ]]> Unused Content".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedCdata(14)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedCdata(14)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -2039,12 +2031,12 @@ mod tests {
     fn cdata_with_exclamation_as_only_part() {
         let mut scanner = Scanner::new();
         let bytes = r"<".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningMarkup));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningMarkup));
         assert_eq!(scanner.state, InternalState::ScanningMarkup);
 
         let bytes = r"!".as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningDeclarationCommentOrCdata)
         );
         assert_eq!(
@@ -2053,7 +2045,7 @@ mod tests {
         );
 
         let bytes = r"[CDATA[ Content ]]>Content".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedCdata(19)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedCdata(19)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -2062,7 +2054,7 @@ mod tests {
         let mut scanner = Scanner::new();
         let bytes = r"<![CDA".as_bytes();
         assert_eq!(
-            scanner.scan(&bytes),
+            scanner.scan(bytes),
             Some(State::ScanningDeclarationCommentOrCdata)
         );
         assert_eq!(
@@ -2071,7 +2063,7 @@ mod tests {
         );
 
         let bytes = r"TA[ Content ]]>Some content".as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedCdata(15)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedCdata(15)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -2079,7 +2071,7 @@ mod tests {
     fn cdata_with_single_quotes_one_pass() {
         let mut scanner = Scanner::new();
         let bytes = r#"<![CDATA[ Content ']]>']]>Unused Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedCdata(22)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedCdata(22)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -2087,14 +2079,14 @@ mod tests {
     fn cdata_with_single_quotes_in_parts() {
         let mut scanner = Scanner::new();
         let bytes = r#"<![CDATA[ ']>"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningCdata));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningCdata));
         assert_eq!(
             scanner.state,
             InternalState::ScanningCdata(AlreadyFoundByteSeqCount(0))
         );
 
         let bytes = r#"]>']]>Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedCdata(6)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedCdata(6)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -2102,7 +2094,7 @@ mod tests {
     fn cdata_with_double_quotes_one_pass() {
         let mut scanner = Scanner::new();
         let bytes = r#"<![CDATA[ goodbye a="]]>"]]>Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedCdata(24)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedCdata(24)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -2110,14 +2102,14 @@ mod tests {
     fn cdata_with_double_quotes_in_parts() {
         let mut scanner = Scanner::new();
         let bytes = r#"<![CDATA[ a="]>"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningCdata));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningCdata));
         assert_eq!(
             scanner.state,
             InternalState::ScanningCdata(AlreadyFoundByteSeqCount(0))
         );
 
         let bytes = r#"]>"]]>Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedCdata(6)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedCdata(6)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -2126,7 +2118,7 @@ mod tests {
         let mut scanner = Scanner::new();
         // missing "["
         let bytes = r#"<![CDATA Content a="]]>"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningDeclaration));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningDeclaration));
         assert_eq!(
             scanner.state,
             InternalState::ScanningDeclaration(
@@ -2137,7 +2129,7 @@ mod tests {
         );
 
         let bytes = r#"]]>"]]>Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedDeclaration(7)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedDeclaration(7)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -2145,14 +2137,14 @@ mod tests {
     fn cdata_with_double_right_bracket_inside() {
         let mut scanner = Scanner::new();
         let bytes = r#"<![CDATA[ Content a="]>"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningCdata));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningCdata));
         assert_eq!(
             scanner.state,
             InternalState::ScanningCdata(AlreadyFoundByteSeqCount(0))
         );
 
         let bytes = r#"other ]]"]] test ]]>Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedCdata(20)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedCdata(20)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -2160,21 +2152,21 @@ mod tests {
     fn cdata_with_single_closing_bracket() {
         let mut scanner = Scanner::new();
         let bytes = r#"<![CDATA[ Content a="]>"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningCdata));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningCdata));
         assert_eq!(
             scanner.state,
             InternalState::ScanningCdata(AlreadyFoundByteSeqCount(0))
         );
 
         let bytes = r#"]>" test ]>Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningCdata));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningCdata));
         assert_eq!(
             scanner.state,
             InternalState::ScanningCdata(AlreadyFoundByteSeqCount(0))
         );
 
         let bytes = r#"More ]]>Real Content"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedCdata(8)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedCdata(8)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 
@@ -2182,28 +2174,28 @@ mod tests {
     fn cdata_with_split_terminating_delimiter() {
         let mut scanner = Scanner::new();
         let bytes = r#"<![CDATA[ goodbye a="]>"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningCdata));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningCdata));
         assert_eq!(
             scanner.state,
             InternalState::ScanningCdata(AlreadyFoundByteSeqCount(0))
         );
 
         let bytes = r#"val]>" ]"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningCdata));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningCdata));
         assert_eq!(
             scanner.state,
             InternalState::ScanningCdata(AlreadyFoundByteSeqCount(1))
         );
 
         let bytes = r#"]"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScanningCdata));
+        assert_eq!(scanner.scan(bytes), Some(State::ScanningCdata));
         assert_eq!(
             scanner.state,
             InternalState::ScanningCdata(AlreadyFoundByteSeqCount(2))
         );
 
         let bytes = r#">"#.as_bytes();
-        assert_eq!(scanner.scan(&bytes), Some(State::ScannedCdata(1)));
+        assert_eq!(scanner.scan(bytes), Some(State::ScannedCdata(1)));
         assert_eq!(scanner.state, InternalState::Reset);
     }
 }

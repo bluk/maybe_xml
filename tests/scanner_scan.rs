@@ -17,7 +17,7 @@ fn scanner_scan(bytes: &[u8], expected_states: &[State]) {
     let mut scanner = Scanner::new();
     let mut expected_state_iter = expected_states.iter();
 
-    while let Some(state) = scanner.scan(&bytes) {
+    while let Some(state) = scanner.scan(bytes) {
         assert_eq!(Some(state).as_ref(), expected_state_iter.next());
 
         match state {
@@ -81,7 +81,7 @@ fn scanner_scan_2(bytes: &[u8]) {
     let mut bytes = bytes;
     let mut scanner = Scanner::new();
 
-    while let Some(state) = scanner.scan(&bytes) {
+    while let Some(state) = scanner.scan(bytes) {
         println!("{:?} - {}", state, bytes.len());
 
         match state {

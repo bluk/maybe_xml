@@ -262,20 +262,15 @@ impl StartTag {
         let index = self
             .bytes
             .iter()
-            .position(|b| super::is_space(*b))
-            .unwrap_or_else(|| self.bytes.len() - 1);
+            .position(|b| super::is_space(*b)).unwrap_or(self.bytes.len() - 1);
         TagName::from(&self.bytes[1..index])
     }
 
     /// The attributes of the tag.
     pub fn attributes(&self) -> Option<Attributes<'_>> {
-        if let Some(index) = self.bytes.iter().position(|b| super::is_space(*b)) {
-            Some(Attributes::from(
+        self.bytes.iter().position(|b| super::is_space(*b)).map(|index| Attributes::from(
                 &self.bytes[index + 1..self.bytes.len() - 1],
             ))
-        } else {
-            None
-        }
     }
 }
 
@@ -294,20 +289,15 @@ impl EmptyElementTag {
         let index = self
             .bytes
             .iter()
-            .position(|b| super::is_space(*b))
-            .unwrap_or_else(|| self.bytes.len() - 2);
+            .position(|b| super::is_space(*b)).unwrap_or(self.bytes.len() - 2);
         TagName::from(&self.bytes[1..index])
     }
 
     /// The attributes of the tag.
     pub fn attributes(&self) -> Option<Attributes<'_>> {
-        if let Some(index) = self.bytes.iter().position(|b| super::is_space(*b)) {
-            Some(Attributes::from(
+        self.bytes.iter().position(|b| super::is_space(*b)).map(|index| Attributes::from(
                 &self.bytes[index + 1..self.bytes.len() - 2],
             ))
-        } else {
-            None
-        }
     }
 }
 
@@ -324,8 +314,7 @@ impl EndTag {
         let index = self
             .bytes
             .iter()
-            .position(|b| super::is_space(*b))
-            .unwrap_or_else(|| self.bytes.len() - 1);
+            .position(|b| super::is_space(*b)).unwrap_or(self.bytes.len() - 1);
         TagName::from(&self.bytes[2..index])
     }
 }
@@ -359,20 +348,15 @@ impl ProcessingInstruction {
         let index = self
             .bytes
             .iter()
-            .position(|b| super::is_space(*b))
-            .unwrap_or_else(|| self.bytes.len() - 2);
+            .position(|b| super::is_space(*b)).unwrap_or(self.bytes.len() - 2);
         Target::from(&self.bytes[2..index])
     }
 
     /// The instructions of the tag.
     pub fn instructions(&self) -> Option<Instructions<'_>> {
-        if let Some(index) = self.bytes.iter().position(|b| super::is_space(*b)) {
-            Some(Instructions::from(
+        self.bytes.iter().position(|b| super::is_space(*b)).map(|index| Instructions::from(
                 &self.bytes[index + 1..self.bytes.len() - 2],
             ))
-        } else {
-            None
-        }
     }
 }
 

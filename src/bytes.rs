@@ -142,7 +142,7 @@ pub(crate) fn quote_context_aware_find(
         } else {
             debug_assert_eq!(read, buf.len());
             let already_found_byte_seq_count = match quote_state {
-                QuoteState::None => find_matching_suffix(byte_seq, &buf),
+                QuoteState::None => find_matching_suffix(byte_seq, buf),
                 QuoteState::Single | QuoteState::Double => AlreadyFoundByteSeqCount(0),
             };
             return (
@@ -315,7 +315,7 @@ pub(crate) fn quote_and_bracket_context_aware_find(
         } else {
             debug_assert_eq!(read, buf.len());
             let already_found_byte_seq_count = match (bracket_count.0 == 0, quote_state) {
-                (true, QuoteState::None) => find_matching_suffix(byte_seq, &buf),
+                (true, QuoteState::None) => find_matching_suffix(byte_seq, buf),
                 _ => AlreadyFoundByteSeqCount(0),
             };
             return (

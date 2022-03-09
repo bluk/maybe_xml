@@ -18,7 +18,7 @@ fn scanner_scan(bytes: &[u8]) {
 
     let mut bytes = bytes;
     let mut scanner = Scanner::new();
-    while let Some(state) = scanner.scan(&bytes) {
+    while let Some(state) = scanner.scan(bytes) {
         match state {
             State::ScanningMarkup => {
                 bytes = &bytes[bytes.len()..];
@@ -83,7 +83,7 @@ fn recv_buf_reader_recv_and_next_token(bytes: &[u8]) {
     let mut bytes = bytes;
 
     loop {
-        let read = eval.recv(&bytes);
+        let read = eval.recv(bytes);
         bytes = &bytes[read..];
         if let Ok(token) = eval.next_token() {
             if let Some(token) = token {
