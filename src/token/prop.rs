@@ -183,7 +183,10 @@ impl<'a> TagName<'a> {
     ///
     /// For example if `xml:example` was the tag name, then `xml` would be the namespace prefix.
     pub fn namespace_prefix(&self) -> Option<NamespacePrefix<'a>> {
-        self.bytes.iter().position(|b| *b == b':').map(|index| NamespacePrefix {
+        self.bytes
+            .iter()
+            .position(|b| *b == b':')
+            .map(|index| NamespacePrefix {
                 bytes: &self.bytes[..index],
             })
     }
