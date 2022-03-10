@@ -146,7 +146,10 @@ fn scanner_scan_simple_1_xml() {
         SIMPLE_1_XML_BYTES,
         &[
             State::ScannedProcessingInstruction(21),
+            #[cfg(not(target_os = "windows"))]
             State::ScannedCharacters(1),
+            #[cfg(target_os = "windows")]
+            State::ScannedCharacters(2),
             State::ScannedStartTag(10),
             State::ScannedCharacters(12),
             State::ScannedEndTag(11),
@@ -158,6 +161,7 @@ fn scanner_scan_simple_1_xml() {
 fn scanner_scan_svg_1_xml() {
     scanner_scan(
         SVG_1_XML_BYTES,
+        #[cfg(not(target_os = "windows"))]
         &[
             State::ScannedProcessingInstruction(21),
             State::ScannedCharacters(1),
@@ -167,6 +171,18 @@ fn scanner_scan_svg_1_xml() {
             State::ScannedCharacters(3),
             State::ScannedEmptyElementTag(84),
             State::ScannedCharacters(1),
+            State::ScannedEndTag(6),
+        ],
+        #[cfg(target_os = "windows")]
+        &[
+            State::ScannedProcessingInstruction(21),
+            State::ScannedCharacters(2),
+            State::ScannedDeclaration(101),
+            State::ScannedCharacters(4),
+            State::ScannedStartTag(71),
+            State::ScannedCharacters(4),
+            State::ScannedEmptyElementTag(85),
+            State::ScannedCharacters(2),
             State::ScannedEndTag(6),
         ],
     );

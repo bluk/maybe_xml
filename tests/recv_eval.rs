@@ -64,7 +64,10 @@ fn recv_eval_simple_1_xml() {
             Token::ProcessingInstruction(ProcessingInstruction::from(
                 r#"<?xml version="1.0"?>"#.as_bytes(),
             )),
+            #[cfg(not(target_os = "windows"))]
             Token::Characters(Characters::from("\n".as_bytes())),
+            #[cfg(target_os = "windows")]
+            Token::Characters(Characters::from("\r\n".as_bytes())),
             Token::StartTag(StartTag::from(r#"<document>"#.as_bytes())),
             Token::Characters(Characters::from(r#"Hello world!"#.as_bytes())),
             Token::EndTag(EndTag::from(r#"</document>"#.as_bytes())),
@@ -78,6 +81,7 @@ fn recv_eval_simple_1_xml() {
 fn recv_eval_svg_1_xml() {
     recv_eval(
         SVG_1_XML_BYTES,
+        #[cfg(not(target_os = "windows"))]
         &[
             Token::ProcessingInstruction(ProcessingInstruction::from(
                 r#"<?xml version="1.0"?>"#.as_bytes(),
@@ -89,6 +93,21 @@ fn recv_eval_svg_1_xml() {
             Token::Characters(Characters::from("\n  ".as_bytes())),
             Token::EmptyElementTag(EmptyElementTag::from("<circle cx=\"400\" cy=\"400\" r=\"50\" stroke=\"blue\"\n    stroke-width=\"1\" fill=\"yellow\" />".as_bytes())),
             Token::Characters(Characters::from("\n".as_bytes())),
+            Token::EndTag(EndTag::from("</svg>".as_bytes())),
+            Token::Eof,
+        ],
+        #[cfg(target_os = "windows")]
+        &[
+            Token::ProcessingInstruction(ProcessingInstruction::from(
+                r#"<?xml version="1.0"?>"#.as_bytes(),
+            )),
+            Token::Characters(Characters::from("\r\n".as_bytes())),
+            Token::Declaration(Declaration::from("<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\"\r\n  \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">".as_bytes())),
+            Token::Characters(Characters::from("\r\n\r\n".as_bytes())),
+            Token::StartTag(StartTag::from("<svg xmlns=\"http://www.w3.org/2000/svg\"\r\n     width=\"800\" height=\"800\">".as_bytes())),
+            Token::Characters(Characters::from("\r\n  ".as_bytes())),
+            Token::EmptyElementTag(EmptyElementTag::from("<circle cx=\"400\" cy=\"400\" r=\"50\" stroke=\"blue\"\r\n    stroke-width=\"1\" fill=\"yellow\" />".as_bytes())),
+            Token::Characters(Characters::from("\r\n".as_bytes())),
             Token::EndTag(EndTag::from("</svg>".as_bytes())),
             Token::Eof,
         ],

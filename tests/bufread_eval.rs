@@ -15,9 +15,9 @@ use maybe_xml::{
 };
 
 #[cfg(feature = "std")]
-const SIMPLE_1_XML_STR: &str = include_str!("../tests/resources/simple-1.xml");
+const SIMPLE_1_XML_BYTES: &[u8] = include_bytes!("../tests/resources/simple-1.xml");
 #[cfg(feature = "std")]
-const SVG_1_XML_STR: &str = include_str!("../tests/resources/svg-1.xml");
+const SVG_1_XML_BYTES: &[u8] = include_bytes!("../tests/resources/svg-1.xml");
 
 #[cfg(feature = "std")]
 fn bufread_eval(bytes: &[u8], expected_tokens: &[Token]) {
@@ -54,14 +54,16 @@ fn bufread_eval(bytes: &[u8], expected_tokens: &[Token]) {
 #[cfg(feature = "std")]
 #[test]
 fn bufread_eval_simple_1_xml() {
-    let simple_1_xml_string = SIMPLE_1_XML_STR.replace("\r\n", "\n");
     bufread_eval(
-        simple_1_xml_string.as_bytes(),
+        SIMPLE_1_XML_BYTES,
         &[
             Token::ProcessingInstruction(ProcessingInstruction::from(
                 r#"<?xml version="1.0"?>"#.as_bytes(),
             )),
+            #[cfg(not(target_os = "windows"))]
             Token::Characters(Characters::from("\n".as_bytes())),
+            #[cfg(target_os = "windows")]
+            Token::Characters(Characters::from("\r\n".as_bytes())),
             Token::StartTag(StartTag::from(r#"<document>"#.as_bytes())),
             Token::Characters(Characters::from(r#"Hello world!"#.as_bytes())),
             Token::EndTag(EndTag::from(r#"</document>"#.as_bytes())),
@@ -73,9 +75,9 @@ fn bufread_eval_simple_1_xml() {
 #[cfg(feature = "std")]
 #[test]
 fn bufread_eval_svg_1_xml() {
-    let svg_1_xml_string = SVG_1_XML_STR.replace("\r\n", "\n");
     bufread_eval(
-        svg_1_xml_string.as_bytes(),
+        SVG_1_XML_BYTES,
+        #[cfg(not(target_os = "windows"))]
         &[
             Token::ProcessingInstruction(ProcessingInstruction::from(
                 r#"<?xml version="1.0"?>"#.as_bytes(),
@@ -87,6 +89,21 @@ fn bufread_eval_svg_1_xml() {
             Token::Characters(Characters::from("\n  ".as_bytes())),
             Token::EmptyElementTag(EmptyElementTag::from("<circle cx=\"400\" cy=\"400\" r=\"50\" stroke=\"blue\"\n    stroke-width=\"1\" fill=\"yellow\" />".as_bytes())),
             Token::Characters(Characters::from("\n".as_bytes())),
+            Token::EndTag(EndTag::from("</svg>".as_bytes())),
+            Token::Eof,
+        ],
+        #[cfg(target_os = "windows")]
+        &[
+            Token::ProcessingInstruction(ProcessingInstruction::from(
+                r#"<?xml version="1.0"?>"#.as_bytes(),
+            )),
+            Token::Characters(Characters::from("\r\n".as_bytes())),
+            Token::Declaration(Declaration::from("<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\"\r\n  \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">".as_bytes())),
+            Token::Characters(Characters::from("\r\n\r\n".as_bytes())),
+            Token::StartTag(StartTag::from("<svg xmlns=\"http://www.w3.org/2000/svg\"\r\n     width=\"800\" height=\"800\">".as_bytes())),
+            Token::Characters(Characters::from("\r\n  ".as_bytes())),
+            Token::EmptyElementTag(EmptyElementTag::from("<circle cx=\"400\" cy=\"400\" r=\"50\" stroke=\"blue\"\r\n    stroke-width=\"1\" fill=\"yellow\" />".as_bytes())),
+            Token::Characters(Characters::from("\r\n".as_bytes())),
             Token::EndTag(EndTag::from("</svg>".as_bytes())),
             Token::Eof,
         ],
