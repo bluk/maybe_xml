@@ -37,7 +37,7 @@ By default, features which depend on the Rust `std` library are included.
 
 ```toml
 [dependencies]
-maybe_xml = "0.1"
+maybe_xml = "0.2.0"
 ```
 
 ### Alloc Only
@@ -46,7 +46,7 @@ If the host environment has an allocator but does not have access to the Rust `s
 
 ```toml
 [dependencies]
-maybe_xml = { version = "0.1", default-features = false, features = ["alloc"]}
+maybe_xml = { version = "0.2.0", default-features = false, features = ["alloc"]}
 ```
 
 Most of the library, except for `Evaluator`s which rely on `std` types (such as `std::io::BufRead`),
@@ -58,7 +58,7 @@ If the host environment does not have an allocator:
 
 ```toml
 [dependencies]
-maybe_xml = { version = "0.1", default-features = false }
+maybe_xml = { version = "0.2.0", default-features = false }
 ```
 
 The `Scanner` and the borrowed versions of the tokens are available.
