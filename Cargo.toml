@@ -4,9 +4,11 @@ version = "0.1.0"
 license = "MIT OR Apache-2.0"
 authors = ["Bryant Luk <code@bryantluk.com>"]
 description = "XML processing library"
-edition = "2018"
+edition = "2021"
 repository = "https://github.com/bluk/maybe_xml"
-keywords = ["xml", "parser", "parsing", "pull-parser"]
+documentation = "https://docs.rs/maybe_xml"
+keywords = ["xml", "parser", "parsing", "text", "encoding"]
+categories = ["encoding", "parser-implementations", "parsing", "text-processing", "no-std"]
 readme = "README.md"
 include = [
   "src/**/*.rs",
