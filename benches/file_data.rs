@@ -100,7 +100,6 @@ fn recv_buf_reader_recv_and_next_token(bytes: &[u8]) {
                         break;
                     }
                     Token::EofWithBytesNotEvaluated(_bytes_not_evaluated) => break,
-                    _ => {}
                 }
             } else {
                 break;
@@ -134,7 +133,6 @@ fn io_buf_reader_next_token(bytes: &[u8]) {
                 Token::EofWithBytesNotEvaluated(_bytes_not_evaluated) => {
                     break;
                 }
-                _ => {}
             }
         } else {
             break;
@@ -163,7 +161,6 @@ fn io_buf_reader_into_iter_next(bytes: &[u8]) {
                     break;
                 }
                 Token::EofWithBytesNotEvaluated(_bytes_not_evaluated) => break,
-                _ => {}
             }
         } else {
             break;

@@ -222,7 +222,6 @@ macro_rules! converters {
 
 /// Scanned byte values associated with a type.
 #[derive(Clone, Debug, PartialEq)]
-#[non_exhaustive]
 pub enum Token {
     /// A start tag like `<hello>`.
     StartTag(StartTag),

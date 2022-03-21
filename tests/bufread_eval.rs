@@ -42,7 +42,6 @@ fn bufread_eval(bytes: &[u8], expected_tokens: &[Token]) {
                     break;
                 }
                 Token::EofWithBytesNotEvaluated(_bytes_not_evaluated) => {}
-                _ => {}
             }
         } else {
             break;
