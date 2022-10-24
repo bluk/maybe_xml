@@ -152,80 +152,31 @@ where
                         BytesNotEvaluated::from(&self.buffer),
                     )));
                 }
-                Some(State::ScanningMarkup) => {
+                Some(
+                    State::ScanningMarkup
+                    | State::ScanningStartOrEmptyElementTag
+                    | State::ScanningCharacters
+                    | State::ScanningEndTag
+                    | State::ScanningProcessingInstruction
+                    | State::ScanningDeclarationCommentOrCdata
+                    | State::ScanningDeclaration
+                    | State::ScanningComment
+                    | State::ScanningCdata,
+                ) => {
                     self.buffer.extend_from_slice(bytes);
                     let bytes_len = bytes.len();
-                    self.position += u64::try_from(bytes_len)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", bytes_len));
-                    self.reader.consume(bytes_len);
-                }
-                Some(State::ScanningStartOrEmptyElementTag) => {
-                    self.buffer.extend_from_slice(bytes);
-                    let bytes_len = bytes.len();
-                    self.position += u64::try_from(bytes_len)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", bytes_len));
-                    self.reader.consume(bytes_len);
-                }
-                Some(State::ScanningCharacters) => {
-                    self.buffer.extend_from_slice(bytes);
-                    let bytes_len = bytes.len();
-                    self.position += u64::try_from(bytes_len)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", bytes_len));
-                    self.reader.consume(bytes_len);
-                }
-                Some(State::ScanningEndTag) => {
-                    self.buffer.extend_from_slice(bytes);
-                    let bytes_len = bytes.len();
-                    self.position += u64::try_from(bytes_len)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", bytes_len));
-                    self.reader.consume(bytes_len);
-                }
-                Some(State::ScanningProcessingInstruction) => {
-                    self.buffer.extend_from_slice(bytes);
-                    let bytes_len = bytes.len();
-                    self.position += u64::try_from(bytes_len)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", bytes_len));
-                    self.reader.consume(bytes_len);
-                }
-                Some(State::ScanningDeclarationCommentOrCdata) => {
-                    self.buffer.extend_from_slice(bytes);
-                    let bytes_len = bytes.len();
-                    self.position += u64::try_from(bytes_len)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", bytes_len));
-                    self.reader.consume(bytes_len);
-                }
-                Some(State::ScanningDeclaration) => {
-                    self.buffer.extend_from_slice(bytes);
-                    let bytes_len = bytes.len();
-                    self.position += u64::try_from(bytes_len)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", bytes_len));
-                    self.reader.consume(bytes_len);
-                }
-                Some(State::ScanningComment) => {
-                    self.buffer.extend_from_slice(bytes);
-                    let bytes_len = bytes.len();
-                    self.position += u64::try_from(bytes_len)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", bytes_len));
-                    self.reader.consume(bytes_len);
-                }
-                Some(State::ScanningCdata) => {
-                    self.buffer.extend_from_slice(bytes);
-                    let bytes_len = bytes.len();
-                    self.position += u64::try_from(bytes_len)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", bytes_len));
+                    self.position += u64::try_from(bytes_len).expect("bytes_len > u64::MAX");
                     self.reader.consume(bytes_len);
                 }
                 Some(State::ScannedStartTag(read)) => {
                     self.buffer.extend_from_slice(&bytes[..read]);
-                    self.position += u64::try_from(read)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", read));
+                    self.position += u64::try_from(read).expect("read > u64::MAX");
                     self.reader.consume(read);
                     return Ok(Some(Token::StartTag(StartTag::from(&self.buffer))));
                 }
                 Some(State::ScannedEmptyElementTag(read)) => {
                     self.buffer.extend_from_slice(&bytes[..read]);
-                    self.position += u64::try_from(read)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", read));
+                    self.position += u64::try_from(read).expect("read > u64::MAX");
                     self.reader.consume(read);
                     return Ok(Some(Token::EmptyElementTag(EmptyElementTag::from(
                         &self.buffer,
@@ -233,22 +184,19 @@ where
                 }
                 Some(State::ScannedEndTag(read)) => {
                     self.buffer.extend_from_slice(&bytes[..read]);
-                    self.position += u64::try_from(read)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", read));
+                    self.position += u64::try_from(read).expect("read > u64::MAX");
                     self.reader.consume(read);
                     return Ok(Some(Token::EndTag(EndTag::from(&self.buffer))));
                 }
                 Some(State::ScannedCharacters(read)) => {
                     self.buffer.extend_from_slice(&bytes[..read]);
-                    self.position += u64::try_from(read)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", read));
+                    self.position += u64::try_from(read).expect("read > u64::MAX");
                     self.reader.consume(read);
                     return Ok(Some(Token::Characters(Characters::from(&self.buffer))));
                 }
                 Some(State::ScannedProcessingInstruction(read)) => {
                     self.buffer.extend_from_slice(&bytes[..read]);
-                    self.position += u64::try_from(read)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", read));
+                    self.position += u64::try_from(read).expect("read > u64::MAX");
                     self.reader.consume(read);
                     return Ok(Some(Token::ProcessingInstruction(
                         ProcessingInstruction::from(&self.buffer),
@@ -256,22 +204,19 @@ where
                 }
                 Some(State::ScannedDeclaration(read)) => {
                     self.buffer.extend_from_slice(&bytes[..read]);
-                    self.position += u64::try_from(read)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", read));
+                    self.position += u64::try_from(read).expect("read > u64::MAX");
                     self.reader.consume(read);
                     return Ok(Some(Token::Declaration(Declaration::from(&self.buffer))));
                 }
                 Some(State::ScannedComment(read)) => {
                     self.buffer.extend_from_slice(&bytes[..read]);
-                    self.position += u64::try_from(read)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", read));
+                    self.position += u64::try_from(read).expect("read > u64::MAX");
                     self.reader.consume(read);
                     return Ok(Some(Token::Comment(Comment::from(&self.buffer))));
                 }
                 Some(State::ScannedCdata(read)) => {
                     self.buffer.extend_from_slice(&bytes[..read]);
-                    self.position += u64::try_from(read)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", read));
+                    self.position += u64::try_from(read).expect("read > u64::MAX");
                     self.reader.consume(read);
                     return Ok(Some(Token::Cdata(Cdata::from(&self.buffer))));
                 }
@@ -441,101 +386,49 @@ where
                         buf,
                     )));
                 }
-                Some(State::ScanningMarkup) => {
+                Some(
+                    State::ScanningMarkup
+                    | State::ScanningStartOrEmptyElementTag
+                    | State::ScanningCharacters
+                    | State::ScanningEndTag
+                    | State::ScanningProcessingInstruction
+                    | State::ScanningDeclarationCommentOrCdata
+                    | State::ScanningDeclaration
+                    | State::ScanningComment
+                    | State::ScanningCdata,
+                ) => {
                     buf.extend_from_slice(bytes);
                     let bytes_len = bytes.len();
-                    self.reader.position += u64::try_from(bytes_len)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", bytes_len));
-                    self.reader.reader.consume(bytes_len);
-                }
-                Some(State::ScanningStartOrEmptyElementTag) => {
-                    buf.extend_from_slice(bytes);
-                    let bytes_len = bytes.len();
-                    self.reader.position += u64::try_from(bytes_len)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", bytes_len));
-                    self.reader.reader.consume(bytes_len);
-                }
-                Some(State::ScanningCharacters) => {
-                    buf.extend_from_slice(bytes);
-                    let bytes_len = bytes.len();
-                    self.reader.position += u64::try_from(bytes_len)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", bytes_len));
-                    self.reader.reader.consume(bytes_len);
-                }
-                Some(State::ScanningEndTag) => {
-                    buf.extend_from_slice(bytes);
-                    let bytes_len = bytes.len();
-                    self.reader.position += u64::try_from(bytes_len)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", bytes_len));
-                    self.reader.reader.consume(bytes_len);
-                }
-                Some(State::ScanningProcessingInstruction) => {
-                    buf.extend_from_slice(bytes);
-                    let bytes_len = bytes.len();
-                    self.reader.position += u64::try_from(bytes_len)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", bytes_len));
-                    self.reader.reader.consume(bytes_len);
-                }
-                Some(State::ScanningDeclarationCommentOrCdata) => {
-                    buf.extend_from_slice(bytes);
-                    let bytes_len = bytes.len();
-                    self.reader.position += u64::try_from(bytes_len)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", bytes_len));
-                    self.reader.reader.consume(bytes_len);
-                }
-                Some(State::ScanningDeclaration) => {
-                    buf.extend_from_slice(bytes);
-                    let bytes_len = bytes.len();
-                    self.reader.position += u64::try_from(bytes_len)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", bytes_len));
-                    self.reader.reader.consume(bytes_len);
-                }
-                Some(State::ScanningComment) => {
-                    buf.extend_from_slice(bytes);
-                    let bytes_len = bytes.len();
-                    self.reader.position += u64::try_from(bytes_len)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", bytes_len));
-                    self.reader.reader.consume(bytes_len);
-                }
-                Some(State::ScanningCdata) => {
-                    buf.extend_from_slice(bytes);
-                    let bytes_len = bytes.len();
-                    self.reader.position += u64::try_from(bytes_len)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", bytes_len));
+                    self.reader.position += u64::try_from(bytes_len).expect("bytes_len > u64::MAX");
                     self.reader.reader.consume(bytes_len);
                 }
                 Some(State::ScannedStartTag(read)) => {
                     buf.extend_from_slice(&bytes[..read]);
-                    self.reader.position += u64::try_from(read)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", read));
+                    self.reader.position += u64::try_from(read).expect("read > u64::MAX");
                     self.reader.reader.consume(read);
                     return Some(Token::StartTag(StartTag::from(buf)));
                 }
                 Some(State::ScannedEmptyElementTag(read)) => {
                     buf.extend_from_slice(&bytes[..read]);
-                    self.reader.position += u64::try_from(read)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", read));
+                    self.reader.position += u64::try_from(read).expect("read > u64::MAX");
                     self.reader.reader.consume(read);
                     return Some(Token::EmptyElementTag(EmptyElementTag::from(buf)));
                 }
                 Some(State::ScannedEndTag(read)) => {
                     buf.extend_from_slice(&bytes[..read]);
-                    self.reader.position += u64::try_from(read)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", read));
+                    self.reader.position += u64::try_from(read).expect("read > u64::MAX");
                     self.reader.reader.consume(read);
                     return Some(Token::EndTag(EndTag::from(buf)));
                 }
                 Some(State::ScannedCharacters(read)) => {
                     buf.extend_from_slice(&bytes[..read]);
-                    self.reader.position += u64::try_from(read)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", read));
+                    self.reader.position += u64::try_from(read).expect("read > u64::MAX");
                     self.reader.reader.consume(read);
                     return Some(Token::Characters(Characters::from(buf)));
                 }
                 Some(State::ScannedProcessingInstruction(read)) => {
                     buf.extend_from_slice(&bytes[..read]);
-                    self.reader.position += u64::try_from(read)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", read));
+                    self.reader.position += u64::try_from(read).expect("read > u64::MAX");
                     self.reader.reader.consume(read);
                     return Some(Token::ProcessingInstruction(ProcessingInstruction::from(
                         buf,
@@ -543,22 +436,19 @@ where
                 }
                 Some(State::ScannedDeclaration(read)) => {
                     buf.extend_from_slice(&bytes[..read]);
-                    self.reader.position += u64::try_from(read)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", read));
+                    self.reader.position += u64::try_from(read).expect("read > u64::MAX");
                     self.reader.reader.consume(read);
                     return Some(Token::Declaration(Declaration::from(buf)));
                 }
                 Some(State::ScannedComment(read)) => {
                     buf.extend_from_slice(&bytes[..read]);
-                    self.reader.position += u64::try_from(read)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", read));
+                    self.reader.position += u64::try_from(read).expect("read > u64::MAX");
                     self.reader.reader.consume(read);
                     return Some(Token::Comment(Comment::from(buf)));
                 }
                 Some(State::ScannedCdata(read)) => {
                     buf.extend_from_slice(&bytes[..read]);
-                    self.reader.position += u64::try_from(read)
-                        .unwrap_or_else(|_| panic!("{} to be <= u64::MAX", read));
+                    self.reader.position += u64::try_from(read).expect("read > u64::MAX");
                     self.reader.reader.consume(read);
                     return Some(Token::Cdata(Cdata::from(buf)));
                 }

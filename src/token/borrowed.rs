@@ -39,6 +39,10 @@ macro_rules! converters {
             }
 
             /// The token represented as a str.
+            ///
+            /// # Errors
+            ///
+            /// If the bytes are not a UTF-8 string.
             pub fn to_str(&self) -> Result<&str, str::Utf8Error> {
                 str::from_utf8(&self.bytes)
             }
