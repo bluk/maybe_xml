@@ -30,6 +30,7 @@ macro_rules! converters {
     ($name:ident, false) => {
         impl<'a> $name<'a> {
             /// All of the bytes representing the token.
+            #[must_use]
             pub fn as_bytes(&self) -> &[u8] {
                 self.bytes
             }
@@ -41,6 +42,7 @@ macro_rules! converters {
 
             /// The token as a new `Vec`.
             #[cfg(any(feature = "alloc", feature = "std"))]
+            #[must_use]
             pub fn to_vec(&self) -> Vec<u8> {
                 self.bytes.to_vec()
             }
@@ -169,6 +171,7 @@ impl<'a> TagName<'a> {
     ///
     /// For example, if `xml:example` was the tag name, then `example` would be the local part of the name.
     /// If there is no namespace prefix, the entire name is returned.
+    #[must_use]
     pub fn local(&self) -> LocalName<'a> {
         if let Some(index) = self.bytes.iter().position(|b| *b == b':') {
             LocalName {
@@ -182,6 +185,7 @@ impl<'a> TagName<'a> {
     /// The namespace prefix if available.
     ///
     /// For example if `xml:example` was the tag name, then `xml` would be the namespace prefix.
+    #[must_use]
     pub fn namespace_prefix(&self) -> Option<NamespacePrefix<'a>> {
         self.bytes
             .iter()
@@ -224,6 +228,7 @@ pub struct Attributes<'a> {
 
 impl<'a> Attributes<'a> {
     /// Returns an iterator which can be used to find all of the individual attributes.
+    #[must_use]
     pub fn iter(&self) -> AttributeIter<'a> {
         AttributeIter {
             bytes: self.bytes,
@@ -265,7 +270,7 @@ fn iter_attr(mut index: usize, bytes: &[u8]) -> (usize, Option<Attribute<'_>>) {
                     QuoteState::Double => {
                         if saw_equals {
                             let attr = Attribute {
-                                bytes: &bytes[index + begin..index + begin + loop_index + 1],
+                                bytes: &bytes[(index + begin)..=(index + begin + loop_index)],
                             };
                             index += begin + loop_index + 1;
                             return (index, Some(attr));
@@ -277,7 +282,7 @@ fn iter_attr(mut index: usize, bytes: &[u8]) -> (usize, Option<Attribute<'_>>) {
                     QuoteState::Single => {
                         if saw_equals {
                             let attr = Attribute {
-                                bytes: &bytes[index + begin..index + begin + loop_index + 1],
+                                bytes: &bytes[(index + begin)..=(index + begin + loop_index)],
                             };
                             index += begin + loop_index + 1;
                             return (index, Some(attr));
@@ -308,17 +313,17 @@ fn iter_attr(mut index: usize, bytes: &[u8]) -> (usize, Option<Attribute<'_>>) {
                     } else if saw_space_before_equals {
                         if let Some(last_seen_char) = last_nonspace_index_before_equals {
                             let attr = Attribute {
-                                bytes: &bytes[index + begin..index + begin + last_seen_char + 1],
-                            };
-                            index += begin + loop_index;
-                            return (index, Some(attr));
-                        } else {
-                            let attr = Attribute {
-                                bytes: &bytes[index + begin..index + begin + loop_index],
+                                bytes: &bytes[(index + begin)..=(index + begin + last_seen_char)],
                             };
                             index += begin + loop_index;
                             return (index, Some(attr));
                         }
+
+                        let attr = Attribute {
+                            bytes: &bytes[index + begin..index + begin + loop_index],
+                        };
+                        index += begin + loop_index;
+                        return (index, Some(attr));
                     } else {
                         last_nonspace_index_before_equals = Some(loop_index);
                     }
@@ -375,6 +380,7 @@ pub struct Attribute<'a> {
 
 impl<'a> Attribute<'a> {
     /// The attribute's name.
+    #[must_use]
     pub fn name(&self) -> AttributeName<'_> {
         if let Some(index) = self.bytes.iter().position(|b| *b == b'=') {
             if let Some(last_nonspace) = self.bytes[..index]
@@ -382,7 +388,7 @@ impl<'a> Attribute<'a> {
                 .rposition(|b| !super::is_space(*b))
             {
                 return AttributeName {
-                    bytes: &self.bytes[..last_nonspace + 1],
+                    bytes: &self.bytes[..=last_nonspace],
                 };
             }
         }
@@ -390,6 +396,7 @@ impl<'a> Attribute<'a> {
     }
 
     /// The optional attribute value with the quotes removed.
+    #[must_use]
     pub fn value(&self) -> Option<AttributeValue<'_>> {
         if let Some(index) = self.bytes.iter().position(|b| *b == b'=') {
             let mut quote_state = QuoteState::None;
@@ -437,7 +444,7 @@ impl<'a> Attribute<'a> {
             }
 
             first_nonspace.map(|begin| AttributeValue {
-                bytes: &self.bytes[index + 1 + begin..index + 1 + last_nonspace + 1],
+                bytes: &self.bytes[(index + 1 + begin)..=(index + 1 + last_nonspace)],
             })
         } else {
             None
@@ -462,19 +469,20 @@ impl<'a> AttributeName<'a> {
     ///
     /// For example, if `xml:example` was the attribute name, then `example` would be the local part of the name.
     /// If there is no namespace prefix, the entire name is returned.
+    #[must_use]
     pub fn local(&self) -> LocalName<'a> {
-        self.bytes
-            .iter()
-            .position(|b| *b == b':')
-            .map(|index| LocalName {
+        self.bytes.iter().position(|b| *b == b':').map_or_else(
+            || LocalName { bytes: self.bytes },
+            |index| LocalName {
                 bytes: &self.bytes[index + 1..],
-            })
-            .unwrap_or_else(|| LocalName { bytes: self.bytes })
+            },
+        )
     }
 
     /// The namespace prefix if available.
     ///
     /// For example if `xml:example` was the attribute name, then `xml` would be the namespace prefix.
+    #[must_use]
     pub fn namespace_prefix(&self) -> Option<NamespacePrefix<'a>> {
         self.bytes
             .iter()

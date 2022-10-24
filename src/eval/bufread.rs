@@ -147,11 +147,10 @@ where
                     self.is_eof = true;
                     if self.buffer.is_empty() {
                         return Ok(Some(Token::Eof));
-                    } else {
-                        return Ok(Some(Token::EofWithBytesNotEvaluated(
-                            BytesNotEvaluated::from(&self.buffer),
-                        )));
                     }
+                    return Ok(Some(Token::EofWithBytesNotEvaluated(
+                        BytesNotEvaluated::from(&self.buffer),
+                    )));
                 }
                 Some(State::ScanningMarkup) => {
                     self.buffer.extend_from_slice(bytes);
@@ -437,11 +436,10 @@ where
                     self.reader.is_eof = true;
                     if buf.is_empty() {
                         return Some(Token::Eof);
-                    } else {
-                        return Some(Token::EofWithBytesNotEvaluated(BytesNotEvaluated::from(
-                            buf,
-                        )));
                     }
+                    return Some(Token::EofWithBytesNotEvaluated(BytesNotEvaluated::from(
+                        buf,
+                    )));
                 }
                 Some(State::ScanningMarkup) => {
                     buf.extend_from_slice(bytes);
@@ -961,7 +959,7 @@ mod tests {
     }
 
     #[test]
-    fn iter_empty() -> Result<()> {
+    fn iter_empty() {
         use crate::token::owned::Token;
 
         let xml = r"";
@@ -970,11 +968,10 @@ mod tests {
         assert_eq!(iter.position(), 0);
         assert_eq!(iter.next(), None);
         assert_eq!(iter.position(), 0);
-        Ok(())
     }
 
     #[test]
-    fn iter_characters_content() -> Result<()> {
+    fn iter_characters_content() {
         use crate::token::owned::{Characters, Token};
 
         let xml = r"hello world";
@@ -987,11 +984,10 @@ mod tests {
         assert_eq!(iter.position(), 11);
         assert_eq!(iter.next(), None);
         assert_eq!(iter.position(), 11);
-        Ok(())
     }
 
     #[test]
-    fn iter_start_tag() -> Result<()> {
+    fn iter_start_tag() {
         use crate::token::owned::{StartTag, Token};
 
         let xml = r"<hello>";
@@ -1004,11 +1000,10 @@ mod tests {
         assert_eq!(iter.position(), 7);
         assert_eq!(iter.next(), None);
         assert_eq!(iter.position(), 7);
-        Ok(())
     }
 
     #[test]
-    fn iter_start_tag_with_double_quote_attribute() -> Result<()> {
+    fn iter_start_tag_with_double_quote_attribute() {
         use crate::token::owned::{StartTag, Token};
 
         let xml = r#"<hello name="rust">"#;
@@ -1021,11 +1016,10 @@ mod tests {
         assert_eq!(iter.position(), 19);
         assert_eq!(iter.next(), None);
         assert_eq!(iter.position(), 19);
-        Ok(())
     }
 
     #[test]
-    fn iter_start_tag_with_double_quote_attribute_with_angle_bracket() -> Result<()> {
+    fn iter_start_tag_with_double_quote_attribute_with_angle_bracket() {
         use crate::token::owned::{StartTag, Token};
 
         let xml = r#"<hello name="ru>st">"#;
@@ -1038,11 +1032,10 @@ mod tests {
         assert_eq!(iter.position(), 20);
         assert_eq!(iter.next(), None);
         assert_eq!(iter.position(), 20);
-        Ok(())
     }
 
     #[test]
-    fn iter_start_tag_with_single_quote_attribute() -> Result<()> {
+    fn iter_start_tag_with_single_quote_attribute() {
         use crate::token::owned::{StartTag, Token};
 
         let xml = r#"<hello name='rust'>"#;
@@ -1055,11 +1048,10 @@ mod tests {
         assert_eq!(iter.position(), 19);
         assert_eq!(iter.next(), None);
         assert_eq!(iter.position(), 19);
-        Ok(())
     }
 
     #[test]
-    fn iter_start_tag_with_single_quote_attribute_with_angle_bracket() -> Result<()> {
+    fn iter_start_tag_with_single_quote_attribute_with_angle_bracket() {
         use crate::token::owned::{StartTag, Token};
 
         let xml = r#"<hello name='ru>st'>"#;
@@ -1072,11 +1064,10 @@ mod tests {
         assert_eq!(iter.position(), 20);
         assert_eq!(iter.next(), None);
         assert_eq!(iter.position(), 20);
-        Ok(())
     }
 
     #[test]
-    fn iter_end_tag() -> Result<()> {
+    fn iter_end_tag() {
         use crate::token::owned::{EndTag, Token};
 
         let xml = r"</goodbye>";
@@ -1089,11 +1080,10 @@ mod tests {
         assert_eq!(iter.position(), 10);
         assert_eq!(iter.next(), None);
         assert_eq!(iter.position(), 10);
-        Ok(())
     }
 
     #[test]
-    fn iter_empty_end_tag() -> Result<()> {
+    fn iter_empty_end_tag() {
         use crate::token::owned::{EndTag, Token};
 
         let xml = r"</>";
@@ -1106,11 +1096,10 @@ mod tests {
         assert_eq!(iter.position(), 3);
         assert_eq!(iter.next(), None);
         assert_eq!(iter.position(), 3);
-        Ok(())
     }
 
     #[test]
-    fn iter_empty_element_tag() -> Result<()> {
+    fn iter_empty_element_tag() {
         use crate::token::owned::{EmptyElementTag, Token};
 
         let xml = r"<standalone/>";
@@ -1123,11 +1112,10 @@ mod tests {
         assert_eq!(iter.position(), 13);
         assert_eq!(iter.next(), None);
         assert_eq!(iter.position(), 13);
-        Ok(())
     }
 
     #[test]
-    fn iter_processing_instruction() -> Result<()> {
+    fn iter_processing_instruction() {
         use crate::token::owned::{ProcessingInstruction, Token};
 
         let xml = r#"<?xml-stylesheet type="text/css" href="example.css"?>"#;
@@ -1145,11 +1133,10 @@ mod tests {
         assert_eq!(iter.position(), 53);
         assert_eq!(iter.next(), None);
         assert_eq!(iter.position(), 53);
-        Ok(())
     }
 
     #[test]
-    fn iter_declaration() -> Result<()> {
+    fn iter_declaration() {
         use crate::token::owned::{Declaration, Token};
 
         let xml = r#"<!DOCTYPE example>"#;
@@ -1162,11 +1149,10 @@ mod tests {
         assert_eq!(iter.position(), 18);
         assert_eq!(iter.next(), None);
         assert_eq!(iter.position(), 18);
-        Ok(())
     }
 
     #[test]
-    fn iter_comment() -> Result<()> {
+    fn iter_comment() {
         use crate::token::owned::{Comment, Token};
 
         let xml = r#"<!-- Example -->"#;
@@ -1179,11 +1165,10 @@ mod tests {
         assert_eq!(iter.position(), 16);
         assert_eq!(iter.next(), None);
         assert_eq!(iter.position(), 16);
-        Ok(())
     }
 
     #[test]
-    fn iter_cdata() -> Result<()> {
+    fn iter_cdata() {
         use crate::token::owned::{Cdata, Token};
 
         let xml = r#"<![CDATA[ <Example> ]]>"#;
@@ -1196,11 +1181,10 @@ mod tests {
         assert_eq!(iter.position(), 23);
         assert_eq!(iter.next(), None);
         assert_eq!(iter.position(), 23);
-        Ok(())
     }
 
     #[test]
-    fn iter_bytes_not_evaluated() -> Result<()> {
+    fn iter_bytes_not_evaluated() {
         use crate::token::owned::{BytesNotEvaluated, Token};
 
         let xml = r#"<unfinished name="xml""#;
@@ -1214,11 +1198,10 @@ mod tests {
         assert_eq!(iter.position(), 22);
         assert_eq!(iter.next(), None);
         assert_eq!(iter.position(), 22);
-        Ok(())
     }
 
     #[test]
-    fn iter_simple_xml_read() -> Result<()> {
+    fn iter_simple_xml_read() {
         use crate::token::owned::{Characters, EmptyElementTag, EndTag, StartTag, Token};
 
         let xml = r#"<hello name="rust">Welcome!<goodbye/></hello><abcd></abcd>"#;
@@ -1253,12 +1236,10 @@ mod tests {
 
         assert_eq!(iter.next(), None);
         assert_eq!(iter.position(), 58);
-
-        Ok(())
     }
 
     #[test]
-    fn iter_simple_xml_read_with_space() -> Result<()> {
+    fn iter_simple_xml_read_with_space() {
         use crate::token::owned::{Characters, EmptyElementTag, EndTag, StartTag, Token};
 
         let xml = r#"   <hello name="rust"> Welcome! <goodbye  />  </hello>  <abcd> </abcd> "#;
@@ -1314,7 +1295,5 @@ mod tests {
 
         assert_eq!(iter.next(), None);
         assert_eq!(iter.position(), 71);
-
-        Ok(())
     }
 }

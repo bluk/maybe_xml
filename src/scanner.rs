@@ -117,7 +117,7 @@ pub enum State {
 /// slice parameters. An empty byte slice indicates the end of the byte stream.
 /// After an empty byte slice is given to the `scan` method, the `scan` method
 /// will always return `None`.
-#[derive(Debug, Clone, PartialEq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Scanner {
     /// What the scanner is working on.
     state: InternalState,
@@ -125,13 +125,14 @@ pub struct Scanner {
 
 impl Scanner {
     /// Instantiates a new scanner for a new byte stream.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             state: InternalState::Reset,
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn scan_markup(&mut self, bytes: &[u8]) -> Option<State> {
         if let Some(next) = bytes::peek2(bytes) {
             match next {
@@ -151,7 +152,7 @@ impl Scanner {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     fn scan_markup2(&mut self, bytes: &[u8]) -> Option<State> {
         if let Some(next) = bytes::peek(bytes) {
             match next {
@@ -369,9 +370,7 @@ impl Scanner {
                                     bracket_count += 1;
                                 }
                                 b']' => {
-                                    if bracket_count > 0 {
-                                        bracket_count -= 1;
-                                    }
+                                    bracket_count = bracket_count.saturating_sub(1);
                                 }
                                 _ => {}
                             }
@@ -584,18 +583,18 @@ impl Scanner {
         }
     }
 
-    fn scan_text_content(&mut self, bytes: &[u8]) -> Option<State> {
+    fn scan_text_content(&mut self, bytes: &[u8]) -> State {
         if bytes.is_empty() {
             self.state = InternalState::Eof;
             // reached this state because there was previous text content
             // so return a "finished" state even though normally this should be `None`
-            Some(State::ScannedCharacters(0))
+            State::ScannedCharacters(0)
         } else if let Some(index) = bytes.iter().position(|b| *b == b'<') {
             self.state = InternalState::Reset;
-            Some(State::ScannedCharacters(index))
+            State::ScannedCharacters(index)
         } else {
             self.state = InternalState::ScanningCharacters;
-            Some(State::ScanningCharacters)
+            State::ScanningCharacters
         }
     }
 
@@ -699,7 +698,7 @@ impl Scanner {
                     None
                 }
                 Some(b'<') => self.scan_markup(bytes),
-                Some(_) => self.scan_text_content(bytes),
+                Some(_) => Some(self.scan_text_content(bytes)),
             },
             InternalState::ScanningMarkup => self.scan_markup2(bytes),
             InternalState::ScanningStartOrEmptyElementTag(quote_state, is_last_char_slash) => self
@@ -707,7 +706,7 @@ impl Scanner {
             InternalState::ScanningEndTag(quote_state) => {
                 self.scan_end_tag(bytes, quote_state, Offset(0))
             }
-            InternalState::ScanningCharacters => self.scan_text_content(bytes),
+            InternalState::ScanningCharacters => Some(self.scan_text_content(bytes)),
             InternalState::ScanningProcessingInstruction(already_found_byte_seq_count) => {
                 self.scan_processing_instruction(bytes, already_found_byte_seq_count, Offset(0))
             }

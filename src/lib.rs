@@ -6,7 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-//! MaybeXml is a library to scan and evaluate [XML][xml]-like data into tokens. In
+//! `MaybeXml` is a library to scan and evaluate [XML][xml]-like data into tokens. In
 //! effect, the library provides a non-validating lexer. The interface is similar to many
 //! XML pull parsers.
 //!

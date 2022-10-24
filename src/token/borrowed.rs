@@ -33,6 +33,7 @@ macro_rules! converters {
     ($name:ident) => {
         impl<'a> $name<'a> {
             /// All of the bytes representing the token.
+            #[must_use]
             pub fn as_bytes(&self) -> &[u8] {
                 self.bytes
             }
@@ -44,6 +45,7 @@ macro_rules! converters {
 
             /// The token as a new `Vec`.
             #[cfg(any(feature = "alloc", feature = "std"))]
+            #[must_use]
             pub fn to_vec(&self) -> Vec<u8> {
                 self.bytes.to_vec()
             }
@@ -162,7 +164,7 @@ macro_rules! converters {
 }
 
 /// Scanned byte values associated with a type.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Token<'a> {
     /// A start tag like `<hello>`.
     StartTag(StartTag<'a>),
@@ -198,6 +200,7 @@ pub struct StartTag<'a> {
 
 impl<'a> StartTag<'a> {
     /// The name of the tag.
+    #[must_use]
     pub fn name(&self) -> TagName<'_> {
         let index = self
             .bytes
@@ -208,6 +211,7 @@ impl<'a> StartTag<'a> {
     }
 
     /// The attributes of the tag.
+    #[must_use]
     pub fn attributes(&self) -> Option<Attributes<'_>> {
         self.bytes
             .iter()
@@ -227,6 +231,7 @@ pub struct EmptyElementTag<'a> {
 
 impl<'a> EmptyElementTag<'a> {
     /// The name of the tag.
+    #[must_use]
     pub fn name(&self) -> TagName<'_> {
         let index = self
             .bytes
@@ -237,6 +242,7 @@ impl<'a> EmptyElementTag<'a> {
     }
 
     /// The attributes of the tag.
+    #[must_use]
     pub fn attributes(&self) -> Option<Attributes<'_>> {
         self.bytes
             .iter()
@@ -254,6 +260,7 @@ pub struct EndTag<'a> {
 
 impl<'a> EndTag<'a> {
     /// The name of the tag.
+    #[must_use]
     pub fn name(&self) -> TagName<'_> {
         let index = self
             .bytes
@@ -273,6 +280,7 @@ pub struct Characters<'a> {
 
 impl<'a> Characters<'a> {
     /// The text content of the characters.
+    #[must_use]
     pub fn content(&self) -> Content<'_> {
         Content::from(self.bytes)
     }
@@ -289,6 +297,7 @@ converters!(ProcessingInstruction);
 
 impl<'a> ProcessingInstruction<'a> {
     /// The target of the tag.
+    #[must_use]
     pub fn target(&self) -> Target<'_> {
         let index = self
             .bytes
@@ -299,6 +308,7 @@ impl<'a> ProcessingInstruction<'a> {
     }
 
     /// The instructions of the tag.
+    #[must_use]
     pub fn instructions(&self) -> Option<Instructions<'_>> {
         self.bytes
             .iter()
@@ -339,6 +349,7 @@ pub struct Cdata<'a> {
 
 impl<'a> Cdata<'a> {
     /// The text content of the characters.
+    #[must_use]
     pub fn content(&self) -> Content<'_> {
         Content::from(&self.bytes[9..self.bytes.len() - 3])
     }
@@ -417,7 +428,7 @@ mod tests {
     }
 
     #[test]
-    fn start_tag_attributes() -> Result<()> {
+    fn start_tag_attributes() {
         let start_tag = StartTag::from(b"<abc attr=\"1\">".as_ref());
         assert_eq!(start_tag.attributes(), Some(Attributes::from("attr=\"1\"")));
 
@@ -426,7 +437,6 @@ mod tests {
             start_tag.attributes(),
             Some(Attributes::from("attr=\"1\" id=\"#example\""))
         );
-        Ok(())
     }
 
     #[test]
@@ -438,7 +448,7 @@ mod tests {
     }
 
     #[test]
-    fn empty_element_tag_attributes() -> Result<()> {
+    fn empty_element_tag_attributes() {
         let empty_element_tag = EmptyElementTag::from(b"<abc attr=\"1\"/>".as_ref());
         assert_eq!(
             empty_element_tag.attributes(),
@@ -451,7 +461,6 @@ mod tests {
             empty_element_tag.attributes(),
             Some(Attributes::from("attr=\"1\" id=\"#example\""))
         );
-        Ok(())
     }
 
     #[test]

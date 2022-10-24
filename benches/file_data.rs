@@ -20,55 +20,25 @@ fn scanner_scan(bytes: &[u8]) {
     let mut scanner = Scanner::new();
     while let Some(state) = scanner.scan(bytes) {
         match state {
-            State::ScanningMarkup => {
+            State::ScanningMarkup
+            | State::ScanningStartOrEmptyElementTag
+            | State::ScanningCharacters
+            | State::ScanningEndTag
+            | State::ScanningProcessingInstruction
+            | State::ScanningDeclarationCommentOrCdata
+            | State::ScanningDeclaration
+            | State::ScanningComment
+            | State::ScanningCdata => {
                 bytes = &bytes[bytes.len()..];
             }
-            State::ScanningStartOrEmptyElementTag => {
-                bytes = &bytes[bytes.len()..];
-            }
-            State::ScanningCharacters => {
-                bytes = &bytes[bytes.len()..];
-            }
-            State::ScanningEndTag => {
-                bytes = &bytes[bytes.len()..];
-            }
-            State::ScanningProcessingInstruction => {
-                bytes = &bytes[bytes.len()..];
-            }
-            State::ScanningDeclarationCommentOrCdata => {
-                bytes = &bytes[bytes.len()..];
-            }
-            State::ScanningDeclaration => {
-                bytes = &bytes[bytes.len()..];
-            }
-            State::ScanningComment => {
-                bytes = &bytes[bytes.len()..];
-            }
-            State::ScanningCdata => {
-                bytes = &bytes[bytes.len()..];
-            }
-            State::ScannedEmptyElementTag(read) => {
-                bytes = &bytes[read..];
-            }
-            State::ScannedEndTag(read) => {
-                bytes = &bytes[read..];
-            }
-            State::ScannedProcessingInstruction(read) => {
-                bytes = &bytes[read..];
-            }
-            State::ScannedStartTag(read) => {
-                bytes = &bytes[read..];
-            }
-            State::ScannedCharacters(read) => {
-                bytes = &bytes[read..];
-            }
-            State::ScannedDeclaration(read) => {
-                bytes = &bytes[read..];
-            }
-            State::ScannedComment(read) => {
-                bytes = &bytes[read..];
-            }
-            State::ScannedCdata(read) => {
+            State::ScannedEmptyElementTag(read)
+            | State::ScannedEndTag(read)
+            | State::ScannedProcessingInstruction(read)
+            | State::ScannedStartTag(read)
+            | State::ScannedCharacters(read)
+            | State::ScannedDeclaration(read)
+            | State::ScannedComment(read)
+            | State::ScannedCdata(read) => {
                 bytes = &bytes[read..];
             }
         }
@@ -104,8 +74,6 @@ fn recv_buf_reader_recv_and_next_token(bytes: &[u8]) {
             } else {
                 break;
             }
-        } else {
-            continue;
         }
     }
 }
@@ -169,52 +137,52 @@ fn io_buf_reader_into_iter_next(bytes: &[u8]) {
 }
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("parser_parse_simple_xml_1", |b| {
-        b.iter(|| scanner_scan(SIMPLE_1_BYTES))
+        b.iter(|| scanner_scan(SIMPLE_1_BYTES));
     });
     c.bench_function("parser_parse_svg_1", |b| {
-        b.iter(|| scanner_scan(SVG_1_BYTES))
+        b.iter(|| scanner_scan(SVG_1_BYTES));
     });
     c.bench_function("parser_parse_rss_1", |b| {
-        b.iter(|| scanner_scan(RSS_1_BYTES))
+        b.iter(|| scanner_scan(RSS_1_BYTES));
     });
     c.bench_function("scanner_scan_large_1", |b| {
-        b.iter(|| scanner_scan(LARGE_1_BYTES))
+        b.iter(|| scanner_scan(LARGE_1_BYTES));
     });
     c.bench_function("recv_buf_reader_recv_and_next_event_simple_xml_1", |b| {
-        b.iter(|| recv_buf_reader_recv_and_next_token(SIMPLE_1_BYTES))
+        b.iter(|| recv_buf_reader_recv_and_next_token(SIMPLE_1_BYTES));
     });
     c.bench_function("recv_buf_reader_recv_and_next_event_svg_1", |b| {
-        b.iter(|| recv_buf_reader_recv_and_next_token(SVG_1_BYTES))
+        b.iter(|| recv_buf_reader_recv_and_next_token(SVG_1_BYTES));
     });
     c.bench_function("recv_buf_reader_recv_and_next_event_rss_1", |b| {
-        b.iter(|| recv_buf_reader_recv_and_next_token(RSS_1_BYTES))
+        b.iter(|| recv_buf_reader_recv_and_next_token(RSS_1_BYTES));
     });
     c.bench_function("recv_evaluator_recv_and_next_token_large_1", |b| {
-        b.iter(|| recv_buf_reader_recv_and_next_token(LARGE_1_BYTES))
+        b.iter(|| recv_buf_reader_recv_and_next_token(LARGE_1_BYTES));
     });
     c.bench_function("io_buf_reader_next_event_simple_xml_1", |b| {
-        b.iter(|| io_buf_reader_next_token(SIMPLE_1_BYTES))
+        b.iter(|| io_buf_reader_next_token(SIMPLE_1_BYTES));
     });
     c.bench_function("io_buf_reader_next_event_svg_1", |b| {
-        b.iter(|| io_buf_reader_next_token(SVG_1_BYTES))
+        b.iter(|| io_buf_reader_next_token(SVG_1_BYTES));
     });
     c.bench_function("io_buf_reader_next_event_rss_1", |b| {
-        b.iter(|| io_buf_reader_next_token(RSS_1_BYTES))
+        b.iter(|| io_buf_reader_next_token(RSS_1_BYTES));
     });
     c.bench_function("buf_read_evaluator_next_token_large_1", |b| {
-        b.iter(|| io_buf_reader_next_token(LARGE_1_BYTES))
+        b.iter(|| io_buf_reader_next_token(LARGE_1_BYTES));
     });
     c.bench_function("io_buf_reader_into_iter_next_simple_xml_1", |b| {
-        b.iter(|| io_buf_reader_into_iter_next(SIMPLE_1_BYTES))
+        b.iter(|| io_buf_reader_into_iter_next(SIMPLE_1_BYTES));
     });
     c.bench_function("io_buf_reader_into_iter_next_svg_1", |b| {
-        b.iter(|| io_buf_reader_into_iter_next(SVG_1_BYTES))
+        b.iter(|| io_buf_reader_into_iter_next(SVG_1_BYTES));
     });
     c.bench_function("io_buf_reader_into_iter_next_rss_1", |b| {
-        b.iter(|| io_buf_reader_into_iter_next(RSS_1_BYTES))
+        b.iter(|| io_buf_reader_into_iter_next(RSS_1_BYTES));
     });
     c.bench_function("buf_read_evaluator_into_iter_next_large_1", |b| {
-        b.iter(|| io_buf_reader_into_iter_next(LARGE_1_BYTES))
+        b.iter(|| io_buf_reader_into_iter_next(LARGE_1_BYTES));
     });
 }
 

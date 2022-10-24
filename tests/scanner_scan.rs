@@ -21,55 +21,25 @@ fn scanner_scan(bytes: &[u8], expected_states: &[State]) {
         assert_eq!(Some(state).as_ref(), expected_state_iter.next());
 
         match state {
-            State::ScanningMarkup => {
+            State::ScanningMarkup
+            | State::ScanningStartOrEmptyElementTag
+            | State::ScanningCharacters
+            | State::ScanningEndTag
+            | State::ScanningProcessingInstruction
+            | State::ScanningDeclarationCommentOrCdata
+            | State::ScanningDeclaration
+            | State::ScanningCdata
+            | State::ScanningComment => {
                 bytes = &bytes[bytes.len()..];
             }
-            State::ScanningStartOrEmptyElementTag => {
-                bytes = &bytes[bytes.len()..];
-            }
-            State::ScanningCharacters => {
-                bytes = &bytes[bytes.len()..];
-            }
-            State::ScanningEndTag => {
-                bytes = &bytes[bytes.len()..];
-            }
-            State::ScanningProcessingInstruction => {
-                bytes = &bytes[bytes.len()..];
-            }
-            State::ScanningDeclarationCommentOrCdata => {
-                bytes = &bytes[bytes.len()..];
-            }
-            State::ScanningDeclaration => {
-                bytes = &bytes[bytes.len()..];
-            }
-            State::ScanningCdata => {
-                bytes = &bytes[bytes.len()..];
-            }
-            State::ScanningComment => {
-                bytes = &bytes[bytes.len()..];
-            }
-            State::ScannedEmptyElementTag(read) => {
-                bytes = &bytes[read..];
-            }
-            State::ScannedEndTag(read) => {
-                bytes = &bytes[read..];
-            }
-            State::ScannedProcessingInstruction(read) => {
-                bytes = &bytes[read..];
-            }
-            State::ScannedStartTag(read) => {
-                bytes = &bytes[read..];
-            }
-            State::ScannedCharacters(read) => {
-                bytes = &bytes[read..];
-            }
-            State::ScannedDeclaration(read) => {
-                bytes = &bytes[read..];
-            }
-            State::ScannedComment(read) => {
-                bytes = &bytes[read..];
-            }
-            State::ScannedCdata(read) => {
+            State::ScannedEmptyElementTag(read)
+            | State::ScannedEndTag(read)
+            | State::ScannedProcessingInstruction(read)
+            | State::ScannedStartTag(read)
+            | State::ScannedCharacters(read)
+            | State::ScannedDeclaration(read)
+            | State::ScannedComment(read)
+            | State::ScannedCdata(read) => {
                 bytes = &bytes[read..];
             }
         }
@@ -85,55 +55,25 @@ fn scanner_scan_2(bytes: &[u8]) {
         println!("{:?} - {}", state, bytes.len());
 
         match state {
-            State::ScanningMarkup => {
+            State::ScanningMarkup
+            | State::ScanningStartOrEmptyElementTag
+            | State::ScanningCharacters
+            | State::ScanningEndTag
+            | State::ScanningProcessingInstruction
+            | State::ScanningDeclarationCommentOrCdata
+            | State::ScanningDeclaration
+            | State::ScanningCdata
+            | State::ScanningComment => {
                 bytes = &bytes[bytes.len()..];
             }
-            State::ScanningStartOrEmptyElementTag => {
-                bytes = &bytes[bytes.len()..];
-            }
-            State::ScanningCharacters => {
-                bytes = &bytes[bytes.len()..];
-            }
-            State::ScanningEndTag => {
-                bytes = &bytes[bytes.len()..];
-            }
-            State::ScanningProcessingInstruction => {
-                bytes = &bytes[bytes.len()..];
-            }
-            State::ScanningDeclarationCommentOrCdata => {
-                bytes = &bytes[bytes.len()..];
-            }
-            State::ScanningDeclaration => {
-                bytes = &bytes[bytes.len()..];
-            }
-            State::ScanningCdata => {
-                bytes = &bytes[bytes.len()..];
-            }
-            State::ScanningComment => {
-                bytes = &bytes[bytes.len()..];
-            }
-            State::ScannedEmptyElementTag(read) => {
-                bytes = &bytes[read..];
-            }
-            State::ScannedEndTag(read) => {
-                bytes = &bytes[read..];
-            }
-            State::ScannedProcessingInstruction(read) => {
-                bytes = &bytes[read..];
-            }
-            State::ScannedStartTag(read) => {
-                bytes = &bytes[read..];
-            }
-            State::ScannedCharacters(read) => {
-                bytes = &bytes[read..];
-            }
-            State::ScannedDeclaration(read) => {
-                bytes = &bytes[read..];
-            }
-            State::ScannedComment(read) => {
-                bytes = &bytes[read..];
-            }
-            State::ScannedCdata(read) => {
+            State::ScannedEmptyElementTag(read)
+            | State::ScannedEndTag(read)
+            | State::ScannedProcessingInstruction(read)
+            | State::ScannedStartTag(read)
+            | State::ScannedCharacters(read)
+            | State::ScannedDeclaration(read)
+            | State::ScannedComment(read)
+            | State::ScannedCdata(read) => {
                 bytes = &bytes[read..];
             }
         }

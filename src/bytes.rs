@@ -33,7 +33,7 @@ pub(crate) enum QuoteContextAwareFoundState {
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub(crate) struct AlreadyFoundByteSeqCount(pub(crate) usize);
 
-#[inline(always)]
+#[inline]
 pub(crate) fn quote_context_aware_find(
     buf: &[u8],
     byte_seq: &[u8],
@@ -65,15 +65,15 @@ pub(crate) fn quote_context_aware_find(
                     if read == buf_len {
                         if read == prefix_check_len {
                             return (read, QuoteContextAwareFoundState::Found);
-                        } else {
-                            return (
-                                read,
-                                QuoteContextAwareFoundState::NotFound(
-                                    QuoteState::None,
-                                    AlreadyFoundByteSeqCount(read + already_found_byte_seq_count.0),
-                                ),
-                            );
                         }
+
+                        return (
+                            read,
+                            QuoteContextAwareFoundState::NotFound(
+                                QuoteState::None,
+                                AlreadyFoundByteSeqCount(read + already_found_byte_seq_count.0),
+                            ),
+                        );
                     }
                 }
 
@@ -115,7 +115,7 @@ pub(crate) fn quote_context_aware_find(
                 // if byte_seq ended with a quote character, this should not be a part of the match
                 b if *b == last_expected_byte => match quote_state {
                     QuoteState::None => {
-                        bytes = &bytes[..index + 1];
+                        bytes = &bytes[..=index];
                         found_last_byte = true;
                         break;
                     }
@@ -153,12 +153,12 @@ pub(crate) fn quote_context_aware_find(
     }
 }
 
-#[inline(always)]
+#[inline]
 pub(crate) fn peek(bytes: &[u8]) -> Option<u8> {
     bytes.first().copied()
 }
 
-#[inline(always)]
+#[inline]
 pub(crate) fn peek2(bytes: &[u8]) -> Option<u8> {
     let pos = 1;
     if pos < bytes.len() {
@@ -168,7 +168,7 @@ pub(crate) fn peek2(bytes: &[u8]) -> Option<u8> {
     }
 }
 
-#[inline(always)]
+#[inline]
 pub(crate) fn quote_and_bracket_context_aware_find(
     buf: &[u8],
     byte_seq: &[u8],
@@ -214,17 +214,7 @@ pub(crate) fn quote_and_bracket_context_aware_find(
                     if read == prefix_check_len {
                         if bracket_count.0 == 0 {
                             return (read, QuoteAndBracketContextAwareFoundState::Found);
-                        } else {
-                            return (
-                                read,
-                                QuoteAndBracketContextAwareFoundState::NotFound(
-                                    QuoteState::None,
-                                    bracket_count,
-                                    AlreadyFoundByteSeqCount(read + already_found_byte_seq_count.0),
-                                ),
-                            );
                         }
-                    } else {
                         return (
                             read,
                             QuoteAndBracketContextAwareFoundState::NotFound(
@@ -234,6 +224,14 @@ pub(crate) fn quote_and_bracket_context_aware_find(
                             ),
                         );
                     }
+                    return (
+                        read,
+                        QuoteAndBracketContextAwareFoundState::NotFound(
+                            QuoteState::None,
+                            bracket_count,
+                            AlreadyFoundByteSeqCount(read + already_found_byte_seq_count.0),
+                        ),
+                    );
                 }
             }
 
@@ -288,7 +286,7 @@ pub(crate) fn quote_and_bracket_context_aware_find(
                 },
                 // if byte_seq ended with a quote character, this should not be a part of the match
                 b if *b == last_expected_byte => {
-                    bytes = &bytes[..index + 1];
+                    bytes = &bytes[..=index];
                     found_last_byte = true;
                     break;
                 }
@@ -330,7 +328,7 @@ pub(crate) fn quote_and_bracket_context_aware_find(
     }
 }
 
-#[inline(always)]
+#[inline]
 pub(crate) fn find_matching_suffix(byte_seq: &[u8], buf: &[u8]) -> AlreadyFoundByteSeqCount {
     let buf_len = buf.len();
     let first_byte_seq = byte_seq[0];
