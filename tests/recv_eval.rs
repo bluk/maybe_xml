@@ -8,7 +8,7 @@
 
 #[cfg(any(feature = "std", feature = "alloc"))]
 use maybe_xml::{
-    eval::recv::RecvEvaluator,
+    eval::recv::Evaluator,
     token::borrowed::{
         Characters, Declaration, EmptyElementTag, EndTag, ProcessingInstruction, StartTag, Token,
     },
@@ -21,7 +21,7 @@ const SVG_1_XML_BYTES: &[u8] = include_bytes!("../tests/resources/svg-1.xml");
 
 #[cfg(any(feature = "std", feature = "alloc"))]
 fn recv_eval(bytes: &[u8], expected_tokens: &[Token]) {
-    let mut eval = RecvEvaluator::new();
+    let mut eval = Evaluator::new();
     let mut expected_token_iter = expected_tokens.iter();
 
     let mut bytes = bytes;

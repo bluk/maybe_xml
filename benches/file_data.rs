@@ -46,9 +46,9 @@ fn scanner_scan(bytes: &[u8]) {
 }
 
 fn recv_buf_reader_recv_and_next_token(bytes: &[u8]) {
-    use maybe_xml::{eval::recv::RecvEvaluator, token::borrowed::Token};
+    use maybe_xml::{eval::recv::Evaluator, token::borrowed::Token};
 
-    let mut eval = RecvEvaluator::new();
+    let mut eval = Evaluator::new();
 
     let mut bytes = bytes;
 

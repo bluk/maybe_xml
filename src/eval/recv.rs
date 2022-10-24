@@ -42,23 +42,23 @@ enum State {
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 #[cfg(any(feature = "std", feature = "alloc"))]
 #[non_exhaustive]
-pub enum RecvError {
+pub enum Error {
     /// If the current token is not determined to be finished, more bytes must be
     /// given to the evaluator.
     NeedToRecvMoreBytes,
 }
 
 #[cfg(any(feature = "std", feature = "alloc"))]
-impl fmt::Display for RecvError {
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            RecvError::NeedToRecvMoreBytes => write!(f, "need to receive more bytes"),
+            Error::NeedToRecvMoreBytes => write!(f, "need to receive more bytes"),
         }
     }
 }
 
 #[cfg(feature = "std")]
-impl std::error::Error for RecvError {
+impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         None
     }
@@ -96,18 +96,18 @@ impl std::error::Error for RecvError {
 /// ```
 /// use maybe_xml::{
 ///     token::borrowed::{StartTag, Characters, EndTag, Token},
-///     eval::recv::{RecvEvaluator, RecvError}
+///     eval::recv::{Evaluator, Error}
 /// };
 ///
-/// let mut eval = RecvEvaluator::new();
+/// let mut eval = Evaluator::new();
 ///
 /// // Bytes have been read from the underlying XML source
 ///
 /// let input = r#"<id"#.as_bytes();
 /// let read = eval.recv(input);
 /// let result = eval.next_token();
-/// // The token is not complete, so `RecvError::NeedToRecvMoreBytes` is returned.
-/// assert_eq!(result, Err(RecvError::NeedToRecvMoreBytes));
+/// // The token is not complete, so `Error::NeedToRecvMoreBytes` is returned.
+/// assert_eq!(result, Err(Error::NeedToRecvMoreBytes));
 /// // All of the bytes have been read, so consume/drop the `input` bytes.
 /// assert_eq!(read, input.len());
 ///
@@ -141,8 +141,8 @@ impl std::error::Error for RecvError {
 /// assert_eq!(more_input, b"<");
 /// let read = eval.recv(more_input);
 /// let result = eval.next_token();
-/// // The token is not complete, so `RecvError::NeedToRecvMoreBytes` is returned.
-/// assert_eq!(result, Err(RecvError::NeedToRecvMoreBytes));
+/// // The token is not complete, so `Error::NeedToRecvMoreBytes` is returned.
+/// assert_eq!(result, Err(Error::NeedToRecvMoreBytes));
 /// assert_eq!(read, 1);
 /// // All of the bytes have been read, so consume/drop the `more_input` bytes.
 /// assert_eq!(read, more_input.len());
@@ -175,7 +175,7 @@ impl std::error::Error for RecvError {
 /// ```
 #[derive(Clone, Debug)]
 #[cfg(any(feature = "std", feature = "alloc"))]
-pub struct RecvEvaluator {
+pub struct Evaluator {
     buf: Vec<u8>,
     scanner: Scanner,
     position: u64,
@@ -183,7 +183,7 @@ pub struct RecvEvaluator {
 }
 
 #[cfg(any(feature = "std", feature = "alloc"))]
-impl RecvEvaluator {
+impl Evaluator {
     /// Instantiates a new evaluator.
     #[must_use]
     pub fn new() -> Self {
@@ -321,7 +321,7 @@ impl RecvEvaluator {
     ///
     /// # Errors
     ///
-    /// If a complete token has not been determined yet, then a `Err(RecvError:NeedToRecvMoreBytes)`
+    /// If a complete token has not been determined yet, then a `Err(Error:NeedToRecvMoreBytes)`
     /// will be returned. It is not a fatal error, but more bytes must be passed into the evaluator
     /// via the `recv()` method.
     ///
@@ -335,14 +335,14 @@ impl RecvEvaluator {
     /// If the end of file state is reached, `next_token()` will return `Ok(Some(Token::Eof))`
     /// or `Ok(Some(Token::EofWithBytesNotEvaluated))` once. Then any further calls to the method will always
     /// return `Ok(None)`.
-    pub fn next_token(&mut self) -> Result<Option<borrowed::Token>, RecvError> {
+    pub fn next_token(&mut self) -> Result<Option<borrowed::Token>, Error> {
         use borrowed::{
             BytesNotEvaluated, Cdata, Characters, Comment, Declaration, EmptyElementTag, EndTag,
             ProcessingInstruction, StartTag, Token,
         };
 
         let token = match self.state {
-            State::Reset | State::Evaluating => return Err(RecvError::NeedToRecvMoreBytes),
+            State::Reset | State::Evaluating => return Err(Error::NeedToRecvMoreBytes),
             State::EvaluatedStartTag => {
                 self.state = State::Reset;
                 Some(Token::StartTag(StartTag::from(&self.buf)))
@@ -395,7 +395,7 @@ impl RecvEvaluator {
 }
 
 #[cfg(any(feature = "std", feature = "alloc"))]
-impl Default for RecvEvaluator {
+impl Default for Evaluator {
     fn default() -> Self {
         Self::new()
     }
@@ -410,7 +410,7 @@ mod tests {
     };
     use rand::{thread_rng, Rng};
 
-    type Result<T> = core::result::Result<T, RecvError>;
+    type Result<T> = core::result::Result<T, Error>;
 
     struct TestRecv {
         bytes: Vec<u8>,
@@ -427,7 +427,7 @@ mod tests {
 
         fn assert_next_token(
             &mut self,
-            eval: &mut RecvEvaluator,
+            eval: &mut Evaluator,
             expected_token: Option<Token>,
         ) -> bool {
             let mut rng = thread_rng();
@@ -443,7 +443,7 @@ mod tests {
                     assert_eq!(token, expected_token);
                     return true;
                 }
-                assert_eq!(next_token, Err(RecvError::NeedToRecvMoreBytes));
+                assert_eq!(next_token, Err(Error::NeedToRecvMoreBytes));
                 if self.index == self.bytes.len() {
                     if expected_token.is_some() {
                         let read = eval.recv(&[]);
@@ -465,7 +465,7 @@ mod tests {
     #[test]
     fn empty() -> Result<()> {
         let xml = r"";
-        let mut eval = RecvEvaluator::new();
+        let mut eval = Evaluator::new();
         assert_eq!(eval.recv(xml.as_bytes()), 0);
         assert_eq!(eval.next_token()?, Some(Token::Eof));
         assert_eq!(eval.position(), 0);
@@ -479,7 +479,7 @@ mod tests {
     fn characters_content() {
         let xml = r"hello world";
         let mut tester = TestRecv::with_bytes(xml);
-        let mut eval = RecvEvaluator::new();
+        let mut eval = Evaluator::new();
         let text_content = Characters::from(b"hello world".as_ref());
         assert!(tester.assert_next_token(&mut eval, Some(Token::Characters(text_content))));
         assert_eq!(eval.position(), 11);
@@ -493,7 +493,7 @@ mod tests {
     fn start_tag() {
         let xml = r"<hello>";
         let mut tester = TestRecv::with_bytes(xml);
-        let mut eval = RecvEvaluator::new();
+        let mut eval = Evaluator::new();
         let start_tag = StartTag::from(b"<hello>".as_ref());
         assert!(tester.assert_next_token(&mut eval, Some(Token::StartTag(start_tag))));
         assert_eq!(eval.position(), 7);
@@ -507,7 +507,7 @@ mod tests {
     fn start_tag_with_double_quote_attribute() {
         let xml = r#"<hello name="rust">"#;
         let mut tester = TestRecv::with_bytes(xml);
-        let mut eval = RecvEvaluator::new();
+        let mut eval = Evaluator::new();
         let start_tag = StartTag::from(r#"<hello name="rust">"#.as_bytes());
         assert!(tester.assert_next_token(&mut eval, Some(Token::StartTag(start_tag))));
         assert_eq!(eval.position(), 19);
@@ -521,7 +521,7 @@ mod tests {
     fn start_tag_with_double_quote_attribute_with_angle_bracket() {
         let xml = r#"<hello name="ru>st">"#;
         let mut tester = TestRecv::with_bytes(xml);
-        let mut eval = RecvEvaluator::new();
+        let mut eval = Evaluator::new();
         let start_tag = StartTag::from(r#"<hello name="ru>st">"#.as_bytes());
         assert!(tester.assert_next_token(&mut eval, Some(Token::StartTag(start_tag))),);
         assert_eq!(eval.position(), 20);
@@ -535,7 +535,7 @@ mod tests {
     fn start_tag_with_single_quote_attribute() {
         let xml = r#"<hello name='rust'>"#;
         let mut tester = TestRecv::with_bytes(xml);
-        let mut eval = RecvEvaluator::new();
+        let mut eval = Evaluator::new();
         let start_tag = StartTag::from(r#"<hello name='rust'>"#.as_bytes());
         assert!(tester.assert_next_token(&mut eval, Some(Token::StartTag(start_tag))));
         assert_eq!(eval.position(), 19);
@@ -549,7 +549,7 @@ mod tests {
     fn start_tag_with_single_quote_attribute_with_angle_bracket() {
         let xml = r#"<hello name='ru>st'>"#;
         let mut tester = TestRecv::with_bytes(xml);
-        let mut eval = RecvEvaluator::new();
+        let mut eval = Evaluator::new();
         let start_tag = StartTag::from(r#"<hello name='ru>st'>"#.as_bytes());
         assert!(tester.assert_next_token(&mut eval, Some(Token::StartTag(start_tag))));
         assert_eq!(eval.position(), 20);
@@ -563,7 +563,7 @@ mod tests {
     fn end_tag() {
         let xml = r"</goodbye>";
         let mut tester = TestRecv::with_bytes(xml);
-        let mut eval = RecvEvaluator::new();
+        let mut eval = Evaluator::new();
         let end_tag = EndTag::from(r#"</goodbye>"#.as_bytes());
         assert!(tester.assert_next_token(&mut eval, Some(Token::EndTag(end_tag))));
         assert_eq!(eval.position(), 10);
@@ -577,7 +577,7 @@ mod tests {
     fn empty_end_tag() {
         let xml = r"</>";
         let mut tester = TestRecv::with_bytes(xml);
-        let mut eval = RecvEvaluator::new();
+        let mut eval = Evaluator::new();
         let end_tag = EndTag::from(r#"</>"#.as_bytes());
         assert!(tester.assert_next_token(&mut eval, Some(Token::EndTag(end_tag))));
         assert_eq!(eval.position(), 3);
@@ -591,7 +591,7 @@ mod tests {
     fn empty_element_tag() {
         let xml = r"<standalone/>";
         let mut tester = TestRecv::with_bytes(xml);
-        let mut eval = RecvEvaluator::new();
+        let mut eval = Evaluator::new();
         let empty_element_tag = EmptyElementTag::from(r#"<standalone/>"#.as_bytes());
         assert!(
             tester.assert_next_token(&mut eval, Some(Token::EmptyElementTag(empty_element_tag)))
@@ -607,7 +607,7 @@ mod tests {
     fn processing_instruction() {
         let xml = r#"<?xml-stylesheet type="text/css" href="example.css"?>"#;
         let mut tester = TestRecv::with_bytes(xml);
-        let mut eval = RecvEvaluator::new();
+        let mut eval = Evaluator::new();
         let processing_instruction = ProcessingInstruction::from(
             r#"<?xml-stylesheet type="text/css" href="example.css"?>"#.as_bytes(),
         );
@@ -626,7 +626,7 @@ mod tests {
     fn declaration() {
         let xml = r#"<!DOCTYPE example>"#;
         let mut tester = TestRecv::with_bytes(xml);
-        let mut eval = RecvEvaluator::new();
+        let mut eval = Evaluator::new();
         let declaration = Declaration::from(r#"<!DOCTYPE example>"#.as_bytes());
         assert!(tester.assert_next_token(&mut eval, Some(Token::Declaration(declaration))));
         assert_eq!(eval.position(), 18);
@@ -640,7 +640,7 @@ mod tests {
     fn comment() {
         let xml = r#"<!-- Example -->"#;
         let mut tester = TestRecv::with_bytes(xml);
-        let mut eval = RecvEvaluator::new();
+        let mut eval = Evaluator::new();
         let comment = Comment::from(r#"<!-- Example -->"#.as_bytes());
         assert!(tester.assert_next_token(&mut eval, Some(Token::Comment(comment))));
         assert_eq!(eval.position(), 16);
@@ -654,7 +654,7 @@ mod tests {
     fn cdata() {
         let xml = r#"<![CDATA[ <Example> ]]>"#;
         let mut tester = TestRecv::with_bytes(xml);
-        let mut eval = RecvEvaluator::new();
+        let mut eval = Evaluator::new();
         let cdata = Cdata::from(r#"<![CDATA[ <Example> ]]>"#.as_bytes());
         assert!(tester.assert_next_token(&mut eval, Some(Token::Cdata(cdata))));
         assert_eq!(eval.position(), 23);
@@ -668,7 +668,7 @@ mod tests {
     fn bytes_not_evaluated() {
         let xml = r#"<unfinished name="xml""#;
         let mut tester = TestRecv::with_bytes(xml);
-        let mut eval = RecvEvaluator::new();
+        let mut eval = Evaluator::new();
         let bytes_not_evaluated = BytesNotEvaluated::from(r#"<unfinished name="xml""#.as_bytes());
         assert!(tester.assert_next_token(
             &mut eval,
@@ -683,7 +683,7 @@ mod tests {
     fn simple_xml_read() {
         let xml = r#"<hello name="rust">Welcome!<goodbye/></hello><abcd></abcd>"#;
         let mut tester = TestRecv::with_bytes(xml);
-        let mut eval = RecvEvaluator::new();
+        let mut eval = Evaluator::new();
         let start_tag = StartTag::from(r#"<hello name="rust">"#.as_bytes());
         assert!(tester.assert_next_token(&mut eval, Some(Token::StartTag(start_tag))));
         assert_eq!(eval.position(), 19);
@@ -721,7 +721,7 @@ mod tests {
     fn simple_xml_read_with_space() {
         let xml = r#"   <hello name="rust"> Welcome! <goodbye  />  </hello>  <abcd> </abcd> "#;
         let mut tester = TestRecv::with_bytes(xml);
-        let mut eval = RecvEvaluator::new();
+        let mut eval = Evaluator::new();
 
         let text_content = Characters::from(b"   ".as_ref());
         assert!(tester.assert_next_token(&mut eval, Some(Token::Characters(text_content))));
