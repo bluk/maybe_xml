@@ -1,5 +1,8 @@
 name: Rust CI
 
+permissions:
+  contents: read
+
 on:
   push:
 
@@ -8,7 +11,6 @@ on:
 jobs:
   build:
     name: Build
-    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os:
@@ -17,15 +19,16 @@ jobs:
           - windows-latest
         rust:
           - stable
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout sources
         uses: actions/checkout@v3
-      - name: Install toolchain
-        uses: actions-rs/toolchain@v1
         with:
-          profile: minimal
+          persist-credentials: false
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
           toolchain: ${{ matrix.rust }}
-          override: true
       - name: Rust Version
         run: rustc --version
       - name: Run cargo build (--all-features)
@@ -38,7 +41,6 @@ jobs:
         run: cargo test --no-default-features --release --features std
   test:
     name: Test
-    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os:
@@ -47,31 +49,18 @@ jobs:
           - windows-latest
         rust:
           - stable
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout sources
         uses: actions/checkout@v3
+        with:
+          persist-credentials: false
       - name: Install toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
-          override: true
       - name: Rust Version
         run: rustc --version
-      - name: Cache cargo registry
-        uses: actions/cache@v2
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.toml') }}
-      - name: Cache cargo index
-        uses: actions/cache@v2
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.toml') }}
-      - name: Cache cargo build
-        uses: actions/cache@v2
-        with:
-          path: target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.toml') }}
       - name: Run cargo check (--all-features)
         run: cargo check --all-features
       - name: Run cargo test (default)
@@ -86,88 +75,46 @@ jobs:
         run: cargo test --no-default-features --features std
   rustfmt:
     name: Format
-    runs-on: ubuntu-latest
     strategy:
       matrix:
+        os:
+          - ubuntu-latest
         rust:
           - stable
           - nightly
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout sources
         uses: actions/checkout@v3
-      - name: Install toolchain
-        uses: actions-rs/toolchain@v1
         with:
-          profile: minimal
+          persist-credentials: false
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
           toolchain: ${{ matrix.rust }}
-          override: true
-          components: rustfmt, clippy
+          components: rustfmt
       - name: Rust Version
         run: rustc --version
-      - name: Install rustfmt
-        run: rustup component add rustfmt
-      - name: Cache cargo registry
-        uses: actions/cache@v2
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.toml') }}
-      - name: Cache cargo index
-        uses: actions/cache@v2
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.toml') }}
-      - name: Cache cargo build
-        uses: actions/cache@v2
-        with:
-          path: target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.toml') }}
-      - name: Run cargo fmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+      - run: cargo fmt --all -- --check
   clippy:
     name: Clippy
-    runs-on: ubuntu-latest
     strategy:
       matrix:
+        os:
+          - ubuntu-latest
         rust:
           - stable
           - nightly
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout sources
         uses: actions/checkout@v3
+        with:
+          persist-credentials: false
       - name: Install toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: ${{ matrix.rust }}
-          override: true
-          components: rustfmt, clippy
-      - name: Install clippy
-        run: rustup component add clippy
-      # - name: Run cargo clippy
-      #   uses: actions-rs/cargo@v1
-      #   with:
-      #     command: clippy
-      #     args: -- -D warningsadd clippy
-      - name: Cache cargo registry
-        uses: actions/cache@v2
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.toml') }}
-      - name: Cache cargo index
-        uses: actions/cache@v2
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.toml') }}
-      - name: Cache cargo build
-        uses: actions/cache@v2
-        with:
-          path: target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.toml') }}
+          components: clippy
       - name: Run cargo clippy
-        uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
+        run: cargo clippy --all-targets --all-features -- -D warnings
