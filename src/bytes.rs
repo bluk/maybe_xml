@@ -173,7 +173,7 @@ pub(crate) fn quote_and_bracket_context_aware_find(
     buf: &[u8],
     byte_seq: &[u8],
     already_found_byte_seq_count: AlreadyFoundByteSeqCount,
-    mut quote_state: QuoteState,
+    quote_state: QuoteState,
     mut bracket_count: BracketCount,
 ) -> (usize, QuoteAndBracketContextAwareFoundState) {
     let mut read = 0;
@@ -242,6 +242,17 @@ pub(crate) fn quote_and_bracket_context_aware_find(
         QuoteState::Single | QuoteState::Double => {}
     }
 
+    quote_and_bracket_context_aware_find_2(buf, byte_seq, quote_state, bracket_count, read)
+}
+
+#[inline]
+fn quote_and_bracket_context_aware_find_2(
+    buf: &[u8],
+    byte_seq: &[u8],
+    mut quote_state: QuoteState,
+    mut bracket_count: BracketCount,
+    mut read: usize,
+) -> (usize, QuoteAndBracketContextAwareFoundState) {
     let byte_seq_len = byte_seq.len();
     let last_expected_byte = byte_seq[byte_seq_len - 1];
 
