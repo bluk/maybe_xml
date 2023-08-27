@@ -17,6 +17,7 @@ include = [
   "LICENSE-APACHE",
   "LICENSE-MIT",
 ]
+rust-version = "1.70.0"
 
 [features]
 default = ["std"]
