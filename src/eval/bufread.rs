@@ -8,14 +8,14 @@
 
 //! Provides an iterator and cursor API for `BufRead` input sources.
 
-#[cfg(any(feature = "std"))]
+#[cfg(feature = "std")]
 use crate::scanner::{Scanner, State};
 #[cfg(feature = "std")]
 use crate::token::owned::{
     BytesNotEvaluated, Cdata, Characters, Comment, Declaration, EmptyElementTag, EndTag,
     ProcessingInstruction, StartTag, Token,
 };
-#[cfg(any(feature = "std"))]
+#[cfg(feature = "std")]
 use core::convert::TryFrom;
 
 #[cfg(feature = "std")]
@@ -127,6 +127,7 @@ where
     ///
     /// `std::io::Error` may be returned from the method if the underlying `BufRead` errors
     /// on any of its method calls.
+    #[allow(clippy::missing_panics_doc)]
     pub fn next_token(&mut self) -> Result<Option<crate::token::borrowed::Token<'_>>, Error> {
         use crate::token::borrowed::{
             BytesNotEvaluated, Cdata, Characters, Comment, Declaration, EmptyElementTag, EndTag,

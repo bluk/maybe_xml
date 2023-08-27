@@ -222,6 +222,7 @@ impl Evaluator {
     /// `recv()` is called and a complete token is formed. If `recv()` is called **without**
     /// a `next_token()` call, the completed token is discarded and the evaluator
     /// will start buffering for a new token.
+    #[allow(clippy::missing_panics_doc)]
     pub fn recv(&mut self, bytes: &[u8]) -> usize {
         match self.state {
             State::Evaluating => {}

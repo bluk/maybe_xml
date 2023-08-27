@@ -213,7 +213,7 @@ macro_rules! converters {
 
         impl PartialOrd<$name> for $name {
             fn partial_cmp(&self, other: &$name) -> Option<core::cmp::Ordering> {
-                self.bytes.partial_cmp(&other.bytes)
+                Some(self.bytes.cmp(&other.bytes))
             }
         }
 

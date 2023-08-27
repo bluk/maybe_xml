@@ -56,7 +56,7 @@ pub(crate) fn quote_context_aware_find(
                 let buf_len = buf.len();
                 let prefix_check_len = prefix_check.len();
 
-                for expected_byte in prefix_check.iter() {
+                for expected_byte in prefix_check {
                     if *expected_byte != buf[read] {
                         break;
                     }
@@ -195,7 +195,7 @@ pub(crate) fn quote_and_bracket_context_aware_find(
             let buf_len = buf.len();
             let prefix_check_len = prefix_check.len();
 
-            for expected_byte in prefix_check.iter() {
+            for expected_byte in prefix_check {
                 if *expected_byte != buf[read] {
                     break;
                 }
