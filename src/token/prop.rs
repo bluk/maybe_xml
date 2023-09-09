@@ -60,7 +60,9 @@ macro_rules! converters {
 
         impl<'a> fmt::Debug for $name<'a> {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                f.debug_struct("$name").field("bytes", &self.bytes).finish()
+                f.debug_struct(stringify!($name))
+                    .field("bytes", &self.bytes)
+                    .finish()
             }
         }
 
