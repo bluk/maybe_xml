@@ -67,7 +67,7 @@ impl std::error::Error for Error {
 /// Receives a stream of manually managed byte slices and returns a token when a token is determined to be complete.
 ///
 /// In most cases, the `maybe_xml::eval::bufread::BufReadEvaluator` is easier to use, but for `no_std` environments
-/// which still have an allocator, then `RecvEvaluator` may be useful.
+/// which still have an allocator, then `Evaluator` may be useful.
 ///
 /// # Usage
 ///
@@ -89,7 +89,7 @@ impl std::error::Error for Error {
 ///
 /// # Example
 ///
-/// Normally, bytes are read from an input source and then passed to the `RecvEvaluator` in a loop.
+/// Normally, bytes are read from an input source and then passed to the `Evaluator` in a loop.
 /// In the following example, the loop is unrolled to show possible return values
 /// and what should happen more clearly.
 ///
