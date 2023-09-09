@@ -29,13 +29,13 @@ use crate::bytes::QuoteState;
 macro_rules! converters {
     ($name:ident, false) => {
         impl<'a> $name<'a> {
-            /// All of the bytes representing the token.
+            /// All of the bytes representing the token property.
             #[must_use]
             pub fn as_bytes(&self) -> &[u8] {
                 self.bytes
             }
 
-            /// The token represented as a str.
+            /// The token property represented as a str.
             ///
             /// # Errors
             ///
@@ -44,7 +44,7 @@ macro_rules! converters {
                 str::from_utf8(&self.bytes)
             }
 
-            /// The token as a new `Vec`.
+            /// The token property as a new `Vec`.
             #[cfg(any(feature = "alloc", feature = "std"))]
             #[must_use]
             pub fn to_vec(&self) -> Vec<u8> {
