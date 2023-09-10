@@ -44,50 +44,48 @@ pub(crate) fn quote_context_aware_find(
 
     let mut read = 0;
 
-    loop {
-        let mut bytes = &buf[read..];
-        let mut found_last_byte = false;
+    let mut bytes = &buf[read..];
+    let mut found_last_byte = false;
 
-        for (index, byte) in bytes.iter().enumerate() {
-            match byte {
-                b'"' => match quote_state {
-                    QuoteState::Double => {
-                        quote_state = QuoteState::None;
-                    }
-                    QuoteState::None => {
-                        quote_state = QuoteState::Double;
-                    }
-                    QuoteState::Single => {}
-                },
-                b'\'' => match quote_state {
-                    QuoteState::Single => {
-                        quote_state = QuoteState::None;
-                    }
-                    QuoteState::None => {
-                        quote_state = QuoteState::Single;
-                    }
-                    QuoteState::Double => {}
-                },
-                b'>' => match quote_state {
-                    QuoteState::None => {
-                        bytes = &bytes[..=index];
-                        found_last_byte = true;
-                        break;
-                    }
-                    QuoteState::Single | QuoteState::Double => {}
-                },
-                _ => {}
-            }
+    for (index, byte) in bytes.iter().enumerate() {
+        match byte {
+            b'"' => match quote_state {
+                QuoteState::Double => {
+                    quote_state = QuoteState::None;
+                }
+                QuoteState::None => {
+                    quote_state = QuoteState::Double;
+                }
+                QuoteState::Single => {}
+            },
+            b'\'' => match quote_state {
+                QuoteState::Single => {
+                    quote_state = QuoteState::None;
+                }
+                QuoteState::None => {
+                    quote_state = QuoteState::Single;
+                }
+                QuoteState::Double => {}
+            },
+            b'>' => match quote_state {
+                QuoteState::None => {
+                    bytes = &bytes[..=index];
+                    found_last_byte = true;
+                    break;
+                }
+                QuoteState::Single | QuoteState::Double => {}
+            },
+            _ => {}
         }
-        read += bytes.len();
+    }
+    read += bytes.len();
 
-        if found_last_byte {
-            debug_assert_eq!(quote_state, QuoteState::None);
-            return QuoteContextAwareFoundState::Found(read);
-        } else {
-            debug_assert_eq!(read, buf.len());
-            return QuoteContextAwareFoundState::NotFound(quote_state);
-        }
+    if found_last_byte {
+        debug_assert_eq!(quote_state, QuoteState::None);
+        return QuoteContextAwareFoundState::Found(read);
+    } else {
+        debug_assert_eq!(read, buf.len());
+        return QuoteContextAwareFoundState::NotFound(quote_state);
     }
 }
 
