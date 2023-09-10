@@ -289,8 +289,8 @@ impl Scanner {
         if to_fill > 0 {
             filled_array[filled_count..to_fill + filled_count]
                 .copy_from_slice(&bytes_to_check[..to_fill]);
+            filled_count += to_fill;
         }
-        filled_count += to_fill;
 
         if filled_count > 0 {
             match filled_array[0] {
