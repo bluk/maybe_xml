@@ -189,7 +189,7 @@ fn quote_and_bracket_context_aware_find_2(
                     }
                     QuoteState::Double => {}
                 },
-                b if *b == b'>' => {
+                b'>' => {
                     bytes = &bytes[..=index];
                     found_last_byte = true;
                     break;
@@ -203,7 +203,7 @@ fn quote_and_bracket_context_aware_find_2(
             if bracket_count.0 == 0 {
                 match quote_state {
                     QuoteState::None => {
-                        if 1 <= read && &buf[read - 1..read] == b">" {
+                        if read > 0 && buf[read - 1] == b'>' {
                             debug_assert_eq!(
                                 find_matching_suffix(b">", &buf[read - 1..read]),
                                 AlreadyFoundByteSeqCount(1)
