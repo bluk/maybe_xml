@@ -423,32 +423,31 @@ impl Scanner {
             return None;
         }
 
-        if already_found_byte_seq_count.0 > 0 {
-            match already_found_byte_seq_count.0 {
-                1 => {
-                    if bytes.get(offset.0) == Some(&b'-') {
-                        match bytes.get(offset.0 + 1) {
-                            Some(&b'>') => {
-                                self.state = InternalState::Reset;
-                                return Some(State::ScannedComment(offset.0 + 2));
-                            }
-                            None => {
-                                self.state =
-                                    InternalState::ScanningComment(AlreadyFoundByteSeqCount(2));
-                                return Some(State::ScanningComment);
-                            }
-                            _ => {}
+        match already_found_byte_seq_count.0 {
+            0 => {}
+            1 => {
+                if bytes.get(offset.0) == Some(&b'-') {
+                    match bytes.get(offset.0 + 1) {
+                        Some(&b'>') => {
+                            self.state = InternalState::Reset;
+                            return Some(State::ScannedComment(offset.0 + 2));
                         }
+                        None => {
+                            self.state =
+                                InternalState::ScanningComment(AlreadyFoundByteSeqCount(2));
+                            return Some(State::ScanningComment);
+                        }
+                        _ => {}
                     }
                 }
-                2 => {
-                    if bytes.get(offset.0) == Some(&b'>') {
-                        self.state = InternalState::Reset;
-                        return Some(State::ScannedComment(offset.0 + 1));
-                    }
-                }
-                _ => unreachable!("should only match up to 2"),
             }
+            2 => {
+                if bytes.get(offset.0) == Some(&b'>') {
+                    self.state = InternalState::Reset;
+                    return Some(State::ScannedComment(offset.0 + 1));
+                }
+            }
+            _ => unreachable!("should only match up to 2"),
         }
 
         let mut bytes_to_search = &bytes[offset.0..];
@@ -485,32 +484,30 @@ impl Scanner {
             return None;
         }
 
-        if already_found_byte_seq_count.0 > 0 {
-            match already_found_byte_seq_count.0 {
-                1 => {
-                    if bytes.get(offset.0) == Some(&b']') {
-                        match bytes.get(offset.0 + 1) {
-                            Some(&b'>') => {
-                                self.state = InternalState::Reset;
-                                return Some(State::ScannedCdata(offset.0 + 2));
-                            }
-                            None => {
-                                self.state =
-                                    InternalState::ScanningCdata(AlreadyFoundByteSeqCount(2));
-                                return Some(State::ScanningCdata);
-                            }
-                            _ => {}
+        match already_found_byte_seq_count.0 {
+            0 => {}
+            1 => {
+                if bytes.get(offset.0) == Some(&b']') {
+                    match bytes.get(offset.0 + 1) {
+                        Some(&b'>') => {
+                            self.state = InternalState::Reset;
+                            return Some(State::ScannedCdata(offset.0 + 2));
                         }
+                        None => {
+                            self.state = InternalState::ScanningCdata(AlreadyFoundByteSeqCount(2));
+                            return Some(State::ScanningCdata);
+                        }
+                        _ => {}
                     }
                 }
-                2 => {
-                    if bytes.get(offset.0) == Some(&b'>') {
-                        self.state = InternalState::Reset;
-                        return Some(State::ScannedCdata(offset.0 + 1));
-                    }
-                }
-                _ => unreachable!("should only match up to 2"),
             }
+            2 => {
+                if bytes.get(offset.0) == Some(&b'>') {
+                    self.state = InternalState::Reset;
+                    return Some(State::ScannedCdata(offset.0 + 1));
+                }
+            }
+            _ => unreachable!("should only match up to 2"),
         }
 
         let mut bytes_to_search = &bytes[offset.0..];
