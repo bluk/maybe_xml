@@ -83,13 +83,7 @@ pub(crate) fn quote_context_aware_find(
 
         if found_last_byte {
             debug_assert_eq!(quote_state, QuoteState::None);
-            if read > 0 && buf[read - 1] == b'>' {
-                debug_assert_eq!(
-                    find_matching_suffix(b">", &buf[read - 1..read]),
-                    AlreadyFoundByteSeqCount(1)
-                );
-                return QuoteContextAwareFoundState::Found(read);
-            }
+            return QuoteContextAwareFoundState::Found(read);
         } else {
             debug_assert_eq!(read, buf.len());
             return QuoteContextAwareFoundState::NotFound(quote_state);
