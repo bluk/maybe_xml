@@ -415,7 +415,7 @@ impl Scanner {
     fn scan_comment(
         &mut self,
         bytes: &[u8],
-        mut already_found_byte_seq_count: AlreadyFoundByteSeqCount,
+        already_found_byte_seq_count: AlreadyFoundByteSeqCount,
         offset: Offset,
     ) -> Option<State> {
         if bytes.is_empty() {
@@ -433,9 +433,8 @@ impl Scanner {
                                 return Some(State::ScannedComment(offset.0 + 2));
                             }
                             None => {
-                                already_found_byte_seq_count.0 = 2;
                                 self.state =
-                                    InternalState::ScanningComment(already_found_byte_seq_count);
+                                    InternalState::ScanningComment(AlreadyFoundByteSeqCount(2));
                                 return Some(State::ScanningComment);
                             }
                             _ => {}
@@ -478,7 +477,7 @@ impl Scanner {
     fn scan_cdata(
         &mut self,
         bytes: &[u8],
-        mut already_found_byte_seq_count: AlreadyFoundByteSeqCount,
+        already_found_byte_seq_count: AlreadyFoundByteSeqCount,
         offset: Offset,
     ) -> Option<State> {
         if bytes.is_empty() {
@@ -496,9 +495,8 @@ impl Scanner {
                                 return Some(State::ScannedCdata(offset.0 + 2));
                             }
                             None => {
-                                already_found_byte_seq_count.0 = 2;
                                 self.state =
-                                    InternalState::ScanningCdata(already_found_byte_seq_count);
+                                    InternalState::ScanningCdata(AlreadyFoundByteSeqCount(2));
                                 return Some(State::ScanningCdata);
                             }
                             _ => {}
