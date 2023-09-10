@@ -38,10 +38,6 @@ pub(crate) fn quote_context_aware_find(
     buf: &[u8],
     mut quote_state: QuoteState,
 ) -> QuoteContextAwareFoundState {
-    if buf.is_empty() {
-        return QuoteContextAwareFoundState::NotFound(quote_state);
-    }
-
     for (index, byte) in buf.iter().enumerate() {
         match byte {
             b'"' => match quote_state {
@@ -72,7 +68,7 @@ pub(crate) fn quote_context_aware_find(
         }
     }
 
-    return QuoteContextAwareFoundState::NotFound(quote_state);
+    QuoteContextAwareFoundState::NotFound(quote_state)
 }
 
 #[inline]
