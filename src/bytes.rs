@@ -68,7 +68,7 @@ pub(crate) fn quote_context_aware_find(
                     }
                     QuoteState::Double => {}
                 },
-                b if *b == b'>' => match quote_state {
+                b'>' => match quote_state {
                     QuoteState::None => {
                         bytes = &bytes[..=index];
                         found_last_byte = true;
@@ -83,7 +83,7 @@ pub(crate) fn quote_context_aware_find(
 
         if found_last_byte {
             debug_assert_eq!(quote_state, QuoteState::None);
-            if 1 <= read && &buf[read - 1..read] == b">" {
+            if read > 0 && buf[read - 1] == b'>' {
                 debug_assert_eq!(
                     find_matching_suffix(b">", &buf[read - 1..read]),
                     AlreadyFoundByteSeqCount(1)
