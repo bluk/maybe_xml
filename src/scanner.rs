@@ -199,7 +199,7 @@ impl Scanner {
                     Some(State::ScannedStartTag(offset.0 + read))
                 }
             }
-            QuoteContextAwareFoundState::NotFound(quote_state, _) => {
+            QuoteContextAwareFoundState::NotFound(quote_state) => {
                 let last_char_slash = match quote_state {
                     QuoteState::None => bytes.last() == Some(&b'/'),
                     QuoteState::Single | QuoteState::Double => false,
@@ -233,7 +233,7 @@ impl Scanner {
                 self.state = InternalState::Reset;
                 Some(State::ScannedEndTag(offset.0 + read))
             }
-            QuoteContextAwareFoundState::NotFound(quote_state, _) => {
+            QuoteContextAwareFoundState::NotFound(quote_state) => {
                 self.state = InternalState::ScanningEndTag(quote_state);
                 Some(State::ScanningEndTag)
             }
