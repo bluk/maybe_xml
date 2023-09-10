@@ -42,9 +42,7 @@ pub(crate) fn quote_context_aware_find(
         return QuoteContextAwareFoundState::NotFound(quote_state);
     }
 
-    let mut bytes = &buf[..];
-
-    for (index, byte) in bytes.iter().enumerate() {
+    for (index, byte) in buf.iter().enumerate() {
         match byte {
             b'"' => match quote_state {
                 QuoteState::Double => {
@@ -66,7 +64,7 @@ pub(crate) fn quote_context_aware_find(
             },
             b'>' => match quote_state {
                 QuoteState::None => {
-                    return QuoteContextAwareFoundState::Found(bytes[..=index].len());
+                    return QuoteContextAwareFoundState::Found(buf[..=index].len());
                 }
                 QuoteState::Single | QuoteState::Double => {}
             },
@@ -74,7 +72,6 @@ pub(crate) fn quote_context_aware_find(
         }
     }
 
-    debug_assert_eq!(bytes.len(), buf.len());
     return QuoteContextAwareFoundState::NotFound(quote_state);
 }
 
