@@ -260,9 +260,6 @@ fn quote_and_bracket_context_aware_find_2(
                     }
                     QuoteState::Single | QuoteState::Double => {}
                 },
-                _ => {}
-            }
-            match byte {
                 b'"' => match quote_state {
                     QuoteState::None => {
                         quote_state = QuoteState::Double;
