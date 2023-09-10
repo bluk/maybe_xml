@@ -103,10 +103,9 @@ pub(crate) fn quote_and_bracket_context_aware_find(
         );
     }
 
-    let byte_seq = b">";
     match quote_state {
         QuoteState::None => {
-            let prefix_check = &byte_seq[(already_found_byte_seq_count.0)..];
+            let prefix_check = &b">"[(already_found_byte_seq_count.0)..];
             let buf_len = buf.len();
             let prefix_check_len = prefix_check.len();
 
@@ -154,10 +153,6 @@ fn quote_and_bracket_context_aware_find_2(
     mut bracket_count: BracketCount,
     mut read: usize,
 ) -> QuoteAndBracketContextAwareFoundState {
-    let byte_seq = b">";
-    let byte_seq_len = byte_seq.len();
-    let last_expected_byte = byte_seq[byte_seq_len - 1];
-
     loop {
         let mut bytes = &buf[read..];
         let mut found_last_byte = false;
@@ -194,8 +189,7 @@ fn quote_and_bracket_context_aware_find_2(
                     }
                     QuoteState::Double => {}
                 },
-                // if byte_seq ended with a quote character, this should not be a part of the match
-                b if *b == last_expected_byte => {
+                b if *b == b'>' => {
                     bytes = &bytes[..=index];
                     found_last_byte = true;
                     break;
@@ -209,10 +203,10 @@ fn quote_and_bracket_context_aware_find_2(
             if bracket_count.0 == 0 {
                 match quote_state {
                     QuoteState::None => {
-                        if byte_seq_len <= read && &buf[read - byte_seq_len..read] == byte_seq {
+                        if 1 <= read && &buf[read - 1..read] == b">" {
                             debug_assert_eq!(
-                                find_matching_suffix(byte_seq, &buf[read - byte_seq_len..read]),
-                                AlreadyFoundByteSeqCount(byte_seq_len)
+                                find_matching_suffix(b">", &buf[read - 1..read]),
+                                AlreadyFoundByteSeqCount(1)
                             );
                             return QuoteAndBracketContextAwareFoundState::Found(read);
                         }
@@ -223,7 +217,7 @@ fn quote_and_bracket_context_aware_find_2(
         } else {
             debug_assert_eq!(read, buf.len());
             let already_found_byte_seq_count = match (bracket_count.0 == 0, quote_state) {
-                (true, QuoteState::None) => find_matching_suffix(byte_seq, buf),
+                (true, QuoteState::None) => find_matching_suffix(b">", buf),
                 _ => AlreadyFoundByteSeqCount(0),
             };
             return QuoteAndBracketContextAwareFoundState::NotFound(
