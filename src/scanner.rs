@@ -137,9 +137,7 @@ impl Scanner {
         if let Some(next) = bytes::peek2(bytes) {
             match next {
                 b'/' => self.scan_end_tag(bytes, QuoteState::None, Offset(2)),
-                b'?' => {
-                    self.scan_processing_instruction(bytes, false, Offset(2))
-                }
+                b'?' => self.scan_processing_instruction(bytes, false, Offset(2)),
                 b'!' => self.scan_declaration_comment_or_cdata(bytes, [0; 7], 0, Offset(2)),
                 _ => {
                     self.scan_start_or_empty_element_tag(bytes, QuoteState::None, false, Offset(1))
@@ -157,9 +155,7 @@ impl Scanner {
         if let Some(next) = bytes::peek(bytes) {
             match next {
                 b'/' => self.scan_end_tag(bytes, QuoteState::None, Offset(1)),
-                b'?' => {
-                    self.scan_processing_instruction(bytes, false, Offset(1))
-                }
+                b'?' => self.scan_processing_instruction(bytes, false, Offset(1)),
                 b'!' => self.scan_declaration_comment_or_cdata(bytes, [0; 7], 0, Offset(1)),
                 _ => {
                     self.scan_start_or_empty_element_tag(bytes, QuoteState::None, false, Offset(0))
