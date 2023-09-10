@@ -24,7 +24,7 @@ enum InternalState {
     ScanningStartOrEmptyElementTag(QuoteState, bool),
     ScanningEndTag(QuoteState),
     ScanningCharacters,
-    ScanningProcessingInstruction(AlreadyFoundByteSeqCount),
+    ScanningProcessingInstruction(bool),
     ScanningDeclarationCommentOrCdata([u8; 7], usize),
     ScanningDeclaration(QuoteState, BracketCount, AlreadyFoundByteSeqCount),
     ScanningComment(AlreadyFoundByteSeqCount),
@@ -138,7 +138,7 @@ impl Scanner {
             match next {
                 b'/' => self.scan_end_tag(bytes, QuoteState::None, Offset(2)),
                 b'?' => {
-                    self.scan_processing_instruction(bytes, AlreadyFoundByteSeqCount(0), Offset(2))
+                    self.scan_processing_instruction(bytes, false, Offset(2))
                 }
                 b'!' => self.scan_declaration_comment_or_cdata(bytes, [0; 7], 0, Offset(2)),
                 _ => {
@@ -158,7 +158,7 @@ impl Scanner {
             match next {
                 b'/' => self.scan_end_tag(bytes, QuoteState::None, Offset(1)),
                 b'?' => {
-                    self.scan_processing_instruction(bytes, AlreadyFoundByteSeqCount(0), Offset(1))
+                    self.scan_processing_instruction(bytes, false, Offset(1))
                 }
                 b'!' => self.scan_declaration_comment_or_cdata(bytes, [0; 7], 0, Offset(1)),
                 _ => {
@@ -249,7 +249,7 @@ impl Scanner {
     fn scan_processing_instruction(
         &mut self,
         bytes: &[u8],
-        already_found_byte_seq_count: AlreadyFoundByteSeqCount,
+        question_mark_was_seen: bool,
         offset: Offset,
     ) -> Option<State> {
         if bytes.is_empty() {
@@ -257,8 +257,7 @@ impl Scanner {
             return None;
         }
 
-        if already_found_byte_seq_count.0 > 0 {
-            debug_assert_eq!(already_found_byte_seq_count.0, 1);
+        if question_mark_was_seen {
             if bytes.get(offset.0) == Some(&b'>') {
                 self.state = InternalState::Reset;
                 return Some(State::ScannedProcessingInstruction(offset.0 + 1));
@@ -280,9 +279,8 @@ impl Scanner {
 
                 bytes_to_search = &bytes_to_search[end..];
             } else {
-                let already_found_byte_seq_count =
-                    bytes::find_matching_suffix(b"?>", &bytes[offset.0..]);
-                self.state = InternalState::ScanningProcessingInstruction(already_found_byte_seq_count);
+                let was_seen = bytes[offset.0..].last().map_or(false, |b| *b == b'?');
+                self.state = InternalState::ScanningProcessingInstruction(was_seen);
                 return Some(State::ScanningProcessingInstruction);
             }
         }
@@ -1218,7 +1216,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(1))
+            InternalState::ScanningProcessingInstruction(true)
         );
         let bytes = r"".as_bytes();
         assert_eq!(scanner.scan(bytes), None);
@@ -1241,7 +1239,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(0))
+            InternalState::ScanningProcessingInstruction(false)
         );
 
         let bytes = r"?>Content".as_bytes();
@@ -1266,7 +1264,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(0))
+            InternalState::ScanningProcessingInstruction(false)
         );
 
         let bytes = r"test ?>Content".as_bytes();
@@ -1287,7 +1285,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(0))
+            InternalState::ScanningProcessingInstruction(false)
         );
 
         let bytes = r">invalid?>Some content".as_bytes();
@@ -1308,7 +1306,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(0))
+            InternalState::ScanningProcessingInstruction(false)
         );
 
         let bytes = r">invalid?>Some content".as_bytes();
@@ -1329,7 +1327,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(0))
+            InternalState::ScanningProcessingInstruction(false)
         );
 
         let bytes = r"?".as_bytes();
@@ -1339,7 +1337,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(1))
+            InternalState::ScanningProcessingInstruction(true)
         );
 
         let bytes = r#" > a="v""#.as_bytes();
@@ -1349,7 +1347,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(0))
+            InternalState::ScanningProcessingInstruction(false)
         );
 
         let bytes = r#"?"#.as_bytes();
@@ -1359,7 +1357,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(1))
+            InternalState::ScanningProcessingInstruction(true)
         );
 
         let bytes = r#">"#.as_bytes();
@@ -1391,7 +1389,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(1))
+            InternalState::ScanningProcessingInstruction(true)
         );
 
         let bytes = r#"val?>'?>Content"#.as_bytes();
@@ -1423,7 +1421,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(1))
+            InternalState::ScanningProcessingInstruction(true)
         );
 
         let bytes = r#"val?>"?>Content"#.as_bytes();
@@ -1444,7 +1442,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(0))
+            InternalState::ScanningProcessingInstruction(false)
         );
     }
 
@@ -1458,7 +1456,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(0))
+            InternalState::ScanningProcessingInstruction(false)
         );
 
         let bytes = r#">"#.as_bytes();
@@ -1468,7 +1466,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(0))
+            InternalState::ScanningProcessingInstruction(false)
         );
     }
 
