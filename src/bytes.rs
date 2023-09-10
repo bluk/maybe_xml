@@ -44,10 +44,6 @@ pub(crate) fn quote_context_aware_find(
 
     let mut read = 0;
 
-    let byte_seq = b">";
-    let byte_seq_len = byte_seq.len();
-    let last_expected_byte = byte_seq[byte_seq_len - 1];
-
     loop {
         let mut bytes = &buf[read..];
         let mut found_last_byte = false;
@@ -72,8 +68,7 @@ pub(crate) fn quote_context_aware_find(
                     }
                     QuoteState::Double => {}
                 },
-                // if byte_seq ended with a quote character, this should not be a part of the match
-                b if *b == last_expected_byte => match quote_state {
+                b if *b == b'>' => match quote_state {
                     QuoteState::None => {
                         bytes = &bytes[..=index];
                         found_last_byte = true;
@@ -88,10 +83,10 @@ pub(crate) fn quote_context_aware_find(
 
         if found_last_byte {
             debug_assert_eq!(quote_state, QuoteState::None);
-            if byte_seq_len <= read && &buf[read - byte_seq_len..read] == byte_seq {
+            if 1 <= read && &buf[read - 1..read] == b">" {
                 debug_assert_eq!(
-                    find_matching_suffix(byte_seq, &buf[read - byte_seq_len..read]),
-                    AlreadyFoundByteSeqCount(byte_seq_len)
+                    find_matching_suffix(b">", &buf[read - 1..read]),
+                    AlreadyFoundByteSeqCount(1)
                 );
                 return QuoteContextAwareFoundState::Found(read);
             }
