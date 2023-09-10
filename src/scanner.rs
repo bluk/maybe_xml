@@ -179,10 +179,7 @@ impl Scanner {
             return None;
         }
 
-        let found = bytes::quote_context_aware_find(
-            &bytes[(offset.0)..],
-            quote_state,
-        );
+        let found = bytes::quote_context_aware_find(&bytes[(offset.0)..], quote_state);
 
         match found {
             QuoteContextAwareFoundState::Found(read) => {
@@ -220,10 +217,7 @@ impl Scanner {
             return None;
         }
 
-        let found = bytes::quote_context_aware_find(
-            &bytes[(offset.0)..],
-            quote_state,
-        );
+        let found = bytes::quote_context_aware_find(&bytes[(offset.0)..], quote_state);
         match found {
             QuoteContextAwareFoundState::Found(read) => {
                 self.state = InternalState::Reset;

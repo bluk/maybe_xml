@@ -294,8 +294,7 @@ mod tests {
     #[test]
     fn quote_aware_advanced_including_empty() {
         let bytes = r#""#.as_bytes();
-        let found =
-            quote_context_aware_find(bytes, QuoteState::None);
+        let found = quote_context_aware_find(bytes, QuoteState::None);
         assert_eq!(
             found,
             QuoteContextAwareFoundState::NotFound(QuoteState::None)
@@ -305,16 +304,14 @@ mod tests {
     #[test]
     fn quote_aware_advanced_including_found_with_no_quotes() {
         let bytes = r#"<?hello ?>"#.as_bytes();
-        let found =
-            quote_context_aware_find(bytes, QuoteState::None);
+        let found = quote_context_aware_find(bytes, QuoteState::None);
         assert_eq!(found, QuoteContextAwareFoundState::Found(10));
     }
 
     #[test]
     fn quote_aware_advanced_including_not_found_with_no_quotes() {
         let bytes = r#"<?hello "#.as_bytes();
-        let found =
-            quote_context_aware_find(bytes, QuoteState::None);
+        let found = quote_context_aware_find(bytes, QuoteState::None);
         assert_eq!(
             found,
             QuoteContextAwareFoundState::NotFound(QuoteState::None)
@@ -324,54 +321,42 @@ mod tests {
     #[test]
     fn quote_aware_advanced_including_end_unfinished_quote() {
         let bytes = r#"<?hello attr1="?>"#.as_bytes();
-        let found =
-            quote_context_aware_find(bytes, QuoteState::None);
+        let found = quote_context_aware_find(bytes, QuoteState::None);
         assert_eq!(
             found,
             QuoteContextAwareFoundState::NotFound(QuoteState::Double)
         );
 
         let bytes = r#""?>"#.as_bytes();
-        let found = quote_context_aware_find(
-            bytes,
-            QuoteState::Double,
-        );
+        let found = quote_context_aware_find(bytes, QuoteState::Double);
         assert_eq!(found, QuoteContextAwareFoundState::Found(3));
     }
 
     #[test]
     fn quote_aware_advanced_including_start_quote_last_byte() {
         let bytes = r#"<?hello attr1=""#.as_bytes();
-        let found =
-            quote_context_aware_find(bytes, QuoteState::None);
+        let found = quote_context_aware_find(bytes, QuoteState::None);
         assert_eq!(
             found,
             QuoteContextAwareFoundState::NotFound(QuoteState::Double)
         );
 
         let bytes = r#"?>"?>"#.as_bytes();
-        let found = quote_context_aware_find(
-            bytes,
-            QuoteState::Double,
-        );
+        let found = quote_context_aware_find(bytes, QuoteState::Double);
         assert_eq!(found, QuoteContextAwareFoundState::Found(5));
     }
 
     #[test]
     fn quote_aware_advanced_including_end_found_last_seq_byte_in_quote() {
         let bytes = r#"<?hello attr1=">"#.as_bytes();
-        let found =
-            quote_context_aware_find(bytes, QuoteState::None);
+        let found = quote_context_aware_find(bytes, QuoteState::None);
         assert_eq!(
             found,
             QuoteContextAwareFoundState::NotFound(QuoteState::Double)
         );
 
         let bytes = r#"?>"?>"#.as_bytes();
-        let found = quote_context_aware_find(
-            bytes,
-            QuoteState::Double,
-        );
+        let found = quote_context_aware_find(bytes, QuoteState::Double);
         assert_eq!(found, QuoteContextAwareFoundState::Found(5));
     }
 
