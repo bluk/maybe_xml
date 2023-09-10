@@ -267,7 +267,6 @@ impl Scanner {
 
         let mut bytes_to_search = &bytes[offset.0..];
         let mut read = 0;
-        let found;
 
         loop {
             if let Some(index) = bytes_to_search.iter().position(|b| *b == b'>') {
@@ -275,25 +274,17 @@ impl Scanner {
                 read += end;
 
                 if index > 0 && bytes_to_search[index - 1] == b'?' {
-                    found = true;
-                    break;
+                    self.state = InternalState::Reset;
+                    return Some(State::ScannedProcessingInstruction(offset.0 + read));
                 }
 
                 bytes_to_search = &bytes_to_search[end..];
             } else {
-                found = false;
-                break;
+                let already_found_byte_seq_count =
+                    bytes::find_matching_suffix(b"?>", &bytes[offset.0..]);
+                self.state = InternalState::ScanningProcessingInstruction(already_found_byte_seq_count);
+                return Some(State::ScanningProcessingInstruction);
             }
-        }
-
-        if found {
-            self.state = InternalState::Reset;
-            Some(State::ScannedProcessingInstruction(offset.0 + read))
-        } else {
-            let already_found_byte_seq_count =
-                bytes::find_matching_suffix(b"?>", &bytes[offset.0..]);
-            self.state = InternalState::ScanningProcessingInstruction(already_found_byte_seq_count);
-            Some(State::ScanningProcessingInstruction)
         }
     }
 
@@ -481,7 +472,6 @@ impl Scanner {
 
         let mut bytes_to_search = &bytes[offset.0..];
         let mut read = 0;
-        let found;
 
         loop {
             if let Some(index) = bytes_to_search.iter().position(|b| *b == b'>') {
@@ -489,25 +479,17 @@ impl Scanner {
                 read += end;
 
                 if index > 1 && &bytes_to_search[index - 2..end] == b"-->" {
-                    found = true;
-                    break;
+                    self.state = InternalState::Reset;
+                    return Some(State::ScannedComment(offset.0 + read));
                 }
 
                 bytes_to_search = &bytes_to_search[end..];
             } else {
-                found = false;
-                break;
+                let already_found_byte_seq_count =
+                    bytes::find_matching_suffix(b"-->", &bytes[offset.0..]);
+                self.state = InternalState::ScanningComment(already_found_byte_seq_count);
+                return Some(State::ScanningComment);
             }
-        }
-
-        if found {
-            self.state = InternalState::Reset;
-            Some(State::ScannedComment(offset.0 + read))
-        } else {
-            let already_found_byte_seq_count =
-                bytes::find_matching_suffix(b"-->", &bytes[offset.0..]);
-            self.state = InternalState::ScanningComment(already_found_byte_seq_count);
-            Some(State::ScanningComment)
         }
     }
 
@@ -553,7 +535,6 @@ impl Scanner {
 
         let mut bytes_to_search = &bytes[offset.0..];
         let mut read = 0;
-        let found;
 
         loop {
             if let Some(index) = bytes_to_search.iter().position(|b| *b == b'>') {
@@ -561,25 +542,17 @@ impl Scanner {
                 read += end;
 
                 if index > 1 && &bytes_to_search[index - 2..end] == b"]]>" {
-                    found = true;
-                    break;
+                    self.state = InternalState::Reset;
+                    return Some(State::ScannedCdata(offset.0 + read));
                 }
 
                 bytes_to_search = &bytes_to_search[end..];
             } else {
-                found = false;
-                break;
+                let already_found_byte_seq_count =
+                    bytes::find_matching_suffix(b"]]>", &bytes[offset.0..]);
+                self.state = InternalState::ScanningCdata(already_found_byte_seq_count);
+                return Some(State::ScanningCdata);
             }
-        }
-
-        if found {
-            self.state = InternalState::Reset;
-            Some(State::ScannedCdata(offset.0 + read))
-        } else {
-            let already_found_byte_seq_count =
-                bytes::find_matching_suffix(b"]]>", &bytes[offset.0..]);
-            self.state = InternalState::ScanningCdata(already_found_byte_seq_count);
-            Some(State::ScanningCdata)
         }
     }
 
