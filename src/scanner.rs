@@ -180,7 +180,7 @@ impl Scanner {
         }
 
         let byte_seq = b">";
-        let (read, found) = bytes::quote_context_aware_find(
+        let found = bytes::quote_context_aware_find(
             &bytes[(offset.0)..],
             byte_seq,
             AlreadyFoundByteSeqCount(0),
@@ -188,7 +188,7 @@ impl Scanner {
         );
 
         match found {
-            QuoteContextAwareFoundState::Found => {
+            QuoteContextAwareFoundState::Found(read) => {
                 self.state = InternalState::Reset;
 
                 if read > 1 && bytes[offset.0 + read - 2] == b'/' {
@@ -224,14 +224,14 @@ impl Scanner {
         }
 
         let byte_seq = b">";
-        let (read, found) = bytes::quote_context_aware_find(
+        let found = bytes::quote_context_aware_find(
             &bytes[(offset.0)..],
             byte_seq,
             AlreadyFoundByteSeqCount(0),
             quote_state,
         );
         match found {
-            QuoteContextAwareFoundState::Found => {
+            QuoteContextAwareFoundState::Found(read) => {
                 self.state = InternalState::Reset;
                 Some(State::ScannedEndTag(offset.0 + read))
             }
@@ -397,7 +397,7 @@ impl Scanner {
         }
 
         let byte_seq = b">";
-        let (read, found) = bytes::quote_and_bracket_context_aware_find(
+        let found = bytes::quote_and_bracket_context_aware_find(
             &bytes[(offset.0)..],
             byte_seq,
             already_found_byte_seq_count,
@@ -405,7 +405,7 @@ impl Scanner {
             bracket_count,
         );
         match found {
-            QuoteAndBracketContextAwareFoundState::Found => {
+            QuoteAndBracketContextAwareFoundState::Found(read) => {
                 self.state = InternalState::Reset;
                 Some(State::ScannedDeclaration(offset.0 + read))
             }

@@ -21,13 +21,13 @@ pub(crate) struct BracketCount(pub(crate) u64);
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum QuoteAndBracketContextAwareFoundState {
     NotFound(QuoteState, BracketCount, AlreadyFoundByteSeqCount),
-    Found,
+    Found(usize),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum QuoteContextAwareFoundState {
     NotFound(QuoteState, AlreadyFoundByteSeqCount),
-    Found,
+    Found(usize),
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
@@ -39,12 +39,9 @@ pub(crate) fn quote_context_aware_find(
     byte_seq: &[u8],
     already_found_byte_seq_count: AlreadyFoundByteSeqCount,
     mut quote_state: QuoteState,
-) -> (usize, QuoteContextAwareFoundState) {
+) -> QuoteContextAwareFoundState {
     if buf.is_empty() {
-        return (
-            0,
-            QuoteContextAwareFoundState::NotFound(quote_state, already_found_byte_seq_count),
-        );
+        return QuoteContextAwareFoundState::NotFound(quote_state, already_found_byte_seq_count);
     }
 
     let mut read = 0;
@@ -64,21 +61,18 @@ pub(crate) fn quote_context_aware_find(
 
                     if read == buf_len {
                         if read == prefix_check_len {
-                            return (read, QuoteContextAwareFoundState::Found);
+                            return QuoteContextAwareFoundState::Found(read);
                         }
 
-                        return (
-                            read,
-                            QuoteContextAwareFoundState::NotFound(
-                                QuoteState::None,
-                                AlreadyFoundByteSeqCount(read + already_found_byte_seq_count.0),
-                            ),
+                        return QuoteContextAwareFoundState::NotFound(
+                            QuoteState::None,
+                            AlreadyFoundByteSeqCount(read + already_found_byte_seq_count.0),
                         );
                     }
                 }
 
                 if read == prefix_check_len {
-                    return (read, QuoteContextAwareFoundState::Found);
+                    return QuoteContextAwareFoundState::Found(read);
                 }
             }
             QuoteState::Single | QuoteState::Double => {}
@@ -133,7 +127,7 @@ pub(crate) fn quote_context_aware_find(
                     find_matching_suffix(byte_seq, &buf[read - byte_seq_len..read]),
                     AlreadyFoundByteSeqCount(byte_seq_len)
                 );
-                return (read, QuoteContextAwareFoundState::Found);
+                return QuoteContextAwareFoundState::Found(read);
             }
         } else {
             debug_assert_eq!(read, buf.len());
@@ -141,10 +135,7 @@ pub(crate) fn quote_context_aware_find(
                 QuoteState::None => find_matching_suffix(byte_seq, buf),
                 QuoteState::Single | QuoteState::Double => AlreadyFoundByteSeqCount(0),
             };
-            return (
-                read,
-                QuoteContextAwareFoundState::NotFound(quote_state, already_found_byte_seq_count),
-            );
+            return QuoteContextAwareFoundState::NotFound(quote_state, already_found_byte_seq_count);
         }
     }
 }
@@ -171,17 +162,14 @@ pub(crate) fn quote_and_bracket_context_aware_find(
     already_found_byte_seq_count: AlreadyFoundByteSeqCount,
     quote_state: QuoteState,
     mut bracket_count: BracketCount,
-) -> (usize, QuoteAndBracketContextAwareFoundState) {
+) -> QuoteAndBracketContextAwareFoundState {
     let mut read = 0;
 
     if buf.is_empty() {
-        return (
-            0,
-            QuoteAndBracketContextAwareFoundState::NotFound(
-                quote_state,
-                bracket_count,
-                already_found_byte_seq_count,
-            ),
+        return QuoteAndBracketContextAwareFoundState::NotFound(
+            quote_state,
+            bracket_count,
+            already_found_byte_seq_count,
         );
     }
 
@@ -208,21 +196,18 @@ pub(crate) fn quote_and_bracket_context_aware_find(
 
                 if read == buf_len {
                     if read == prefix_check_len && bracket_count.0 == 0 {
-                        return (read, QuoteAndBracketContextAwareFoundState::Found);
+                        return QuoteAndBracketContextAwareFoundState::Found(read);
                     }
-                    return (
-                        read,
-                        QuoteAndBracketContextAwareFoundState::NotFound(
-                            QuoteState::None,
-                            bracket_count,
-                            AlreadyFoundByteSeqCount(read + already_found_byte_seq_count.0),
-                        ),
+                    return QuoteAndBracketContextAwareFoundState::NotFound(
+                        QuoteState::None,
+                        bracket_count,
+                        AlreadyFoundByteSeqCount(read + already_found_byte_seq_count.0),
                     );
                 }
             }
 
             if read == prefix_check_len && bracket_count.0 == 0 {
-                return (read, QuoteAndBracketContextAwareFoundState::Found);
+                return QuoteAndBracketContextAwareFoundState::Found(read);
             }
         }
         QuoteState::Single | QuoteState::Double => {}
@@ -238,7 +223,7 @@ fn quote_and_bracket_context_aware_find_2(
     mut quote_state: QuoteState,
     mut bracket_count: BracketCount,
     mut read: usize,
-) -> (usize, QuoteAndBracketContextAwareFoundState) {
+) -> QuoteAndBracketContextAwareFoundState {
     let byte_seq_len = byte_seq.len();
     let last_expected_byte = byte_seq[byte_seq_len - 1];
 
@@ -298,7 +283,7 @@ fn quote_and_bracket_context_aware_find_2(
                                 find_matching_suffix(byte_seq, &buf[read - byte_seq_len..read]),
                                 AlreadyFoundByteSeqCount(byte_seq_len)
                             );
-                            return (read, QuoteAndBracketContextAwareFoundState::Found);
+                            return QuoteAndBracketContextAwareFoundState::Found(read);
                         }
                     }
                     QuoteState::Double | QuoteState::Single => {}
@@ -310,13 +295,10 @@ fn quote_and_bracket_context_aware_find_2(
                 (true, QuoteState::None) => find_matching_suffix(byte_seq, buf),
                 _ => AlreadyFoundByteSeqCount(0),
             };
-            return (
-                read,
-                QuoteAndBracketContextAwareFoundState::NotFound(
-                    quote_state,
-                    bracket_count,
-                    already_found_byte_seq_count,
-                ),
+            return QuoteAndBracketContextAwareFoundState::NotFound(
+                quote_state,
+                bracket_count,
+                already_found_byte_seq_count,
             );
         }
     }
@@ -381,9 +363,8 @@ mod tests {
     #[test]
     fn quote_aware_advanced_including_empty() {
         let bytes = r#""#.as_bytes();
-        let (read, found) =
+        let found =
             quote_context_aware_find(bytes, b"?>", AlreadyFoundByteSeqCount(0), QuoteState::None);
-        assert_eq!(read, 0);
         assert_eq!(
             found,
             QuoteContextAwareFoundState::NotFound(QuoteState::None, AlreadyFoundByteSeqCount(0))
@@ -393,18 +374,16 @@ mod tests {
     #[test]
     fn quote_aware_advanced_including_found_with_no_quotes() {
         let bytes = r#"<?hello ?>"#.as_bytes();
-        let (read, found) =
+        let found =
             quote_context_aware_find(bytes, b"?>", AlreadyFoundByteSeqCount(0), QuoteState::None);
-        assert_eq!(read, 10);
-        assert_eq!(found, QuoteContextAwareFoundState::Found);
+        assert_eq!(found, QuoteContextAwareFoundState::Found(10));
     }
 
     #[test]
     fn quote_aware_advanced_including_not_found_with_no_quotes() {
         let bytes = r#"<?hello "#.as_bytes();
-        let (read, found) =
+        let found =
             quote_context_aware_find(bytes, b"?>", AlreadyFoundByteSeqCount(0), QuoteState::None);
-        assert_eq!(read, 8);
         assert_eq!(
             found,
             QuoteContextAwareFoundState::NotFound(QuoteState::None, AlreadyFoundByteSeqCount(0))
@@ -414,67 +393,61 @@ mod tests {
     #[test]
     fn quote_aware_advanced_including_end_unfinished_quote() {
         let bytes = r#"<?hello attr1="?>"#.as_bytes();
-        let (read, found) =
+        let found =
             quote_context_aware_find(bytes, b"?>", AlreadyFoundByteSeqCount(0), QuoteState::None);
-        assert_eq!(read, 17);
         assert_eq!(
             found,
             QuoteContextAwareFoundState::NotFound(QuoteState::Double, AlreadyFoundByteSeqCount(0))
         );
 
         let bytes = r#""?>"#.as_bytes();
-        let (read, found) = quote_context_aware_find(
+        let found = quote_context_aware_find(
             bytes,
             b"?>",
             AlreadyFoundByteSeqCount(0),
             QuoteState::Double,
         );
-        assert_eq!(read, 3);
-        assert_eq!(found, QuoteContextAwareFoundState::Found);
+        assert_eq!(found, QuoteContextAwareFoundState::Found(3));
     }
 
     #[test]
     fn quote_aware_advanced_including_start_quote_last_byte() {
         let bytes = r#"<?hello attr1=""#.as_bytes();
-        let (read, found) =
+        let found =
             quote_context_aware_find(bytes, b"?>", AlreadyFoundByteSeqCount(0), QuoteState::None);
-        assert_eq!(read, 15);
         assert_eq!(
             found,
             QuoteContextAwareFoundState::NotFound(QuoteState::Double, AlreadyFoundByteSeqCount(0))
         );
 
         let bytes = r#"?>"?>"#.as_bytes();
-        let (read, found) = quote_context_aware_find(
+        let found = quote_context_aware_find(
             bytes,
             b"?>",
             AlreadyFoundByteSeqCount(0),
             QuoteState::Double,
         );
-        assert_eq!(read, 5);
-        assert_eq!(found, QuoteContextAwareFoundState::Found);
+        assert_eq!(found, QuoteContextAwareFoundState::Found(5));
     }
 
     #[test]
     fn quote_aware_advanced_including_end_found_last_seq_byte_in_quote() {
         let bytes = r#"<?hello attr1=">"#.as_bytes();
-        let (read, found) =
+        let found =
             quote_context_aware_find(bytes, b"?>", AlreadyFoundByteSeqCount(0), QuoteState::None);
-        assert_eq!(read, 16);
         assert_eq!(
             found,
             QuoteContextAwareFoundState::NotFound(QuoteState::Double, AlreadyFoundByteSeqCount(0))
         );
 
         let bytes = r#"?>"?>"#.as_bytes();
-        let (read, found) = quote_context_aware_find(
+        let found = quote_context_aware_find(
             bytes,
             b"?>",
             AlreadyFoundByteSeqCount(0),
             QuoteState::Double,
         );
-        assert_eq!(read, 5);
-        assert_eq!(found, QuoteContextAwareFoundState::Found);
+        assert_eq!(found, QuoteContextAwareFoundState::Found(5));
     }
 
     #[test]
@@ -574,9 +547,8 @@ mod tests {
     fn iterative_find_byte_seq() {
         let byte_seq = b"abc".as_ref();
         let buf = b"a".as_ref();
-        let (read, quote_state) =
+        let quote_state =
             quote_context_aware_find(buf, byte_seq, AlreadyFoundByteSeqCount(0), QuoteState::None);
-        assert_eq!(read, 1);
         assert_eq!(
             quote_state,
             QuoteContextAwareFoundState::NotFound(QuoteState::None, AlreadyFoundByteSeqCount(1)),
@@ -584,9 +556,8 @@ mod tests {
 
         let byte_seq = b"abc".as_ref();
         let buf = b"b".as_ref();
-        let (read, quote_state) =
+        let quote_state =
             quote_context_aware_find(buf, byte_seq, AlreadyFoundByteSeqCount(1), QuoteState::None);
-        assert_eq!(read, 1);
         assert_eq!(
             quote_state,
             QuoteContextAwareFoundState::NotFound(QuoteState::None, AlreadyFoundByteSeqCount(2)),
@@ -594,19 +565,17 @@ mod tests {
 
         let byte_seq = b"abc".as_ref();
         let buf = b"c".as_ref();
-        let (read, quote_state) =
+        let quote_state =
             quote_context_aware_find(buf, byte_seq, AlreadyFoundByteSeqCount(2), QuoteState::None);
-        assert_eq!(read, 1);
-        assert_eq!(quote_state, QuoteContextAwareFoundState::Found);
+        assert_eq!(quote_state, QuoteContextAwareFoundState::Found(1));
     }
 
     #[test]
     fn iterative_find_byte_seq_empty() {
         let byte_seq = b"abc".as_ref();
         let buf = b"".as_ref();
-        let (read, quote_state) =
+        let quote_state =
             quote_context_aware_find(buf, byte_seq, AlreadyFoundByteSeqCount(2), QuoteState::None);
-        assert_eq!(read, 0);
         assert_eq!(
             quote_state,
             QuoteContextAwareFoundState::NotFound(QuoteState::None, AlreadyFoundByteSeqCount(2))
@@ -617,19 +586,17 @@ mod tests {
     fn iterative_find_byte_seq_multiple() {
         let byte_seq = b"abc".as_ref();
         let buf = b"bcd".as_ref();
-        let (read, quote_state) =
+        let quote_state =
             quote_context_aware_find(buf, byte_seq, AlreadyFoundByteSeqCount(1), QuoteState::None);
-        assert_eq!(read, 2);
-        assert_eq!(quote_state, QuoteContextAwareFoundState::Found);
+        assert_eq!(quote_state, QuoteContextAwareFoundState::Found(2));
     }
 
     #[test]
     fn iterative_find_byte_seq_eventual_no_match() {
         let byte_seq = b"abc".as_ref();
         let buf = b"d".as_ref();
-        let (read, quote_state) =
+        let quote_state =
             quote_context_aware_find(buf, byte_seq, AlreadyFoundByteSeqCount(2), QuoteState::None);
-        assert_eq!(read, 1);
         assert_eq!(
             quote_state,
             QuoteContextAwareFoundState::NotFound(QuoteState::None, AlreadyFoundByteSeqCount(0))
