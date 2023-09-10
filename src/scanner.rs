@@ -179,10 +179,8 @@ impl Scanner {
             return None;
         }
 
-        let byte_seq = b">";
         let found = bytes::quote_context_aware_find(
             &bytes[(offset.0)..],
-            byte_seq,
             quote_state,
         );
 
@@ -222,10 +220,8 @@ impl Scanner {
             return None;
         }
 
-        let byte_seq = b">";
         let found = bytes::quote_context_aware_find(
             &bytes[(offset.0)..],
-            byte_seq,
             quote_state,
         );
         match found {
