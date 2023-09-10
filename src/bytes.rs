@@ -89,7 +89,6 @@ pub(crate) fn peek2(bytes: &[u8]) -> Option<u8> {
 #[inline]
 pub(crate) fn quote_and_bracket_context_aware_find(
     buf: &[u8],
-    byte_seq: &[u8],
     already_found_byte_seq_count: AlreadyFoundByteSeqCount,
     quote_state: QuoteState,
     mut bracket_count: BracketCount,
@@ -104,6 +103,7 @@ pub(crate) fn quote_and_bracket_context_aware_find(
         );
     }
 
+    let byte_seq = b">";
     match quote_state {
         QuoteState::None => {
             let prefix_check = &byte_seq[(already_found_byte_seq_count.0)..];
@@ -144,17 +144,17 @@ pub(crate) fn quote_and_bracket_context_aware_find(
         QuoteState::Single | QuoteState::Double => {}
     }
 
-    quote_and_bracket_context_aware_find_2(buf, byte_seq, quote_state, bracket_count, read)
+    quote_and_bracket_context_aware_find_2(buf, quote_state, bracket_count, read)
 }
 
 #[inline]
 fn quote_and_bracket_context_aware_find_2(
     buf: &[u8],
-    byte_seq: &[u8],
     mut quote_state: QuoteState,
     mut bracket_count: BracketCount,
     mut read: usize,
 ) -> QuoteAndBracketContextAwareFoundState {
+    let byte_seq = b">";
     let byte_seq_len = byte_seq.len();
     let last_expected_byte = byte_seq[byte_seq_len - 1];
 

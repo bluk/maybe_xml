@@ -384,10 +384,8 @@ impl Scanner {
             return None;
         }
 
-        let byte_seq = b">";
         let found = bytes::quote_and_bracket_context_aware_find(
             &bytes[(offset.0)..],
-            byte_seq,
             already_found_byte_seq_count,
             quote_state,
             bracket_count,
