@@ -207,10 +207,8 @@ pub(crate) fn quote_and_bracket_context_aware_find(
                 read += 1;
 
                 if read == buf_len {
-                    if read == prefix_check_len {
-                        if bracket_count.0 == 0 {
-                            return (read, QuoteAndBracketContextAwareFoundState::Found);
-                        }
+                    if read == prefix_check_len && bracket_count.0 == 0 {
+                        return (read, QuoteAndBracketContextAwareFoundState::Found);
                     }
                     return (
                         read,
