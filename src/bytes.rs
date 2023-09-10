@@ -64,7 +64,7 @@ pub(crate) fn quote_context_aware_find(
             },
             b'>' => match quote_state {
                 QuoteState::None => {
-                    return QuoteContextAwareFoundState::Found(buf[..=index].len());
+                    return QuoteContextAwareFoundState::Found(index + 1);
                 }
                 QuoteState::Single | QuoteState::Double => {}
             },
