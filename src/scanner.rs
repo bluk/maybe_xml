@@ -274,7 +274,7 @@ impl Scanner {
                 let end = index + 1;
                 read += end;
 
-                if index > 0 && &bytes_to_search[index - 1..end] == b"?>" {
+                if index > 0 && bytes_to_search[index - 1] == b'?' {
                     found = true;
                     break;
                 }
