@@ -211,14 +211,6 @@ pub(crate) fn quote_and_bracket_context_aware_find(
                         if bracket_count.0 == 0 {
                             return (read, QuoteAndBracketContextAwareFoundState::Found);
                         }
-                        return (
-                            read,
-                            QuoteAndBracketContextAwareFoundState::NotFound(
-                                QuoteState::None,
-                                bracket_count,
-                                AlreadyFoundByteSeqCount(read + already_found_byte_seq_count.0),
-                            ),
-                        );
                     }
                     return (
                         read,
