@@ -127,17 +127,13 @@ pub(crate) fn quote_context_aware_find(
         read += bytes.len();
 
         if found_last_byte {
-            match quote_state {
-                QuoteState::None => {
-                    if byte_seq_len <= read && &buf[read - byte_seq_len..read] == byte_seq {
-                        debug_assert_eq!(
-                            find_matching_suffix(byte_seq, &buf[read - byte_seq_len..read]),
-                            AlreadyFoundByteSeqCount(byte_seq_len)
-                        );
-                        return (read, QuoteContextAwareFoundState::Found);
-                    }
-                }
-                QuoteState::Single | QuoteState::Double => {}
+            debug_assert_eq!(quote_state, QuoteState::None);
+            if byte_seq_len <= read && &buf[read - byte_seq_len..read] == byte_seq {
+                debug_assert_eq!(
+                    find_matching_suffix(byte_seq, &buf[read - byte_seq_len..read]),
+                    AlreadyFoundByteSeqCount(byte_seq_len)
+                );
+                return (read, QuoteContextAwareFoundState::Found);
             }
         } else {
             debug_assert_eq!(read, buf.len());
