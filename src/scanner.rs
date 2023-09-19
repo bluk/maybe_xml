@@ -241,11 +241,9 @@ impl Scanner {
             return None;
         }
 
-        if question_mark_was_seen {
-            if bytes.get(offset.0) == Some(&b'>') {
-                self.state = InternalState::Reset;
-                return Some(State::ScannedProcessingInstruction(offset.0 + 1));
-            }
+        if question_mark_was_seen && bytes.get(offset.0) == Some(&b'>') {
+            self.state = InternalState::Reset;
+            return Some(State::ScannedProcessingInstruction(offset.0 + 1));
         }
 
         let mut bytes_to_search = &bytes[offset.0..];
