@@ -24,7 +24,7 @@ enum InternalState {
     ScanningStartOrEmptyElementTag(QuoteState, bool),
     ScanningEndTag(QuoteState),
     ScanningCharacters,
-    ScanningProcessingInstruction(AlreadyFoundByteSeqCount),
+    ScanningProcessingInstruction(bool),
     ScanningDeclarationCommentOrCdata([u8; 7], usize),
     ScanningDeclaration(QuoteState, BracketCount, AlreadyFoundByteSeqCount),
     ScanningComment(AlreadyFoundByteSeqCount),
@@ -137,9 +137,7 @@ impl Scanner {
         if let Some(next) = bytes::peek2(bytes) {
             match next {
                 b'/' => self.scan_end_tag(bytes, QuoteState::None, Offset(2)),
-                b'?' => {
-                    self.scan_processing_instruction(bytes, AlreadyFoundByteSeqCount(0), Offset(2))
-                }
+                b'?' => self.scan_processing_instruction(bytes, false, Offset(2)),
                 b'!' => self.scan_declaration_comment_or_cdata(bytes, [0; 7], 0, Offset(2)),
                 _ => {
                     self.scan_start_or_empty_element_tag(bytes, QuoteState::None, false, Offset(1))
@@ -157,9 +155,7 @@ impl Scanner {
         if let Some(next) = bytes::peek(bytes) {
             match next {
                 b'/' => self.scan_end_tag(bytes, QuoteState::None, Offset(1)),
-                b'?' => {
-                    self.scan_processing_instruction(bytes, AlreadyFoundByteSeqCount(0), Offset(1))
-                }
+                b'?' => self.scan_processing_instruction(bytes, false, Offset(1)),
                 b'!' => self.scan_declaration_comment_or_cdata(bytes, [0; 7], 0, Offset(1)),
                 _ => {
                     self.scan_start_or_empty_element_tag(bytes, QuoteState::None, false, Offset(0))
@@ -183,16 +179,10 @@ impl Scanner {
             return None;
         }
 
-        let byte_seq = b">";
-        let (read, found) = bytes::quote_context_aware_find(
-            &bytes[(offset.0)..],
-            byte_seq,
-            AlreadyFoundByteSeqCount(0),
-            quote_state,
-        );
+        let found = bytes::quote_context_aware_find(&bytes[(offset.0)..], quote_state);
 
         match found {
-            QuoteContextAwareFoundState::Found => {
+            QuoteContextAwareFoundState::Found(read) => {
                 self.state = InternalState::Reset;
 
                 if read > 1 && bytes[offset.0 + read - 2] == b'/' {
@@ -204,7 +194,7 @@ impl Scanner {
                     Some(State::ScannedStartTag(offset.0 + read))
                 }
             }
-            QuoteContextAwareFoundState::NotFound(quote_state, _) => {
+            QuoteContextAwareFoundState::NotFound(quote_state) => {
                 let last_char_slash = match quote_state {
                     QuoteState::None => bytes.last() == Some(&b'/'),
                     QuoteState::Single | QuoteState::Double => false,
@@ -227,19 +217,13 @@ impl Scanner {
             return None;
         }
 
-        let byte_seq = b">";
-        let (read, found) = bytes::quote_context_aware_find(
-            &bytes[(offset.0)..],
-            byte_seq,
-            AlreadyFoundByteSeqCount(0),
-            quote_state,
-        );
+        let found = bytes::quote_context_aware_find(&bytes[(offset.0)..], quote_state);
         match found {
-            QuoteContextAwareFoundState::Found => {
+            QuoteContextAwareFoundState::Found(read) => {
                 self.state = InternalState::Reset;
                 Some(State::ScannedEndTag(offset.0 + read))
             }
-            QuoteContextAwareFoundState::NotFound(quote_state, _) => {
+            QuoteContextAwareFoundState::NotFound(quote_state) => {
                 self.state = InternalState::ScanningEndTag(quote_state);
                 Some(State::ScanningEndTag)
             }
@@ -249,7 +233,7 @@ impl Scanner {
     fn scan_processing_instruction(
         &mut self,
         bytes: &[u8],
-        already_found_byte_seq_count: AlreadyFoundByteSeqCount,
+        question_mark_was_seen: bool,
         offset: Offset,
     ) -> Option<State> {
         if bytes.is_empty() {
@@ -257,8 +241,7 @@ impl Scanner {
             return None;
         }
 
-        if already_found_byte_seq_count.0 > 0 {
-            debug_assert_eq!(already_found_byte_seq_count.0, 1);
+        if question_mark_was_seen {
             if bytes.get(offset.0) == Some(&b'>') {
                 self.state = InternalState::Reset;
                 return Some(State::ScannedProcessingInstruction(offset.0 + 1));
@@ -267,33 +250,23 @@ impl Scanner {
 
         let mut bytes_to_search = &bytes[offset.0..];
         let mut read = 0;
-        let found;
 
         loop {
             if let Some(index) = bytes_to_search.iter().position(|b| *b == b'>') {
                 let end = index + 1;
                 read += end;
 
-                if index > 0 && &bytes_to_search[index - 1..end] == b"?>" {
-                    found = true;
-                    break;
+                if index > 0 && bytes_to_search[index - 1] == b'?' {
+                    self.state = InternalState::Reset;
+                    return Some(State::ScannedProcessingInstruction(offset.0 + read));
                 }
 
                 bytes_to_search = &bytes_to_search[end..];
             } else {
-                found = false;
-                break;
+                let was_seen = bytes[offset.0..].last().map_or(false, |b| *b == b'?');
+                self.state = InternalState::ScanningProcessingInstruction(was_seen);
+                return Some(State::ScanningProcessingInstruction);
             }
-        }
-
-        if found {
-            self.state = InternalState::Reset;
-            Some(State::ScannedProcessingInstruction(offset.0 + read))
-        } else {
-            let already_found_byte_seq_count =
-                bytes::find_matching_suffix(b"?>", &bytes[offset.0..]);
-            self.state = InternalState::ScanningProcessingInstruction(already_found_byte_seq_count);
-            Some(State::ScanningProcessingInstruction)
         }
     }
 
@@ -316,8 +289,8 @@ impl Scanner {
         if to_fill > 0 {
             filled_array[filled_count..to_fill + filled_count]
                 .copy_from_slice(&bytes_to_check[..to_fill]);
+            filled_count += to_fill;
         }
-        filled_count += to_fill;
 
         if filled_count > 0 {
             match filled_array[0] {
@@ -411,16 +384,14 @@ impl Scanner {
             return None;
         }
 
-        let byte_seq = b">";
-        let (read, found) = bytes::quote_and_bracket_context_aware_find(
+        let found = bytes::quote_and_bracket_context_aware_find(
             &bytes[(offset.0)..],
-            byte_seq,
             already_found_byte_seq_count,
             quote_state,
             bracket_count,
         );
         match found {
-            QuoteAndBracketContextAwareFoundState::Found => {
+            QuoteAndBracketContextAwareFoundState::Found(read) => {
                 self.state = InternalState::Reset;
                 Some(State::ScannedDeclaration(offset.0 + read))
             }
@@ -442,7 +413,7 @@ impl Scanner {
     fn scan_comment(
         &mut self,
         bytes: &[u8],
-        mut already_found_byte_seq_count: AlreadyFoundByteSeqCount,
+        already_found_byte_seq_count: AlreadyFoundByteSeqCount,
         offset: Offset,
     ) -> Option<State> {
         if bytes.is_empty() {
@@ -450,38 +421,35 @@ impl Scanner {
             return None;
         }
 
-        if already_found_byte_seq_count.0 > 0 {
-            match already_found_byte_seq_count.0 {
-                1 => {
-                    if bytes.get(offset.0) == Some(&b'-') {
-                        match bytes.get(offset.0 + 1) {
-                            Some(&b'>') => {
-                                self.state = InternalState::Reset;
-                                return Some(State::ScannedComment(offset.0 + 2));
-                            }
-                            None => {
-                                already_found_byte_seq_count.0 = 2;
-                                self.state =
-                                    InternalState::ScanningComment(already_found_byte_seq_count);
-                                return Some(State::ScanningComment);
-                            }
-                            _ => {}
+        match already_found_byte_seq_count.0 {
+            0 => {}
+            1 => {
+                if bytes.get(offset.0) == Some(&b'-') {
+                    match bytes.get(offset.0 + 1) {
+                        Some(&b'>') => {
+                            self.state = InternalState::Reset;
+                            return Some(State::ScannedComment(offset.0 + 2));
                         }
+                        None => {
+                            self.state =
+                                InternalState::ScanningComment(AlreadyFoundByteSeqCount(2));
+                            return Some(State::ScanningComment);
+                        }
+                        _ => {}
                     }
                 }
-                2 => {
-                    if bytes.get(offset.0) == Some(&b'>') {
-                        self.state = InternalState::Reset;
-                        return Some(State::ScannedComment(offset.0 + 1));
-                    }
-                }
-                _ => unreachable!("should only match up to 2"),
             }
+            2 => {
+                if bytes.get(offset.0) == Some(&b'>') {
+                    self.state = InternalState::Reset;
+                    return Some(State::ScannedComment(offset.0 + 1));
+                }
+            }
+            _ => unreachable!("should only match up to 2"),
         }
 
         let mut bytes_to_search = &bytes[offset.0..];
         let mut read = 0;
-        let found;
 
         loop {
             if let Some(index) = bytes_to_search.iter().position(|b| *b == b'>') {
@@ -489,32 +457,24 @@ impl Scanner {
                 read += end;
 
                 if index > 1 && &bytes_to_search[index - 2..end] == b"-->" {
-                    found = true;
-                    break;
+                    self.state = InternalState::Reset;
+                    return Some(State::ScannedComment(offset.0 + read));
                 }
 
                 bytes_to_search = &bytes_to_search[end..];
             } else {
-                found = false;
-                break;
+                let already_found_byte_seq_count =
+                    bytes::find_matching_suffix(b"-->", &bytes[offset.0..]);
+                self.state = InternalState::ScanningComment(already_found_byte_seq_count);
+                return Some(State::ScanningComment);
             }
-        }
-
-        if found {
-            self.state = InternalState::Reset;
-            Some(State::ScannedComment(offset.0 + read))
-        } else {
-            let already_found_byte_seq_count =
-                bytes::find_matching_suffix(b"-->", &bytes[offset.0..]);
-            self.state = InternalState::ScanningComment(already_found_byte_seq_count);
-            Some(State::ScanningComment)
         }
     }
 
     fn scan_cdata(
         &mut self,
         bytes: &[u8],
-        mut already_found_byte_seq_count: AlreadyFoundByteSeqCount,
+        already_found_byte_seq_count: AlreadyFoundByteSeqCount,
         offset: Offset,
     ) -> Option<State> {
         if bytes.is_empty() {
@@ -522,38 +482,34 @@ impl Scanner {
             return None;
         }
 
-        if already_found_byte_seq_count.0 > 0 {
-            match already_found_byte_seq_count.0 {
-                1 => {
-                    if bytes.get(offset.0) == Some(&b']') {
-                        match bytes.get(offset.0 + 1) {
-                            Some(&b'>') => {
-                                self.state = InternalState::Reset;
-                                return Some(State::ScannedCdata(offset.0 + 2));
-                            }
-                            None => {
-                                already_found_byte_seq_count.0 = 2;
-                                self.state =
-                                    InternalState::ScanningCdata(already_found_byte_seq_count);
-                                return Some(State::ScanningCdata);
-                            }
-                            _ => {}
+        match already_found_byte_seq_count.0 {
+            0 => {}
+            1 => {
+                if bytes.get(offset.0) == Some(&b']') {
+                    match bytes.get(offset.0 + 1) {
+                        Some(&b'>') => {
+                            self.state = InternalState::Reset;
+                            return Some(State::ScannedCdata(offset.0 + 2));
                         }
+                        None => {
+                            self.state = InternalState::ScanningCdata(AlreadyFoundByteSeqCount(2));
+                            return Some(State::ScanningCdata);
+                        }
+                        _ => {}
                     }
                 }
-                2 => {
-                    if bytes.get(offset.0) == Some(&b'>') {
-                        self.state = InternalState::Reset;
-                        return Some(State::ScannedCdata(offset.0 + 1));
-                    }
-                }
-                _ => unreachable!("should only match up to 2"),
             }
+            2 => {
+                if bytes.get(offset.0) == Some(&b'>') {
+                    self.state = InternalState::Reset;
+                    return Some(State::ScannedCdata(offset.0 + 1));
+                }
+            }
+            _ => unreachable!("should only match up to 2"),
         }
 
         let mut bytes_to_search = &bytes[offset.0..];
         let mut read = 0;
-        let found;
 
         loop {
             if let Some(index) = bytes_to_search.iter().position(|b| *b == b'>') {
@@ -561,25 +517,17 @@ impl Scanner {
                 read += end;
 
                 if index > 1 && &bytes_to_search[index - 2..end] == b"]]>" {
-                    found = true;
-                    break;
+                    self.state = InternalState::Reset;
+                    return Some(State::ScannedCdata(offset.0 + read));
                 }
 
                 bytes_to_search = &bytes_to_search[end..];
             } else {
-                found = false;
-                break;
+                let already_found_byte_seq_count =
+                    bytes::find_matching_suffix(b"]]>", &bytes[offset.0..]);
+                self.state = InternalState::ScanningCdata(already_found_byte_seq_count);
+                return Some(State::ScanningCdata);
             }
-        }
-
-        if found {
-            self.state = InternalState::Reset;
-            Some(State::ScannedCdata(offset.0 + read))
-        } else {
-            let already_found_byte_seq_count =
-                bytes::find_matching_suffix(b"]]>", &bytes[offset.0..]);
-            self.state = InternalState::ScanningCdata(already_found_byte_seq_count);
-            Some(State::ScanningCdata)
         }
     }
 
@@ -1245,7 +1193,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(1))
+            InternalState::ScanningProcessingInstruction(true)
         );
         let bytes = r"".as_bytes();
         assert_eq!(scanner.scan(bytes), None);
@@ -1268,7 +1216,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(0))
+            InternalState::ScanningProcessingInstruction(false)
         );
 
         let bytes = r"?>Content".as_bytes();
@@ -1293,7 +1241,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(0))
+            InternalState::ScanningProcessingInstruction(false)
         );
 
         let bytes = r"test ?>Content".as_bytes();
@@ -1314,7 +1262,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(0))
+            InternalState::ScanningProcessingInstruction(false)
         );
 
         let bytes = r">invalid?>Some content".as_bytes();
@@ -1335,7 +1283,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(0))
+            InternalState::ScanningProcessingInstruction(false)
         );
 
         let bytes = r">invalid?>Some content".as_bytes();
@@ -1356,7 +1304,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(0))
+            InternalState::ScanningProcessingInstruction(false)
         );
 
         let bytes = r"?".as_bytes();
@@ -1366,7 +1314,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(1))
+            InternalState::ScanningProcessingInstruction(true)
         );
 
         let bytes = r#" > a="v""#.as_bytes();
@@ -1376,7 +1324,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(0))
+            InternalState::ScanningProcessingInstruction(false)
         );
 
         let bytes = r#"?"#.as_bytes();
@@ -1386,7 +1334,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(1))
+            InternalState::ScanningProcessingInstruction(true)
         );
 
         let bytes = r#">"#.as_bytes();
@@ -1418,7 +1366,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(1))
+            InternalState::ScanningProcessingInstruction(true)
         );
 
         let bytes = r#"val?>'?>Content"#.as_bytes();
@@ -1450,7 +1398,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(1))
+            InternalState::ScanningProcessingInstruction(true)
         );
 
         let bytes = r#"val?>"?>Content"#.as_bytes();
@@ -1471,7 +1419,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(0))
+            InternalState::ScanningProcessingInstruction(false)
         );
     }
 
@@ -1485,7 +1433,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(0))
+            InternalState::ScanningProcessingInstruction(false)
         );
 
         let bytes = r#">"#.as_bytes();
@@ -1495,7 +1443,7 @@ mod tests {
         );
         assert_eq!(
             scanner.state,
-            InternalState::ScanningProcessingInstruction(AlreadyFoundByteSeqCount(0))
+            InternalState::ScanningProcessingInstruction(false)
         );
     }
 
