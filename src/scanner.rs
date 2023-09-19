@@ -612,7 +612,7 @@ impl Scanner {
     /// let state = scanner.scan(&bytes_to_read);
     /// if let Some(State::ScannedCharacters(read)) = state {
     ///     let characters = Characters::from(&bytes_to_read[..read]);
-    ///     assert_eq!(characters .to_str()?, "world!");
+    ///     assert_eq!(characters.to_str()?, "world!");
     ///     buf.consume(read);
     /// } else {
     ///     assert!(false, "should have scanned bytes");
