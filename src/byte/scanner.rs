@@ -7,8 +7,10 @@ use super::{Token, TokenTy};
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 struct Offset(usize);
 
+/// Find the next `>` while being aware of `>` in quotes.
 #[inline]
-fn quote_context_aware_find(input: &[u8], mut quote_state: QuoteState) -> Option<usize> {
+fn find_close_tag_char(input: &[u8]) -> Option<usize> {
+    let mut quote_state = QuoteState::None;
     for (index, byte) in input.iter().enumerate() {
         match byte {
             b'"' => match quote_state {
@@ -205,16 +207,15 @@ fn scan_markup(input: &[u8]) -> Option<Token> {
     };
 
     match next {
-        b'/' => scan_end_tag(input, QuoteState::None, Offset(2)),
+        b'/' => scan_end_tag(input, Offset(2)),
         b'?' => scan_processing_instruction(input, false, Offset(2)),
         b'!' => scan_declaration_comment_or_cdata(input, [0; 7], 0, Offset(2)),
-        _ => scan_start_or_empty_element_tag(input, QuoteState::None, false, Offset(1)),
+        _ => scan_start_or_empty_element_tag(input, false, Offset(1)),
     }
 }
 
 fn scan_start_or_empty_element_tag(
     input: &[u8],
-    quote_state: QuoteState,
     is_last_char_slash: bool,
     offset: Offset,
 ) -> Option<Token> {
@@ -222,7 +223,7 @@ fn scan_start_or_empty_element_tag(
         return None;
     }
 
-    let Some(read) = quote_context_aware_find(&input[(offset.0)..], quote_state) else {
+    let Some(read) = find_close_tag_char(&input[(offset.0)..]) else {
         return None;
     };
 
@@ -245,12 +246,12 @@ fn scan_start_or_empty_element_tag(
     }
 }
 
-fn scan_end_tag(input: &[u8], quote_state: QuoteState, offset: Offset) -> Option<Token> {
+fn scan_end_tag(input: &[u8], offset: Offset) -> Option<Token> {
     if input.is_empty() {
         return None;
     }
 
-    let Some(read) = quote_context_aware_find(&input[(offset.0)..], quote_state) else {
+    let Some(read) = find_close_tag_char(&input[(offset.0)..]) else {
         return None;
     };
 
