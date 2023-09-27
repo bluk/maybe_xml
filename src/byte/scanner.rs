@@ -8,8 +8,8 @@ use super::{Token, TokenTy};
 struct Offset(usize);
 
 #[inline]
-fn quote_context_aware_find(buf: &[u8], mut quote_state: QuoteState) -> Option<usize> {
-    for (index, byte) in buf.iter().enumerate() {
+fn quote_context_aware_find(input: &[u8], mut quote_state: QuoteState) -> Option<usize> {
+    for (index, byte) in input.iter().enumerate() {
         match byte {
             b'"' => match quote_state {
                 QuoteState::Double => {
@@ -44,11 +44,11 @@ fn quote_context_aware_find(buf: &[u8], mut quote_state: QuoteState) -> Option<u
 
 #[inline]
 fn quote_and_bracket_context_aware_find(
-    buf: &[u8],
+    input: &[u8],
     quote_state: QuoteState,
     mut bracket_count: BracketCount,
 ) -> Option<usize> {
-    if buf.is_empty() {
+    if input.is_empty() {
         return None;
     }
 
@@ -57,14 +57,14 @@ fn quote_and_bracket_context_aware_find(
     match quote_state {
         QuoteState::None => {
             let prefix_check = b">";
-            let buf_len = buf.len();
+            let buf_len = input.len();
             let prefix_check_len = prefix_check.len();
 
             for expected_byte in prefix_check {
-                if *expected_byte != buf[read] {
+                if *expected_byte != input[read] {
                     break;
                 }
-                match buf[read] {
+                match input[read] {
                     b'[' => bracket_count.0 += 1,
                     b']' => {
                         if bracket_count.0 > 0 {
@@ -91,18 +91,18 @@ fn quote_and_bracket_context_aware_find(
         QuoteState::Single | QuoteState::Double => {}
     }
 
-    quote_and_bracket_context_aware_find_2(buf, quote_state, bracket_count, read)
+    quote_and_bracket_context_aware_find_2(input, quote_state, bracket_count, read)
 }
 
 #[inline]
 fn quote_and_bracket_context_aware_find_2(
-    buf: &[u8],
+    input: &[u8],
     mut quote_state: QuoteState,
     mut bracket_count: BracketCount,
     mut read: usize,
 ) -> Option<usize> {
     loop {
-        let mut bytes = &buf[read..];
+        let mut bytes = &input[read..];
         let mut found_last_byte = false;
 
         for (index, byte) in bytes.iter().enumerate() {
@@ -151,8 +151,8 @@ fn quote_and_bracket_context_aware_find_2(
             if bracket_count.0 == 0 {
                 match quote_state {
                     QuoteState::None => {
-                        if read > 0 && buf[read - 1] == b'>' {
-                            debug_assert_eq!(find_matching_suffix(b">", &buf[read - 1..read]), 1);
+                        if read > 0 && input[read - 1] == b'>' {
+                            debug_assert_eq!(find_matching_suffix(b">", &input[read - 1..read]), 1);
                             return Some(read);
                         }
                     }
@@ -160,7 +160,7 @@ fn quote_and_bracket_context_aware_find_2(
                 }
             }
         } else {
-            debug_assert_eq!(read, buf.len());
+            debug_assert_eq!(read, input.len());
             return None;
         }
     }
@@ -188,45 +188,45 @@ fn find_matching_suffix(byte_seq: &[u8], buf: &[u8]) -> usize {
     byte_seq_index
 }
 
-fn scan_text_content(bytes: &[u8]) -> Token {
-    debug_assert_ne!(0, bytes.len());
+fn scan_text_content(input: &[u8]) -> Token {
+    debug_assert_ne!(0, input.len());
 
     Token {
         ty: TokenTy::Characters,
-        len: bytes.iter().position(|b| *b == b'<').unwrap_or(bytes.len()),
+        len: input.iter().position(|b| *b == b'<').unwrap_or(input.len()),
     }
 }
 
 #[inline]
-fn scan_markup(bytes: &[u8]) -> Option<Token> {
-    let Some(next) = bytes::peek2(bytes) else {
-        debug_assert_eq!(bytes.len(), 1);
+fn scan_markup(input: &[u8]) -> Option<Token> {
+    let Some(next) = bytes::peek2(input) else {
+        debug_assert_eq!(input.len(), 1);
         return None;
     };
 
     match next {
-        b'/' => scan_end_tag(bytes, QuoteState::None, Offset(2)),
-        b'?' => scan_processing_instruction(bytes, false, Offset(2)),
-        b'!' => scan_declaration_comment_or_cdata(bytes, [0; 7], 0, Offset(2)),
-        _ => scan_start_or_empty_element_tag(bytes, QuoteState::None, false, Offset(1)),
+        b'/' => scan_end_tag(input, QuoteState::None, Offset(2)),
+        b'?' => scan_processing_instruction(input, false, Offset(2)),
+        b'!' => scan_declaration_comment_or_cdata(input, [0; 7], 0, Offset(2)),
+        _ => scan_start_or_empty_element_tag(input, QuoteState::None, false, Offset(1)),
     }
 }
 
 fn scan_start_or_empty_element_tag(
-    bytes: &[u8],
+    input: &[u8],
     quote_state: QuoteState,
     is_last_char_slash: bool,
     offset: Offset,
 ) -> Option<Token> {
-    if bytes.is_empty() {
+    if input.is_empty() {
         return None;
     }
 
-    let Some(read) = quote_context_aware_find(&bytes[(offset.0)..], quote_state) else {
+    let Some(read) = quote_context_aware_find(&input[(offset.0)..], quote_state) else {
         return None;
     };
 
-    if read > 1 && bytes[offset.0 + read - 2] == b'/' {
+    if read > 1 && input[offset.0 + read - 2] == b'/' {
         Some(Token {
             ty: TokenTy::EmptyElementTag,
             len: offset.0 + read,
@@ -245,12 +245,12 @@ fn scan_start_or_empty_element_tag(
     }
 }
 
-fn scan_end_tag(bytes: &[u8], quote_state: QuoteState, offset: Offset) -> Option<Token> {
-    if bytes.is_empty() {
+fn scan_end_tag(input: &[u8], quote_state: QuoteState, offset: Offset) -> Option<Token> {
+    if input.is_empty() {
         return None;
     }
 
-    let Some(read) = quote_context_aware_find(&bytes[(offset.0)..], quote_state) else {
+    let Some(read) = quote_context_aware_find(&input[(offset.0)..], quote_state) else {
         return None;
     };
 
@@ -261,22 +261,22 @@ fn scan_end_tag(bytes: &[u8], quote_state: QuoteState, offset: Offset) -> Option
 }
 
 fn scan_processing_instruction(
-    bytes: &[u8],
+    input: &[u8],
     question_mark_was_seen: bool,
     offset: Offset,
 ) -> Option<Token> {
-    if bytes.is_empty() {
+    if input.is_empty() {
         return None;
     }
 
-    if question_mark_was_seen && bytes.get(offset.0) == Some(&b'>') {
+    if question_mark_was_seen && input.get(offset.0) == Some(&b'>') {
         return Some(Token {
             ty: TokenTy::ProcessingInstruction,
             len: offset.0 + 1,
         });
     }
 
-    let mut bytes_to_search = &bytes[offset.0..];
+    let mut bytes_to_search = &input[offset.0..];
     let mut read = 0;
 
     loop {
@@ -299,16 +299,16 @@ fn scan_processing_instruction(
 }
 
 fn scan_declaration_comment_or_cdata(
-    bytes: &[u8],
+    input: &[u8],
     mut filled_array: [u8; 7],
     mut filled_count: usize,
     offset: Offset,
 ) -> Option<Token> {
-    if bytes.is_empty() {
+    if input.is_empty() {
         return None;
     }
 
-    let bytes_to_check = &bytes[(offset.0)..];
+    let bytes_to_check = &input[(offset.0)..];
     let cdata = b"[CDATA[";
 
     let to_fill = usize::min(filled_array.len() - filled_count, bytes_to_check.len());
@@ -323,9 +323,9 @@ fn scan_declaration_comment_or_cdata(
             b'-' => {
                 if filled_count > 1 {
                     match filled_array[1] {
-                        b'-' => scan_comment(bytes, Offset(offset.0 + usize::min(to_fill, 2))),
+                        b'-' => scan_comment(input, Offset(offset.0 + usize::min(to_fill, 2))),
                         _ => scan_declaration(
-                            bytes,
+                            input,
                             QuoteState::None,
                             BracketCount(0),
                             Offset(offset.0),
@@ -340,7 +340,7 @@ fn scan_declaration_comment_or_cdata(
             b'[' => {
                 if filled_array[..filled_count] == cdata[..filled_count] {
                     if filled_count == 7 {
-                        scan_cdata(bytes, Offset(offset.0 + to_fill))
+                        scan_cdata(input, Offset(offset.0 + to_fill))
                     } else {
                         None
                     }
@@ -358,14 +358,14 @@ fn scan_declaration_comment_or_cdata(
                         }
                     }
                     scan_declaration(
-                        bytes,
+                        input,
                         QuoteState::None,
                         BracketCount(bracket_count),
                         Offset(offset.0),
                     )
                 }
             }
-            _ => scan_declaration(bytes, QuoteState::None, BracketCount(0), Offset(offset.0)),
+            _ => scan_declaration(input, QuoteState::None, BracketCount(0), Offset(offset.0)),
         }
     } else {
         None
@@ -373,17 +373,17 @@ fn scan_declaration_comment_or_cdata(
 }
 
 fn scan_declaration(
-    bytes: &[u8],
+    input: &[u8],
     quote_state: QuoteState,
     bracket_count: BracketCount,
     offset: Offset,
 ) -> Option<Token> {
-    if bytes.is_empty() {
+    if input.is_empty() {
         return None;
     }
 
     let Some(read) =
-        quote_and_bracket_context_aware_find(&bytes[(offset.0)..], quote_state, bracket_count)
+        quote_and_bracket_context_aware_find(&input[(offset.0)..], quote_state, bracket_count)
     else {
         return None;
     };
@@ -394,12 +394,12 @@ fn scan_declaration(
     })
 }
 
-fn scan_comment(bytes: &[u8], offset: Offset) -> Option<Token> {
-    if bytes.is_empty() {
+fn scan_comment(input: &[u8], offset: Offset) -> Option<Token> {
+    if input.is_empty() {
         return None;
     }
 
-    let mut bytes_to_search = &bytes[offset.0..];
+    let mut bytes_to_search = &input[offset.0..];
     let mut read = 0;
 
     loop {
@@ -421,12 +421,12 @@ fn scan_comment(bytes: &[u8], offset: Offset) -> Option<Token> {
     }
 }
 
-fn scan_cdata(bytes: &[u8], offset: Offset) -> Option<Token> {
-    if bytes.is_empty() {
+fn scan_cdata(input: &[u8], offset: Offset) -> Option<Token> {
+    if input.is_empty() {
         return None;
     }
 
-    let mut bytes_to_search = &bytes[offset.0..];
+    let mut bytes_to_search = &input[offset.0..];
     let mut read = 0;
 
     loop {
@@ -448,11 +448,12 @@ fn scan_cdata(bytes: &[u8], offset: Offset) -> Option<Token> {
     }
 }
 
-pub fn scan(bytes: &[u8]) -> Option<Token> {
-    match bytes::peek(bytes) {
+#[must_use]
+pub fn scan(input: &[u8]) -> Option<Token> {
+    match bytes::peek(input) {
         None => None,
-        Some(b'<') => scan_markup(bytes),
-        Some(_) => Some(scan_text_content(bytes)),
+        Some(b'<') => scan_markup(input),
+        Some(_) => Some(scan_text_content(input)),
     }
 }
 
