@@ -142,6 +142,7 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
+pub mod byte;
 pub(crate) mod bytes;
 pub mod eval;
 pub mod scanner;
