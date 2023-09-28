@@ -101,6 +101,7 @@ fn find_close_tag_char_with_brackets_and_quotes(input: &[u8]) -> Option<usize> {
 
 fn scan_text_content(input: &[u8]) -> Token {
     debug_assert_ne!(0, input.len());
+    debug_assert_ne!(input[0], b'<');
 
     Token {
         ty: TokenTy::Characters,
@@ -110,205 +111,211 @@ fn scan_text_content(input: &[u8]) -> Token {
 
 #[inline]
 fn scan_markup(input: &[u8]) -> Option<Token> {
+    debug_assert_ne!(0, input.len());
+    debug_assert_eq!(input[0], b'<');
+
     let Some(next) = bytes::peek2(input) else {
-        debug_assert_eq!(input.len(), 1);
+        debug_assert_eq!(1, input.len());
         return None;
     };
 
     match next {
-        b'/' => scan_end_tag(input, Offset(2)),
-        b'?' => scan_processing_instruction(input, false, Offset(2)),
-        b'!' => scan_declaration_comment_or_cdata(input, Offset(2)),
-        _ => scan_start_or_empty_element_tag(input, false, Offset(1)),
+        b'/' => scan_end_tag(input),
+        b'?' => scan_processing_instruction(input),
+        b'!' => scan_declaration_comment_or_cdata(input),
+        _ => scan_start_or_empty_element_tag(input),
     }
 }
 
-fn scan_start_or_empty_element_tag(
-    input: &[u8],
-    is_last_char_slash: bool,
-    offset: Offset,
-) -> Option<Token> {
-    if input.is_empty() {
-        return None;
-    }
+fn scan_start_or_empty_element_tag(input: &[u8]) -> Option<Token> {
+    // Skip the head '<'
+    const OFFSET: usize = 1;
 
-    let Some(pos) = find_close_tag_char_with_quotes(&input[(offset.0)..]) else {
+    // Due to scan_mark(), peek2 is already checked
+    debug_assert!(input.len() >= 2);
+    debug_assert_eq!(input[0], b'<');
+    debug_assert_ne!(input[1], b'/');
+    debug_assert_ne!(input[1], b'?');
+    debug_assert_ne!(input[1], b'!');
+
+    let Some(pos) = find_close_tag_char_with_quotes(&input[OFFSET..]) else {
         return None;
     };
 
-    if pos > 1 && input[offset.0 + pos - 2] == b'/' {
+    if pos > 1 && input[OFFSET + pos - 2] == b'/' {
         Some(Token {
             ty: TokenTy::EmptyElementTag,
-            len: offset.0 + pos,
-        })
-    } else if is_last_char_slash && pos == 1 {
-        debug_assert_eq!(offset.0, 0);
-        Some(Token {
-            ty: TokenTy::EmptyElementTag,
-            len: pos,
+            len: OFFSET + pos,
         })
     } else {
         Some(Token {
             ty: TokenTy::StartTag,
-            len: offset.0 + pos,
+            len: OFFSET + pos,
         })
     }
 }
 
-fn scan_end_tag(input: &[u8], offset: Offset) -> Option<Token> {
-    if input.is_empty() {
-        return None;
-    }
+fn scan_end_tag(input: &[u8]) -> Option<Token> {
+    // Skip the head '</'
+    const OFFSET: usize = 2;
 
-    let Some(pos) = find_close_tag_char_with_quotes(&input[(offset.0)..]) else {
+    debug_assert!(input.len() >= 2);
+    debug_assert_eq!(input[0], b'<');
+    debug_assert_eq!(input[1], b'/');
+
+    let Some(pos) = find_close_tag_char_with_quotes(&input[OFFSET..]) else {
         return None;
     };
 
     Some(Token {
         ty: TokenTy::EndTag,
-        len: offset.0 + pos,
+        len: OFFSET + pos,
     })
 }
 
-fn scan_processing_instruction(
-    input: &[u8],
-    question_mark_was_seen: bool,
-    offset: Offset,
-) -> Option<Token> {
-    if input.is_empty() {
+fn scan_processing_instruction(input: &[u8]) -> Option<Token> {
+    // Skip the head '<?'
+    const OFFSET: usize = 2;
+
+    debug_assert!(input.len() >= 2);
+    debug_assert_eq!(input[0], b'<');
+    debug_assert_eq!(input[1], b'?');
+
+    if input.len() < 4 {
         return None;
     }
 
-    if question_mark_was_seen && input.get(offset.0) == Some(&b'>') {
-        return Some(Token {
-            ty: TokenTy::ProcessingInstruction,
-            len: offset.0 + 1,
-        });
-    }
+    // Skip one more than usual because at the minimum, it must be `<??>`.
+    // It cannot be `<?>`.
+    let bytes = &input[OFFSET + 1..];
 
-    let mut bytes_to_search = &input[offset.0..];
-    let mut read = 0;
-
-    loop {
-        if let Some(index) = bytes_to_search.iter().position(|b| *b == b'>') {
-            let end = index + 1;
-            read += end;
-
-            if index > 0 && bytes_to_search[index - 1] == b'?' {
-                return Some(Token {
-                    ty: TokenTy::ProcessingInstruction,
-                    len: offset.0 + read,
-                });
-            }
-
-            bytes_to_search = &bytes_to_search[end..];
-        } else {
-            return None;
+    for (pos, byte) in bytes.iter().enumerate() {
+        if *byte == b'>' && input[OFFSET + 1 + pos - 1] == b'?' {
+            return Some(Token {
+                ty: TokenTy::ProcessingInstruction,
+                len: OFFSET + 1 + pos + 1,
+            });
         }
     }
+
+    None
 }
 
-fn scan_declaration_comment_or_cdata(input: &[u8], offset: Offset) -> Option<Token> {
-    debug_assert!(!input.is_empty());
+fn scan_declaration_comment_or_cdata(input: &[u8]) -> Option<Token> {
+    // Skip the head '<!'
+    const OFFSET: usize = 2;
 
-    let bytes_to_check = &input[(offset.0)..];
-    let Some(peek) = bytes::peek(bytes_to_check) else {
+    debug_assert!(input.len() >= 2);
+    debug_assert_eq!(input[0], b'<');
+    debug_assert_eq!(input[1], b'!');
+
+    let bytes = &input[OFFSET..];
+    let Some(peek) = bytes::peek(bytes) else {
         return None;
     };
 
     match peek {
         b'-' => {
-            let Some(peek2) = bytes::peek2(bytes_to_check) else {
+            let Some(peek2) = bytes::peek2(bytes) else {
                 return None;
             };
             match peek2 {
-                b'-' => scan_comment(input, Offset(offset.0 + 2)),
-                _ => scan_declaration(input, offset),
+                b'-' => scan_comment(input),
+                _ => scan_declaration(input),
             }
         }
         b'[' => {
-            let cdata = b"[CDATA[";
-            // Check if it's possible it's cdata; if it isn't even possible, try a declaration
-            let cdata_len_check = usize::min(bytes_to_check.len(), cdata.len());
-            if bytes_to_check[..cdata_len_check] == cdata[..cdata_len_check] {
-                if cdata_len_check == 7 {
-                    scan_cdata(input, Offset(offset.0 + cdata.len()))
-                } else {
-                    None
-                }
+            const CDATA: &[u8] = b"[CDATA[";
+            if bytes.len() > CDATA.len() && &bytes[..CDATA.len()] == CDATA {
+                scan_cdata(input)
             } else {
-                scan_declaration(input, offset)
+                scan_declaration(input)
             }
         }
-        _ => scan_declaration(input, offset),
+        _ => scan_declaration(input),
     }
 }
 
-fn scan_declaration(input: &[u8], offset: Offset) -> Option<Token> {
-    debug_assert!(!input.is_empty());
+fn scan_declaration(input: &[u8]) -> Option<Token> {
+    // Skip the head '<!'
+    const OFFSET: usize = 2;
 
-    let Some(pos) = find_close_tag_char_with_brackets_and_quotes(&input[(offset.0)..]) else {
+    debug_assert!(input.len() >= 2);
+    debug_assert_eq!(input[0], b'<');
+    debug_assert_eq!(input[1], b'!');
+
+    let Some(pos) = find_close_tag_char_with_brackets_and_quotes(&input[OFFSET..]) else {
         return None;
     };
 
     Some(Token {
         ty: TokenTy::Declaration,
-        len: offset.0 + pos,
+        len: OFFSET + pos,
     })
 }
 
-fn scan_comment(input: &[u8], offset: Offset) -> Option<Token> {
-    if input.is_empty() {
+fn scan_comment(input: &[u8]) -> Option<Token> {
+    // Skip the head '<!--'
+    const OFFSET: usize = 4;
+
+    debug_assert!(input.len() >= 4);
+    debug_assert_eq!(input[0], b'<');
+    debug_assert_eq!(input[1], b'!');
+    debug_assert_eq!(input[2], b'-');
+    debug_assert_eq!(input[3], b'-');
+
+    if input.len() < 7 {
         return None;
     }
 
-    let mut bytes_to_search = &input[offset.0..];
-    let mut read = 0;
+    let bytes = &input[OFFSET + 3..];
 
-    loop {
-        if let Some(index) = bytes_to_search.iter().position(|b| *b == b'>') {
-            let end = index + 1;
-            read += end;
-
-            if index > 1 && &bytes_to_search[index - 2..end] == b"-->" {
-                return Some(Token {
-                    ty: TokenTy::Comment,
-                    len: offset.0 + read,
-                });
-            }
-
-            bytes_to_search = &bytes_to_search[end..];
-        } else {
-            return None;
+    for (pos, byte) in bytes.iter().enumerate() {
+        if *byte == b'>' && &input[OFFSET + 3 + pos - 2..=OFFSET + 3 + pos] == b"-->" {
+            return Some(Token {
+                ty: TokenTy::Comment,
+                len: OFFSET + 3 + pos + 1,
+            });
         }
     }
+
+    None
 }
 
-fn scan_cdata(input: &[u8], offset: Offset) -> Option<Token> {
-    if input.is_empty() {
+fn scan_cdata(input: &[u8]) -> Option<Token> {
+    // Skip the head '<![CDATA['
+    const OFFSET: usize = 9;
+
+    debug_assert!(input.len() >= 9);
+    debug_assert_eq!(input[0], b'<');
+    debug_assert_eq!(input[1], b'!');
+    debug_assert_eq!(input[2], b'[');
+    debug_assert_eq!(input[3], b'C');
+    debug_assert_eq!(input[4], b'D');
+    debug_assert_eq!(input[5], b'A');
+    debug_assert_eq!(input[6], b'T');
+    debug_assert_eq!(input[7], b'A');
+    debug_assert_eq!(input[8], b'[');
+
+    if input.len() < 12 {
         return None;
     }
 
-    let mut bytes_to_search = &input[offset.0..];
-    let mut read = 0;
+    let bytes = &input[OFFSET + 3..];
 
-    loop {
-        if let Some(index) = bytes_to_search.iter().position(|b| *b == b'>') {
-            let end = index + 1;
-            read += end;
-
-            if index > 1 && &bytes_to_search[index - 2..end] == b"]]>" {
+    for (pos, byte) in bytes.iter().enumerate() {
+        if *byte == b'>' {
+            dbg!(pos);
+            if &input[OFFSET + 3 + pos - 2..=OFFSET + 3 + pos] == b"]]>" {
                 return Some(Token {
                     ty: TokenTy::Cdata,
-                    len: offset.0 + read,
+                    len: OFFSET + 3 + pos + 1,
                 });
             }
-
-            bytes_to_search = &bytes_to_search[end..];
-        } else {
-            return None;
         }
     }
+
+    None
 }
 
 #[must_use]
