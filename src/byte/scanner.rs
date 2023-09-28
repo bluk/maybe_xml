@@ -113,16 +113,16 @@ fn scan_markup(input: &[u8]) -> Option<Token> {
     debug_assert_ne!(0, input.len());
     debug_assert_eq!(input[0], b'<');
 
-    let Some(next) = bytes::peek2(input) else {
+    if let Some(next) = bytes::peek2(input) {
+        match next {
+            b'/' => scan_end_tag(input),
+            b'?' => scan_processing_instruction(input),
+            b'!' => scan_declaration_comment_or_cdata(input),
+            _ => scan_start_or_empty_element_tag(input),
+        }
+    } else {
         debug_assert_eq!(1, input.len());
-        return None;
-    };
-
-    match next {
-        b'/' => scan_end_tag(input),
-        b'?' => scan_processing_instruction(input),
-        b'!' => scan_declaration_comment_or_cdata(input),
-        _ => scan_start_or_empty_element_tag(input),
+        None
     }
 }
 
@@ -138,22 +138,22 @@ fn scan_start_or_empty_element_tag(input: &[u8]) -> Option<Token> {
     debug_assert_ne!(input[1], b'?');
     debug_assert_ne!(input[1], b'!');
 
-    let Some(pos) = find_close_tag_char_with_quotes(&input[OFFSET..]) else {
-        return None;
-    };
-
-    if pos > 1 && input[OFFSET + pos - 2] == b'/' {
-        Some(Token {
-            ty: TokenTy::EmptyElementTag,
-            offset: 0,
-            len: OFFSET + pos,
-        })
+    if let Some(pos) = find_close_tag_char_with_quotes(&input[OFFSET..]) {
+        if pos > 1 && input[OFFSET + pos - 2] == b'/' {
+            Some(Token {
+                ty: TokenTy::EmptyElementTag,
+                offset: 0,
+                len: OFFSET + pos,
+            })
+        } else {
+            Some(Token {
+                ty: TokenTy::StartTag,
+                offset: 0,
+                len: OFFSET + pos,
+            })
+        }
     } else {
-        Some(Token {
-            ty: TokenTy::StartTag,
-            offset: 0,
-            len: OFFSET + pos,
-        })
+        None
     }
 }
 
@@ -166,11 +166,7 @@ fn scan_end_tag(input: &[u8]) -> Option<Token> {
     debug_assert_eq!(input[0], b'<');
     debug_assert_eq!(input[1], b'/');
 
-    let Some(pos) = find_close_tag_char_with_quotes(&input[OFFSET..]) else {
-        return None;
-    };
-
-    Some(Token {
+    find_close_tag_char_with_quotes(&input[OFFSET..]).map(|pos| Token {
         ty: TokenTy::EndTag,
         offset: 0,
         len: OFFSET + pos,
@@ -193,7 +189,13 @@ fn scan_processing_instruction(input: &[u8]) -> Option<Token> {
         .iter()
         .enumerate()
         .skip(OFFSET + 1)
-        .find_map(|(pos, b)| (*b == b'>' && input[pos - 1] == b'?').then_some(pos))
+        .find_map(|(pos, b)| {
+            if *b == b'>' && input[pos - 1] == b'?' {
+                Some(pos)
+            } else {
+                None
+            }
+        })
         .map(|pos| Token {
             ty: TokenTy::ProcessingInstruction,
             offset: 0,
@@ -211,29 +213,30 @@ fn scan_declaration_comment_or_cdata(input: &[u8]) -> Option<Token> {
     debug_assert_eq!(input[1], b'!');
 
     let bytes = &input[OFFSET..];
-    let Some(peek) = bytes::peek(bytes) else {
-        return None;
-    };
-
-    match peek {
-        b'-' => {
-            let Some(peek2) = bytes::peek2(bytes) else {
-                return None;
-            };
-            match peek2 {
-                b'-' => scan_comment(input),
-                _ => scan_declaration(input),
+    if let Some(peek) = bytes::peek(bytes) {
+        match peek {
+            b'-' => {
+                if let Some(peek2) = bytes::peek2(bytes) {
+                    match peek2 {
+                        b'-' => scan_comment(input),
+                        _ => scan_declaration(input),
+                    }
+                } else {
+                    None
+                }
             }
-        }
-        b'[' => {
-            const CDATA: &[u8] = b"[CDATA[";
-            if bytes.len() > CDATA.len() && &bytes[..CDATA.len()] == CDATA {
-                scan_cdata(input)
-            } else {
-                scan_declaration(input)
+            b'[' => {
+                const CDATA: &[u8] = b"[CDATA[";
+                if bytes.len() > CDATA.len() && &bytes[..CDATA.len()] == CDATA {
+                    scan_cdata(input)
+                } else {
+                    scan_declaration(input)
+                }
             }
+            _ => scan_declaration(input),
         }
-        _ => scan_declaration(input),
+    } else {
+        None
     }
 }
 
@@ -246,11 +249,7 @@ fn scan_declaration(input: &[u8]) -> Option<Token> {
     debug_assert_eq!(input[0], b'<');
     debug_assert_eq!(input[1], b'!');
 
-    let Some(pos) = find_close_tag_char_with_brackets_and_quotes(&input[OFFSET..]) else {
-        return None;
-    };
-
-    Some(Token {
+    find_close_tag_char_with_brackets_and_quotes(&input[OFFSET..]).map(|pos| Token {
         ty: TokenTy::Declaration,
         offset: 0,
         len: OFFSET + pos,
@@ -275,7 +274,13 @@ fn scan_comment(input: &[u8]) -> Option<Token> {
         .iter()
         .enumerate()
         .skip(OFFSET + 2)
-        .find_map(|(pos, b)| (*b == b'>' && &input[pos - 2..pos] == b"--").then_some(pos))
+        .find_map(|(pos, b)| {
+            if *b == b'>' && &input[pos - 2..pos] == b"--" {
+                Some(pos)
+            } else {
+                None
+            }
+        })
         .map(|pos| Token {
             ty: TokenTy::Comment,
             offset: 0,
@@ -305,7 +310,13 @@ fn scan_cdata(input: &[u8]) -> Option<Token> {
         .iter()
         .enumerate()
         .skip(OFFSET + 2)
-        .find_map(|(pos, b)| (*b == b'>' && &input[pos - 2..pos] == b"]]").then_some(pos))
+        .find_map(|(pos, b)| {
+            if *b == b'>' && &input[pos - 2..pos] == b"]]" {
+                Some(pos)
+            } else {
+                None
+            }
+        })
         .map(|pos| Token {
             ty: TokenTy::Cdata,
             offset: 0,
