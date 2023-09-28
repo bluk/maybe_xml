@@ -99,6 +99,7 @@ fn find_close_tag_char_with_brackets_and_quotes(input: &[u8]) -> Option<usize> {
     None
 }
 
+#[inline]
 fn scan_text_content(input: &[u8]) -> Token {
     debug_assert_ne!(0, input.len());
     debug_assert_ne!(input[0], b'<');
@@ -127,6 +128,7 @@ fn scan_markup(input: &[u8]) -> Option<Token> {
     }
 }
 
+#[inline]
 fn scan_start_or_empty_element_tag(input: &[u8]) -> Option<Token> {
     // Skip the head '<'
     const OFFSET: usize = 1;
@@ -155,6 +157,7 @@ fn scan_start_or_empty_element_tag(input: &[u8]) -> Option<Token> {
     }
 }
 
+#[inline]
 fn scan_end_tag(input: &[u8]) -> Option<Token> {
     // Skip the head '</'
     const OFFSET: usize = 2;
@@ -173,6 +176,7 @@ fn scan_end_tag(input: &[u8]) -> Option<Token> {
     })
 }
 
+#[inline]
 fn scan_processing_instruction(input: &[u8]) -> Option<Token> {
     // Skip the head '<?'
     const OFFSET: usize = 2;
@@ -181,26 +185,21 @@ fn scan_processing_instruction(input: &[u8]) -> Option<Token> {
     debug_assert_eq!(input[0], b'<');
     debug_assert_eq!(input[1], b'?');
 
-    if input.len() < 4 {
-        return None;
-    }
-
-    // Skip one more than usual because at the minimum, it must be `<??>`.
+    // Skip OFFSET + 1 because at the minimum, it must be `<??>`.
     // It cannot be `<?>`.
-    let bytes = &input[OFFSET + 1..];
 
-    for (pos, byte) in bytes.iter().enumerate() {
-        if *byte == b'>' && input[OFFSET + 1 + pos - 1] == b'?' {
-            return Some(Token {
-                ty: TokenTy::ProcessingInstruction,
-                len: OFFSET + 1 + pos + 1,
-            });
-        }
-    }
-
-    None
+    input
+        .iter()
+        .enumerate()
+        .skip(OFFSET + 1)
+        .find_map(|(pos, b)| (*b == b'>' && input[pos - 1] == b'?').then_some(pos))
+        .map(|pos| Token {
+            ty: TokenTy::ProcessingInstruction,
+            len: pos + 1,
+        })
 }
 
+#[inline]
 fn scan_declaration_comment_or_cdata(input: &[u8]) -> Option<Token> {
     // Skip the head '<!'
     const OFFSET: usize = 2;
@@ -236,6 +235,7 @@ fn scan_declaration_comment_or_cdata(input: &[u8]) -> Option<Token> {
     }
 }
 
+#[inline]
 fn scan_declaration(input: &[u8]) -> Option<Token> {
     // Skip the head '<!'
     const OFFSET: usize = 2;
@@ -254,6 +254,7 @@ fn scan_declaration(input: &[u8]) -> Option<Token> {
     })
 }
 
+#[inline]
 fn scan_comment(input: &[u8]) -> Option<Token> {
     // Skip the head '<!--'
     const OFFSET: usize = 4;
@@ -264,24 +265,21 @@ fn scan_comment(input: &[u8]) -> Option<Token> {
     debug_assert_eq!(input[2], b'-');
     debug_assert_eq!(input[3], b'-');
 
-    if input.len() < 7 {
-        return None;
-    }
+    // Skip OFFSET + 2 because at the minimum, it must be `<!---->`.
+    // It cannot be `<!-->`.
 
-    let bytes = &input[OFFSET + 3..];
-
-    for (pos, byte) in bytes.iter().enumerate() {
-        if *byte == b'>' && &input[OFFSET + 3 + pos - 2..=OFFSET + 3 + pos] == b"-->" {
-            return Some(Token {
-                ty: TokenTy::Comment,
-                len: OFFSET + 3 + pos + 1,
-            });
-        }
-    }
-
-    None
+    input
+        .iter()
+        .enumerate()
+        .skip(OFFSET + 2)
+        .find_map(|(pos, b)| (*b == b'>' && &input[pos - 2..pos] == b"--").then_some(pos))
+        .map(|pos| Token {
+            ty: TokenTy::Comment,
+            len: pos + 1,
+        })
 }
 
+#[inline]
 fn scan_cdata(input: &[u8]) -> Option<Token> {
     // Skip the head '<![CDATA['
     const OFFSET: usize = 9;
@@ -297,25 +295,17 @@ fn scan_cdata(input: &[u8]) -> Option<Token> {
     debug_assert_eq!(input[7], b'A');
     debug_assert_eq!(input[8], b'[');
 
-    if input.len() < 12 {
-        return None;
-    }
+    // Skip OFFSET + 2 because at the minimum, it must be `<![CDATA[]]>`.
 
-    let bytes = &input[OFFSET + 3..];
-
-    for (pos, byte) in bytes.iter().enumerate() {
-        if *byte == b'>' {
-            dbg!(pos);
-            if &input[OFFSET + 3 + pos - 2..=OFFSET + 3 + pos] == b"]]>" {
-                return Some(Token {
-                    ty: TokenTy::Cdata,
-                    len: OFFSET + 3 + pos + 1,
-                });
-            }
-        }
-    }
-
-    None
+    input
+        .iter()
+        .enumerate()
+        .skip(OFFSET + 2)
+        .find_map(|(pos, b)| (*b == b'>' && &input[pos - 2..pos] == b"]]").then_some(pos))
+        .map(|pos| Token {
+            ty: TokenTy::Cdata,
+            len: pos + 1,
+        })
 }
 
 #[must_use]
