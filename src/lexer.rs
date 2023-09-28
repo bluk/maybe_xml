@@ -10,18 +10,11 @@
 
 use core::iter;
 
-use crate::token::Ty;
+use crate::token::Token;
 
 mod scanner;
 
 pub use scanner::scan;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Token<'a> {
-    pub ty: Ty<'a>,
-    pub offset: usize,
-    pub len: usize,
-}
 
 #[derive(Debug, Clone, Copy)]
 pub struct Lexer<'a> {
@@ -35,11 +28,12 @@ impl<'a> Lexer<'a> {
         Self { input }
     }
 
+    #[must_use]
     pub fn tokenize(&self, pos: &mut usize) -> Option<Token<'a>> {
         let bytes = &self.input[*pos..];
-        let mut token = scan(bytes)?;
-        token.offset = *pos;
-        *pos += token.len;
+        let ty = scan(bytes)?;
+        let token = Token::new(ty, *pos);
+        *pos += token.len();
         Some(token)
     }
 
@@ -64,20 +58,20 @@ impl<'a> IntoIterator for Lexer<'a> {
 /// # Example
 ///
 /// ```
-/// use maybe_xml::{Lexer, token::borrowed::{EndTag, StartTag, TokenTy}};
-/// use std::io::BufRead;
+/// use maybe_xml::{Lexer, token::{EndTag, StartTag, Ty}};
+/// use std::io::{BufRead, BufReader};
 ///
-/// let mut input = std::io::BufReader::new(r#"<ID>Example</id><name>Jane Doe</name>"#.as_bytes());
+/// let mut input = BufReader::new(r#"<ID>Example</id><name>Jane Doe</name>"#.as_bytes());
 /// let buffer = input.fill_buf()?;
 /// let lexer = Lexer::from_slice(buffer);
 ///
 /// let mut iter = lexer.into_iter()
 ///     .filter_map(|token| {
-///         match token.ty {
-///             TokenTy::StartTag(start_tag) => {
+///         match token.ty() {
+///             Ty::StartTag(start_tag) => {
 ///                 Some(start_tag.name().to_str())
 ///             }
-///             TokenTy::EndTag(end_tag) => {
+///             Ty::EndTag(end_tag) => {
 ///                 Some(end_tag.name().to_str())
 ///             }
 ///             _ => None,
@@ -122,6 +116,8 @@ mod tests {
     #[cfg(feature = "std")]
     use std::vec::Vec;
 
+    use crate::token::Ty;
+
     #[test]
     fn none_on_empty() {
         let lexer = Lexer::from_slice(&[]);
@@ -134,7 +130,7 @@ mod tests {
     fn panic_on_pos_greater_than_slice_len() {
         let lexer = Lexer::from_slice(&[]);
         let mut pos = 1;
-        lexer.tokenize(&mut pos);
+        let _ = lexer.tokenize(&mut pos);
     }
 
     #[test]
@@ -142,7 +138,7 @@ mod tests {
     fn panic_on_pos_greater_than_slice_len_2() {
         let lexer = Lexer::from_slice("hello".as_bytes());
         let mut pos = "hello".len() + 1;
-        lexer.tokenize(&mut pos);
+        let _ = lexer.tokenize(&mut pos);
     }
 
     #[cfg(any(feature = "std", feature = "alloc"))]
@@ -155,11 +151,10 @@ mod tests {
         buf.extend("Hello".as_bytes());
         let lexer = Lexer::from_slice(&buf);
         assert_eq!(
-            Some(Token {
-                ty: Ty::Characters(Characters::from("Hello".as_bytes())),
-                offset: 0,
-                len: 5
-            }),
+            Some(Token::new(
+                Ty::Characters(Characters::from("Hello".as_bytes())),
+                0
+            )),
             lexer.tokenize(&mut pos)
         );
         assert_eq!(buf.len(), pos);
@@ -167,11 +162,10 @@ mod tests {
         buf.extend("wo".as_bytes());
         let lexer = Lexer::from_slice(&buf);
         assert_eq!(
-            Some(Token {
-                ty: Ty::Characters(Characters::from("wo".as_bytes())),
-                offset: 5,
-                len: 2
-            }),
+            Some(Token::new(
+                Ty::Characters(Characters::from("wo".as_bytes())),
+                5,
+            )),
             lexer.tokenize(&mut pos)
         );
         assert_eq!(buf.len(), pos);
@@ -179,11 +173,10 @@ mod tests {
         buf.extend("rld!<".as_bytes());
         let lexer = Lexer::from_slice(&buf);
         assert_eq!(
-            Some(Token {
-                ty: Ty::Characters(Characters::from("rld!".as_bytes())),
-                offset: 7,
-                len: 4
-            }),
+            Some(Token::new(
+                Ty::Characters(Characters::from("rld!".as_bytes())),
+                7,
+            )),
             lexer.tokenize(&mut pos)
         );
         assert_eq!(buf.len() - 1, pos);

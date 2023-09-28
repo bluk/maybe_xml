@@ -152,8 +152,6 @@
 #[cfg(all(feature = "alloc", not(feature = "std")))]
 extern crate alloc;
 
-pub use lexer::{scan, Lexer, Token};
-
 pub(crate) mod bytes;
 mod lexer;
 
@@ -164,3 +162,6 @@ mod lexer;
 pub mod eval;
 pub mod scanner;
 pub mod token;
+
+pub use lexer::{scan, Lexer};
+pub use token::Token;

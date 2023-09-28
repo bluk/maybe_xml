@@ -6,26 +6,11 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-//! Tokens are the returned values when evaluating scanned byte ranges.
+//! Tokens are views of byte sub-slices from an input buffer.
 //!
-//! There are two types of tokens: `borrowed` and `owned`. Borrowed
-//! tokens re-use an internal buffer to temporarily represent a token
-//! value. Owned tokens have independent buffers which store the
-//! the token value.
-//!
-//! Methods which return a borrowed token act like a cursor API which
-//! provides a temporary read only view of the scanned bytes. It should
-//! perform better with less memory requirements.
-//!
-//! Methods which return an owned token act like an iterator API which
-//! provides a value which can be easily stored or transformed. It should
-//! be easier to use but at the cost of performance and more
-//! memory usage.
-//!
-//! There may be "properties" of a token. For instance, a start tag
-//! should have a tag name and possibly attributes. Tokens have
-//! methods which return types in the `props` module. Properties
-//! are borrowed views into a token.
+//! [`Token`] is the main type. It identifies a sub-slice of the input buffer
+//! with a type of token using [`Ty`]. There are specific token types like
+//! [`StartTag`] which provide a view of the bytes and provide helper methods.
 
 #[deprecated(
     since = "0.5.0",
@@ -45,6 +30,45 @@ fn is_space(byte: u8) -> bool {
 use core::str;
 
 use prop::{Attributes, Content, Instructions, TagName, Target};
+
+/// A slice of bytes which is identified as a specific token type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Token<'a> {
+    ty: Ty<'a>,
+    offset: usize,
+}
+
+impl<'a> Token<'a> {
+    /// Instantiates a new instance with the token type and the position where
+    /// the token starts in the original input.
+    #[inline]
+    #[must_use]
+    pub fn new(ty: Ty<'a>, offset: usize) -> Self {
+        Self { ty, offset }
+    }
+
+    /// Returns the token type.
+    #[inline]
+    #[must_use]
+    pub fn ty(&self) -> Ty<'a> {
+        self.ty
+    }
+
+    /// Returns the byte offset in the original input where the token starts.
+    #[inline]
+    #[must_use]
+    pub fn offset(&self) -> usize {
+        self.offset
+    }
+
+    /// Returns the length of the token in bytes.
+    #[allow(clippy::len_without_is_empty)]
+    #[inline]
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.ty.len()
+    }
+}
 
 macro_rules! converters {
     ($name:ident) => {
@@ -102,7 +126,7 @@ macro_rules! converters {
 }
 pub(crate) use converters;
 
-/// Type of token scanned
+/// Type of token
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Ty<'a> {
     /// A start tag like `<hello>`.
@@ -121,6 +145,30 @@ pub enum Ty<'a> {
     Comment(Comment<'a>),
     /// Character data like `<![CDATA[ Example ]]>`.
     Cdata(Cdata<'a>),
+}
+
+impl<'a> Ty<'a> {
+    /// Returns the slice of bytes identified as part of the token.
+    #[must_use]
+    pub fn as_bytes(&self) -> &'a [u8] {
+        match self {
+            Ty::StartTag(v) => v.as_bytes(),
+            Ty::EmptyElementTag(v) => v.as_bytes(),
+            Ty::EndTag(v) => v.as_bytes(),
+            Ty::Characters(v) => v.as_bytes(),
+            Ty::ProcessingInstruction(v) => v.as_bytes(),
+            Ty::Declaration(v) => v.as_bytes(),
+            Ty::Comment(v) => v.as_bytes(),
+            Ty::Cdata(v) => v.as_bytes(),
+        }
+    }
+
+    /// Returns the length of the token in bytes.
+    #[allow(clippy::len_without_is_empty)]
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.as_bytes().len()
+    }
 }
 
 /// A start tag for an element.
