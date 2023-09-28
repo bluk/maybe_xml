@@ -111,6 +111,12 @@ pub enum State {
 /// The `Scanner` does not copy the bytes being scanned. The internal state only
 /// contains data to determine when the current token has ended.
 ///
+/// # Use Case
+///
+/// `Scanner` is useful for a scenario where there is a moving window of bytes
+/// that need to be scanned in a fixed sized byte array.  For most use cases,
+/// the [`Lexer`][crate::Lexer] is a better API to use.
+///
 /// # Important
 ///
 /// The `Scanner` is meant to be used to scan a stream of bytes split into byte

@@ -20,7 +20,7 @@ pub use scanner::scan;
 ///
 /// The lexer can be used with complete or incremental input.
 ///
-/// It does not allocate any buffers.
+/// It does not allocate.
 ///
 /// If the entire input is available, it may be easier to turn the `Lexer` into
 /// an `Iterator` by calling either [`IntoIterator::into_iter()`] or

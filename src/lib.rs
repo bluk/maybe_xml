@@ -10,112 +10,96 @@
 //! effect, the library provides a non-validating lexer. The interface is similar to many
 //! XML pull parsers.
 //!
-//! The library does 3 things:
+//! # Deprecations
 //!
-//! 1. A `Scanner` receives byte slices and identifies the start and end of tokens like
-//!    tags, character content, and declarations.
-//!
-//! 2. An `Evaluator` transforms bytes from an input source (like instances of types which implement
-//!    `std::io::BufRead`) into complete tokens via either a cursor or an iterator pull
-//!    style API.
-//!
-//!    From an implementation point of view, when a library user asks an
-//!    `Evaluator` for the next token, the `Evaluator` reads the input and passes the
-//!    bytes to an internal `Scanner`. The `Evaluator` buffers the scanned bytes and keeps reading
-//!    until the `Scanner` determines a token has been completely read. Then all of the bytes
-//!    which represent the token are returned to the library user as a variant of a token type.
-//!
-//! 3. Each token type provides methods which can provide views into the underlying bytes.
-//!    For instance, a tag token could provide a `name()` method which returns a `TagName`.
-//!    The `TagName` provides a method like `to_str()` which can be called to get a `str`
-//!    representation of the tag name.
+//! In this version, there are several modules and types which are deprecated.
+//! Instead of a couple different ways to tokenize input, a single [`Lexer`]
+//! is now used. All of the deprecated functionality will be removed in a future version.
 //!
 //! # Usage
 //!
-//! In most cases, a library user should use an `Evaluator` to read the XML
-//! and transform the data into tokens.
+//! The library user creates a [`Lexer`] from a slice of bytes. The slice of
+//! bytes is usually from a buffer managed by the library user. For instance, it
+//! could be a buffer of data that is being read over a network socket, a memory
+//! mapped file, or just a [`Vec`] of bytes.
 //!
-//! First, instantiate an `Evaluator` with an input source.
+//! Then, the library user can call [`Lexer::tokenize()`][`Lexer::tokenize()`]
+//! to try to get the next [`Token`][crate::token::Token]. If successful,
+//! repeat calling `tokenize` and process the available tokens.
 //!
-//! Second, if the `Evaluator` supports the iterator API, a library user may transform
-//! the `Evaluator` into an iterator by calling the `into_iter()` method. Then, like other
-//! iterators, you can call `next()` or use any of the other `Iterator` methods like
-//! `map`, `filter`, etc. In most cases, especially if you need to further
-//! transform the XML content, using the `Iterator` API is easier. The returned tokens
-//! from the Iterator API have owned copies of the bytes representing the token.
+//! Alternatively, the user can turn the `Lexer` into an iterator via
+//! [`Lexer::iter()`][Lexer::iter()] or [`IntoIterator::into_iter()`].
 //!
-//! If the use case only involves reading the data and not copying or transforming the
-//! data, the cursor API (usually by calling `next_token` directly on the `Evaluator` itself and not
-//! transforming the `Evaluator` into an iterator) may be sufficient. The returned tokens
-//! from the cursor API are representing a token by borrowing a byte slice view from
-//! a shared internal buffer.
+//! # Examples
 //!
-//! # Example
-//!
-//! As a simplified and unoptimized example, the following code uses the iterator style API to
-//! transform uppercase `ID` into lowercase `id` tag names.
+//! ## Using [`Iterator`] functionality
 //!
 //! ```
-//! # #[cfg(feature = "std")]
-//! use maybe_xml::token::owned::{Token, StartTag, Characters, EndTag};
+//! use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Token, Ty}};
 //!
-//! # #[derive(Debug)]
-//! # enum Error {
-//! # Io(std::io::Error),
-//! # Utf8(std::str::Utf8Error),
-//! # }
-//! # impl From<std::io::Error> for Error {
-//! # fn from(e: std::io::Error) -> Self {
-//! # Error::Io(e)
-//! # }
-//! # }
-//! # impl From<std::str::Utf8Error> for Error {
-//! # fn from(e: std::str::Utf8Error) -> Self {
-//! # Error::Utf8(e)
-//! # }
-//! # }
-//! # fn main() -> Result<(), Error> {
-//! # #[cfg(feature = "std")]
-//! # {
-//! let mut input = std::io::BufReader::new(r#"<ID>Example</ID>"#.as_bytes());
+//! let input = b"<id>Example</id>";
 //!
-//! let eval = maybe_xml::eval::bufread::BufReadEvaluator::from_reader(input);
+//! let lexer = Lexer::from_slice(input);
 //!
-//! let mut iter = eval.into_iter()
-//!     .map(|token| match token {
-//!         Token::StartTag(start_tag) => {
-//!             if let Ok(str) = start_tag.to_str() {
-//!                 Token::StartTag(StartTag::from(str.to_lowercase()))
-//!             } else {
-//!                 Token::StartTag(start_tag)
-//!             }
-//!         }
-//!         Token::EndTag(end_tag) => {
-//!             if let Ok(str) = end_tag.to_str() {
-//!                 Token::EndTag(EndTag::from(str.to_lowercase()))
-//!             } else {
-//!                 Token::EndTag(end_tag)
-//!             }
-//!         }
-//!         _ => token,
-//!     });
+//! let mut iter = lexer.into_iter().map(|token| token.ty());
 //!
-//! let token = iter.next();
-//! assert_eq!(token, Some(Token::StartTag(StartTag::from("<id>"))));
-//! match token {
-//!     Some(Token::StartTag(start_tag)) => {
+//! let token_type = iter.next();
+//! assert_eq!(token_type, Some(Ty::StartTag(StartTag::from("<id>"))));
+//! match token_type {
+//!     Some(Ty::StartTag(start_tag)) => {
 //!         assert_eq!(start_tag.name().to_str()?, "id");
 //!     }
 //!     _ => panic!("unexpected token"),
 //! }
-//! assert_eq!(iter.next(), Some(Token::Characters(Characters::from("Example"))));
-//! assert_eq!(iter.next(), Some(Token::EndTag(EndTag::from("</id>"))));
-//! assert_eq!(iter.next(), Some(Token::Eof));
+//! assert_eq!(iter.next(), Some(Ty::Characters(Characters::from("Example"))));
+//! assert_eq!(iter.next(), Some(Ty::EndTag(EndTag::from("</id>"))));
 //! assert_eq!(iter.next(), None);
-//! # }
-//! # Ok(())
-//! # }
+//! # Ok::<(), core::str::Utf8Error>(())
 //! ```
+//!
+//! ## Using [`Lexer::tokenize()`][Lexer::tokenize()] directly
+//!
+//! ```
+//! use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Ty}};
+//!
+//! let mut buf = Vec::new();
+//! // Note the missing closing tag character `>` in the end tag.
+//! buf.extend(b"<id>123</id");
+//!
+//! let lexer = Lexer::from_slice(&buf);
+//! let mut pos = 0;
+//!
+//! let token = lexer.tokenize(&mut pos).unwrap();
+//! assert_eq!(0, token.offset());
+//! assert_eq!(Ty::StartTag(StartTag::from("<id>".as_bytes())), token.ty());
+//!
+//! let token = lexer.tokenize(&mut pos).unwrap();
+//! assert_eq!(4, token.offset());
+//! assert_eq!(Ty::Characters(Characters::from("123".as_bytes())), token.ty());
+//!
+//! let token = lexer.tokenize(&mut pos);
+//! // The last token is incomplete because it is missing the `>`
+//! assert_eq!(None, token);
+//!
+//! // The position was updated as tokenize() was called
+//! assert_eq!(7, pos);
+//!
+//! // Remove the tokenized data and reset the position
+//! buf.drain(..pos);
+//! pos = 0;
+//!
+//! // Verify that the buffer is empty. If it is not empty, then there is data
+//! // which could not be identified as a complete token. This usually indicates
+//! // an error has occurred. If there is more data (say coming from a network
+//! // socket), then append the new data when it becomes available and call
+//! // tokenize again.
+//! ```
+//!
+//! # Encoding
+//!
+//! It is assumed that the data is UTF-8 encoded. There is no validation on the
+//! actual data being tokenized (e.g. there could be control characters or other
+//! data which may not be expected). Data validation is done by the library caller.
 //!
 //! # Well-formed vs. Malformed document processing
 //!
@@ -125,15 +109,15 @@
 //!
 //! # Security Considerations
 //!
-//! There are no limits on the amount of data read, so if a large input source is used,
-//! an `Evaluator` will buffer a large number of bytes until the end of the current
-//! token is found. For untrusted input sources such as a `std::io::BufRead`, the
-//! input source could be wrapped with a type which checks the number of bytes read
-//! and throws an error if too many bytes have been read.
+//! The input is managed by the library user. If there is malformed input, the
+//! tokenizing functions could never return a complete token.
 //!
-//! Another possible solution is to use a `Scanner` directly and process bytes
-//! immediately instead of using an `Evaluator` which buffers the bytes until a
-//! complete token is read.
+//! For instance, the input could start with a `<` but there is no closing `>`
+//! character.
+//!
+//! In particular, if data is coming over the network and the data is being
+//! stored in a buffer, the buffer may have unbounded growth if the buffer's
+//! data is freed only if a complete token is found.
 //!
 //! [xml]: https://www.w3.org/TR/2006/REC-xml11-20060816/
 
@@ -164,4 +148,3 @@ pub mod scanner;
 pub mod token;
 
 pub use lexer::{scan, Lexer};
-pub use token::Token;

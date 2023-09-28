@@ -319,10 +319,7 @@ fn scan_cdata(input: &[u8]) -> Option<Ty<'_>> {
 /// # Examples
 ///
 /// ```
-/// use maybe_xml::{
-///     Token,
-///     token::{Characters, StartTag, Ty}
-/// };
+/// use maybe_xml::token::{Characters, StartTag, Token, Ty};
 ///
 /// let mut buffer = Vec::new();
 /// buffer.extend(b"<h");
