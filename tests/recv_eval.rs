@@ -6,6 +6,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#![allow(deprecated)]
+
 #[cfg(any(feature = "std", feature = "alloc"))]
 use maybe_xml::{
     eval::recv::Evaluator,

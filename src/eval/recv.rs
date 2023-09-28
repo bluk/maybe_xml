@@ -39,7 +39,7 @@ enum State {
 }
 
 /// Errors when trying to process the stream of bytes into a token.
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 #[cfg(any(feature = "std", feature = "alloc"))]
 #[non_exhaustive]
 pub enum Error {
@@ -336,7 +336,7 @@ impl Evaluator {
     /// If the end of file state is reached, `next_token()` will return `Ok(Some(Token::Eof))`
     /// or `Ok(Some(Token::EofWithBytesNotEvaluated))` once. Then any further calls to the method will always
     /// return `Ok(None)`.
-    pub fn next_token(&mut self) -> Result<Option<borrowed::Token>, Error> {
+    pub fn next_token(&mut self) -> Result<Option<borrowed::Token<'_>>, Error> {
         use borrowed::{
             BytesNotEvaluated, Cdata, Characters, Comment, Declaration, EmptyElementTag, EndTag,
             ProcessingInstruction, StartTag, Token,
@@ -429,7 +429,7 @@ mod tests {
         fn assert_next_token(
             &mut self,
             eval: &mut Evaluator,
-            expected_token: Option<Token>,
+            expected_token: Option<Token<'_>>,
         ) -> bool {
             let mut rng = thread_rng();
             let mut fill_size = rng.gen_range(1..self.bytes.len() - self.index + 2);

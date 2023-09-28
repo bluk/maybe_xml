@@ -45,7 +45,7 @@ impl<'a> Lexer<'a> {
 
     pub fn tokenize(&self, pos: &mut usize) -> Option<Token> {
         let bytes = &self.input[*pos..];
-        let mut token = scanner::scan(bytes)?;
+        let mut token = scan(bytes)?;
         token.offset = *pos;
         *pos += token.len;
         Some(token)

@@ -29,6 +29,7 @@
 
 pub mod borrowed;
 #[cfg(any(feature = "alloc", feature = "std"))]
+#[deprecated(since = "0.5.0", note = "Use Lexer with borrowed type views.")]
 pub mod owned;
 pub mod prop;
 

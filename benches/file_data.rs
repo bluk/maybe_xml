@@ -6,6 +6,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#![allow(deprecated)]
+
 use criterion::{criterion_group, criterion_main, Criterion};
 
 const SIMPLE_1_BYTES: &[u8] = include_bytes!("../tests/resources/simple-1.xml");

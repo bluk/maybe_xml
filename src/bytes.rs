@@ -359,28 +359,28 @@ mod tests {
         let byte_seq = b"abc";
         let buf = b"d";
         assert_eq!(
-            super::find_matching_suffix(byte_seq, buf),
+            find_matching_suffix(byte_seq, buf),
             AlreadyFoundByteSeqCount(0)
         );
 
         let byte_seq = b"abc";
         let buf = b"de";
         assert_eq!(
-            super::find_matching_suffix(byte_seq, buf),
+            find_matching_suffix(byte_seq, buf),
             AlreadyFoundByteSeqCount(0)
         );
 
         let byte_seq = b"abc";
         let buf = b"def";
         assert_eq!(
-            super::find_matching_suffix(byte_seq, buf),
+            find_matching_suffix(byte_seq, buf),
             AlreadyFoundByteSeqCount(0)
         );
 
         let byte_seq = b"abc";
         let buf = b"defg";
         assert_eq!(
-            super::find_matching_suffix(byte_seq, buf),
+            find_matching_suffix(byte_seq, buf),
             AlreadyFoundByteSeqCount(0)
         );
     }
@@ -390,28 +390,28 @@ mod tests {
         let byte_seq = b"abc";
         let buf = b"a";
         assert_eq!(
-            super::find_matching_suffix(byte_seq, buf),
+            find_matching_suffix(byte_seq, buf),
             AlreadyFoundByteSeqCount(1)
         );
 
         let byte_seq = b"abc";
         let buf = b"xa";
         assert_eq!(
-            super::find_matching_suffix(byte_seq, buf),
+            find_matching_suffix(byte_seq, buf),
             AlreadyFoundByteSeqCount(1)
         );
 
         let byte_seq = b"abc";
         let buf = b"xya";
         assert_eq!(
-            super::find_matching_suffix(byte_seq, buf),
+            find_matching_suffix(byte_seq, buf),
             AlreadyFoundByteSeqCount(1)
         );
 
         let byte_seq = b"abc";
         let buf = b"xyza";
         assert_eq!(
-            super::find_matching_suffix(byte_seq, buf),
+            find_matching_suffix(byte_seq, buf),
             AlreadyFoundByteSeqCount(1)
         );
     }
@@ -421,28 +421,28 @@ mod tests {
         let byte_seq = b"abc";
         let buf = b"ab";
         assert_eq!(
-            super::find_matching_suffix(byte_seq, buf),
+            find_matching_suffix(byte_seq, buf),
             AlreadyFoundByteSeqCount(2)
         );
 
         let byte_seq = b"abc";
         let buf = b"xab";
         assert_eq!(
-            super::find_matching_suffix(byte_seq, buf),
+            find_matching_suffix(byte_seq, buf),
             AlreadyFoundByteSeqCount(2)
         );
 
         let byte_seq = b"abc";
         let buf = b"xyab";
         assert_eq!(
-            super::find_matching_suffix(byte_seq, buf),
+            find_matching_suffix(byte_seq, buf),
             AlreadyFoundByteSeqCount(2)
         );
 
         let byte_seq = b"abc";
         let buf = b"xyzab";
         assert_eq!(
-            super::find_matching_suffix(byte_seq, buf),
+            find_matching_suffix(byte_seq, buf),
             AlreadyFoundByteSeqCount(2)
         );
     }

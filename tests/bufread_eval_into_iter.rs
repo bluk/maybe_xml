@@ -6,6 +6,8 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
+#![allow(deprecated)]
+
 #[cfg(feature = "std")]
 use maybe_xml::{
     eval::bufread::BufReadEvaluator,

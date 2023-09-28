@@ -119,7 +119,7 @@ macro_rules! converters {
         {
             type Output = <I as core::slice::SliceIndex<[u8]>>::Output;
 
-            fn index(&self, index: I) -> &<$name as core::ops::Index<I>>::Output {
+            fn index(&self, index: I) -> &<$name<'a> as core::ops::Index<I>>::Output {
                 self.bytes.index(index)
             }
         }
@@ -135,7 +135,7 @@ macro_rules! converters {
         }
 
         impl<'a> Ord for $name<'a> {
-            fn cmp(&self, other: &$name) -> core::cmp::Ordering {
+            fn cmp(&self, other: &$name<'a>) -> core::cmp::Ordering {
                 self.bytes.cmp(&other.bytes)
             }
         }
@@ -147,7 +147,7 @@ macro_rules! converters {
         }
 
         impl<'a> PartialEq<$name<'a>> for $name<'a> {
-            fn eq(&self, other: &$name) -> bool {
+            fn eq(&self, other: &$name<'a>) -> bool {
                 self.bytes.eq(other.bytes)
             }
         }
@@ -160,13 +160,17 @@ macro_rules! converters {
         }
 
         impl<'a> PartialOrd<$name<'a>> for $name<'a> {
-            fn partial_cmp(&self, other: &$name) -> Option<core::cmp::Ordering> {
+            fn partial_cmp(&self, other: &$name<'a>) -> Option<core::cmp::Ordering> {
                 Some(self.bytes.cmp(other.bytes))
             }
         }
     };
 }
 
+#[deprecated(
+    since = "0.5.0",
+    note = "Use the crate's Token type to base which borrowed view type to use."
+)]
 /// Scanned byte values associated with a type.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Token<'a> {

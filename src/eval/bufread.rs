@@ -327,7 +327,7 @@ where
     B: BufRead,
 {
     reader: BufReadEvaluator<B>,
-    error: Option<std::io::Error>,
+    error: Option<Error>,
 }
 
 #[cfg(feature = "std")]
@@ -350,7 +350,7 @@ where
     }
 
     /// Clears any error state and returns the error if it exists.
-    pub fn clear_error(&mut self) -> Option<std::io::Error> {
+    pub fn clear_error(&mut self) -> Option<Error> {
         self.error.take()
     }
 }

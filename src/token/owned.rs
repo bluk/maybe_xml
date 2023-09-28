@@ -143,7 +143,7 @@ macro_rules! converters {
             }
         }
 
-        impl core::iter::FromIterator<u8> for $name {
+        impl FromIterator<u8> for $name {
             fn from_iter<I>(iter: I) -> Self
             where
                 I: IntoIterator<Item = u8>,

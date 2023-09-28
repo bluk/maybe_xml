@@ -138,12 +138,29 @@
 //! [xml]: https://www.w3.org/TR/2006/REC-xml11-20060816/
 
 #![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![warn(
+    missing_copy_implementations,
+    missing_debug_implementations,
+    missing_docs,
+    rust_2018_idioms,
+    unused_lifetimes,
+    unused_qualifications
+)]
+#![allow(deprecated)]
 
-#[cfg(feature = "alloc")]
+#[cfg(all(feature = "alloc", not(feature = "std")))]
 extern crate alloc;
+
+pub use byte::{Lexer, Token, TokenTy};
 
 pub mod byte;
 pub(crate) mod bytes;
+
+#[deprecated(
+    since = "0.5.0",
+    note = "Use Lexer which does not allocate and provides greater flexibility to the caller."
+)]
 pub mod eval;
 pub mod scanner;
 pub mod token;

@@ -117,7 +117,7 @@ pub enum State {
 /// slice parameters. An empty byte slice indicates the end of the byte stream.
 /// After an empty byte slice is given to the `scan` method, the `scan` method
 /// will always return `None`.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Scanner {
     /// What the scanner is working on.
     state: InternalState,

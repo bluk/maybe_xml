@@ -116,13 +116,13 @@ macro_rules! converters {
         {
             type Output = <I as core::slice::SliceIndex<[u8]>>::Output;
 
-            fn index(&self, index: I) -> &<$name as core::ops::Index<I>>::Output {
+            fn index(&self, index: I) -> &<$name<'a> as core::ops::Index<I>>::Output {
                 self.bytes.index(index)
             }
         }
 
         impl<'a> Ord for $name<'a> {
-            fn cmp(&self, other: &$name) -> core::cmp::Ordering {
+            fn cmp(&self, other: &$name<'a>) -> core::cmp::Ordering {
                 self.bytes.cmp(&other.bytes)
             }
         }
@@ -134,7 +134,7 @@ macro_rules! converters {
         }
 
         impl<'a> PartialEq<$name<'a>> for $name<'a> {
-            fn eq(&self, other: &$name) -> bool {
+            fn eq(&self, other: &$name<'a>) -> bool {
                 self.bytes.eq(other.bytes)
             }
         }
@@ -147,7 +147,7 @@ macro_rules! converters {
         }
 
         impl<'a> PartialOrd<$name<'a>> for $name<'a> {
-            fn partial_cmp(&self, other: &$name) -> Option<core::cmp::Ordering> {
+            fn partial_cmp(&self, other: &$name<'a>) -> Option<core::cmp::Ordering> {
                 Some(self.bytes.cmp(other.bytes))
             }
         }
@@ -348,6 +348,7 @@ fn iter_attr(mut index: usize, bytes: &[u8]) -> (usize, Option<Attribute<'_>>) {
 }
 
 /// An iterator which returns an individual attribute on every `next()` call.
+#[derive(Debug)]
 pub struct AttributeIter<'a> {
     bytes: &'a [u8],
     index: usize,
@@ -364,6 +365,7 @@ impl<'a> Iterator for AttributeIter<'a> {
 }
 
 /// An iterator which returns an individual attribute on every `next()` call.
+#[derive(Debug)]
 pub struct AttributeIntoIter<'a> {
     bytes: &'a [u8],
     index: usize,
