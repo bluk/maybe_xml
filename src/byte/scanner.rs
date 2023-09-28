@@ -1,11 +1,8 @@
 //! Scans byte sequences for tokens.
 
-use crate::bytes::{self, BracketCount, QuoteState};
+use crate::bytes::{self, QuoteState};
 
 use super::{Token, TokenTy};
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-struct Offset(usize);
 
 /// Find the next `>` while being aware of quoted text.
 #[inline]
@@ -47,19 +44,19 @@ fn find_close_tag_char_with_quotes(input: &[u8]) -> Option<usize> {
 /// Find the next `>` while being aware of quoted text and the number of bracket delimiters used.
 #[inline]
 fn find_close_tag_char_with_brackets_and_quotes(input: &[u8]) -> Option<usize> {
-    let mut bracket_count = BracketCount(0);
+    let mut bracket_cnt = 0;
     let mut quote_state = QuoteState::None;
 
     for (pos, byte) in input.iter().enumerate() {
         match byte {
             b'[' => match quote_state {
-                QuoteState::None => bracket_count.0 += 1,
+                QuoteState::None => bracket_cnt += 1,
                 QuoteState::Single | QuoteState::Double => {}
             },
             b']' => match quote_state {
                 QuoteState::None => {
-                    if bracket_count.0 > 0 {
-                        bracket_count.0 -= 1;
+                    if bracket_cnt > 0 {
+                        bracket_cnt -= 1;
                     }
                 }
                 QuoteState::Single | QuoteState::Double => {}
@@ -83,7 +80,7 @@ fn find_close_tag_char_with_brackets_and_quotes(input: &[u8]) -> Option<usize> {
                 QuoteState::Double => {}
             },
             b'>' => {
-                if bracket_count.0 == 0 {
+                if bracket_cnt == 0 {
                     match quote_state {
                         QuoteState::None => {
                             return Some(pos + 1);
