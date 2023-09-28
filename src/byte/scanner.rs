@@ -148,13 +148,13 @@ fn scan_start_or_empty_element_tag(input: &[u8]) -> Option<Token<'_>> {
     if let Some(pos) = find_close_tag_char_with_quotes(&input[OFFSET..]) {
         if pos > 1 && input[OFFSET + pos - 2] == b'/' {
             Some(Token {
-                ty: TokenTy::EmptyElementTag(EmptyElementTag::from(&input[..OFFSET + pos])),
+                ty: TokenTy::EmptyElementTag(EmptyElementTag::from(&input[..=pos])),
                 offset: 0,
                 len: OFFSET + pos,
             })
         } else {
             Some(Token {
-                ty: TokenTy::StartTag(StartTag::from(&input[..OFFSET + pos])),
+                ty: TokenTy::StartTag(StartTag::from(&input[..=pos])),
                 offset: 0,
                 len: OFFSET + pos,
             })
@@ -204,7 +204,7 @@ fn scan_processing_instruction(input: &[u8]) -> Option<Token<'_>> {
             }
         })
         .map(|pos| Token {
-            ty: TokenTy::ProcessingInstruction(ProcessingInstruction::from(&input[..pos + 1])),
+            ty: TokenTy::ProcessingInstruction(ProcessingInstruction::from(&input[..=pos])),
             offset: 0,
             len: pos + 1,
         })
@@ -289,7 +289,7 @@ fn scan_comment(input: &[u8]) -> Option<Token<'_>> {
             }
         })
         .map(|pos| Token {
-            ty: TokenTy::Comment(Comment::from(&input[..pos + 1])),
+            ty: TokenTy::Comment(Comment::from(&input[..=pos])),
             offset: 0,
             len: pos + 1,
         })
@@ -325,7 +325,7 @@ fn scan_cdata(input: &[u8]) -> Option<Token<'_>> {
             }
         })
         .map(|pos| Token {
-            ty: TokenTy::Cdata(Cdata::from(&input[..pos + 1])),
+            ty: TokenTy::Cdata(Cdata::from(&input[..=pos])),
             offset: 0,
             len: pos + 1,
         })
