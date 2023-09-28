@@ -337,6 +337,7 @@ mod tests {
     #[cfg(feature = "std")]
     use std::vec::Vec;
 
+    #[cfg(any(feature = "std", feature = "alloc"))]
     use crate::token::Ty;
 
     #[test]
