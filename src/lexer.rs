@@ -16,18 +16,137 @@ mod scanner;
 
 pub use scanner::scan;
 
+/// Tokenizes XML input into a [`Token`].
+///
+/// The lexer can be used with complete or incremental input.
+///
+/// It does not allocate any buffers.
+///
+/// If the entire input is available, it may be easier to turn the `Lexer` into
+/// an `Iterator` by calling either [`IntoIterator::into_iter()`] or
+/// [`Lexer::iter()`][Lexer::iter()] on the lexer.
+///
+/// # Examples
+///
+/// ## Using [`Iterator`] functionality
+///
+/// ```
+/// use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Ty}};
+///
+/// let mut buf = Vec::new();
+/// buf.extend(b"<id>123</id><name>Jane Doe</name>");
+///
+/// let lexer = Lexer::from_slice(&buf);
+/// let mut iter = lexer.into_iter().filter_map(|token| {
+///     match token.ty() {
+///         Ty::StartTag(tag) => Some(tag.name().to_str()),
+///         _ => None,
+///     }
+/// });
+///
+/// let name = iter.next().unwrap();
+/// assert_eq!(Ok("id"), name);
+///
+/// let name = iter.next().unwrap();
+/// assert_eq!(Ok("name"), name);
+/// ```
+///
+/// ## Using [`Lexer::tokenize()`][Lexer::tokenize()] directly
+///
+/// ```
+/// use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Ty}};
+///
+/// let mut buf = Vec::new();
+/// // Note the missing closing tag character `>` in the end tag.
+/// buf.extend(b"<id>123</id");
+///
+/// let lexer = Lexer::from_slice(&buf);
+/// let mut pos = 0;
+///
+/// let token = lexer.tokenize(&mut pos).unwrap();
+/// assert_eq!(0, token.offset());
+/// assert_eq!(Ty::StartTag(StartTag::from("<id>".as_bytes())), token.ty());
+///
+/// // Position was assigned to the index after the end of the token
+/// assert_eq!(4, pos);
+///
+/// let token = lexer.tokenize(&mut pos).unwrap();
+/// assert_eq!(4, token.offset());
+/// assert_eq!(Ty::Characters(Characters::from("123".as_bytes())), token.ty());
+///
+/// // Position was assigned to the index after the end of the token
+/// assert_eq!(7, pos);
+///
+/// let token = lexer.tokenize(&mut pos);
+/// // The last token is incomplete because it is missing the `>`
+/// assert_eq!(None, token);
+///
+/// // Discard the tokenized input
+/// buf.drain(..pos);
+/// pos = 0;
+///
+/// // Wait for additional input
+/// buf.extend(b">");
+///
+/// // Start tokenizing again with the input
+/// let lexer = Lexer::from_slice(&buf);
+///
+/// let token = lexer.tokenize(&mut pos).unwrap();
+/// assert_eq!(0, token.offset());
+/// assert_eq!(Ty::EndTag(EndTag::from("</id>".as_bytes())), token.ty());
+///
+/// // Position was assigned to the index after the end of the token
+/// assert_eq!(5, pos);
+///
+/// let token = lexer.tokenize(&mut pos);
+/// // There is no additional data to process
+/// assert_eq!(None, token);
+///
+/// buf.drain(..pos);
+/// pos = 0;
+///
+/// // End of file is reached while reading input
+///
+/// // Verify that the buffer is empty. If it is not empty, then there is data
+/// // which could not be identified as a complete token. This usually indicates
+/// // an error has occurred.
+/// assert!(buf.is_empty());
+/// ```
 #[derive(Debug, Clone, Copy)]
 pub struct Lexer<'a> {
     input: &'a [u8],
 }
 
 impl<'a> Lexer<'a> {
+    /// Creates a new instance with the input.
     #[inline]
     #[must_use]
     pub fn from_slice(input: &'a [u8]) -> Self {
         Self { input }
     }
 
+    /// Tokenizes the input starting at the given position.
+    ///
+    /// If a token is found, the position is also updated to after the token.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Ty}};
+    ///
+    /// let mut buf = Vec::new();
+    /// buf.extend(b"<id>123</id>");
+    ///
+    /// let lexer = Lexer::from_slice(&buf);
+    /// let mut pos = 0;
+    ///
+    /// let token = lexer.tokenize(&mut pos).unwrap();
+    /// assert_eq!(0, token.offset());
+    /// assert_eq!(Ty::StartTag(StartTag::from("<id>".as_bytes())), token.ty());
+    ///
+    /// // Position was assigned to the index after the end of the token
+    /// assert_eq!(4, pos);
+    ///```
     #[must_use]
     pub fn tokenize(&self, pos: &mut usize) -> Option<Token<'a>> {
         let bytes = &self.input[*pos..];
@@ -37,6 +156,108 @@ impl<'a> Lexer<'a> {
         Some(token)
     }
 
+    /// Returns an iterator for tokens starting at the given position.
+    ///
+    /// The `pos` parameter is **not** updated.
+    ///
+    /// # Examples
+    ///
+    /// ## Using other [`Iterator`] functionality
+    ///
+    /// ```
+    /// use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Ty}};
+    ///
+    /// let mut buf = Vec::new();
+    /// buf.extend(b"<id>123</id><name>Jane Doe</name>");
+    ///
+    /// let lexer = Lexer::from_slice(&buf);
+    /// let mut iter = lexer.iter(0).filter_map(|token| {
+    ///     match token.ty() {
+    ///         Ty::StartTag(tag) => Some(tag.name().to_str()),
+    ///         _ => None,
+    ///     }
+    /// });
+    ///
+    /// let name = iter.next().unwrap();
+    /// assert_eq!(Ok("id"), name);
+    ///
+    /// let name = iter.next().unwrap();
+    /// assert_eq!(Ok("name"), name);
+    /// ```
+    ///
+    /// ## Considerations during iteration
+    ///
+    /// ```
+    /// use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Ty}};
+    ///
+    /// let mut buf = Vec::new();
+    /// // Note the missing closing tag character `>` in the end tag.
+    /// buf.extend(b"Test<id>123</id");
+    ///
+    /// let lexer = Lexer::from_slice(&buf);
+    ///
+    /// // Start after the initial text content
+    /// let pos = 4;
+    ///
+    /// let mut iter = lexer.iter(pos);
+    ///
+    /// let token = iter.next().unwrap();
+    /// assert_eq!(4, token.offset());
+    /// assert_eq!(Ty::StartTag(StartTag::from("<id>".as_bytes())), token.ty());
+    ///
+    /// let pos = token.offset() + token.len();
+    ///
+    /// let token = iter.next().unwrap();
+    /// assert_eq!(8, token.offset());
+    /// assert_eq!(Ty::Characters(Characters::from("123".as_bytes())), token.ty());
+    ///
+    /// let pos = token.offset() + token.len();
+    ///
+    /// let token = iter.next();
+    /// // The last token is incomplete because it is missing the `>`
+    /// assert_eq!(None, token);
+    ///
+    /// drop(iter);
+    ///
+    /// // Discard the tokenized input
+    /// buf.drain(..pos);
+    ///
+    /// let pos = 0;
+    ///
+    /// // Wait for additional input
+    /// buf.extend(b">");
+    ///
+    /// // Start tokenizing again with the input
+    /// let lexer = Lexer::from_slice(&buf);
+    ///
+    /// let mut iter = lexer.iter(pos);
+    ///
+    /// let token = iter.next().unwrap();
+    /// assert_eq!(0, token.offset());
+    /// assert_eq!(Ty::EndTag(EndTag::from("</id>".as_bytes())), token.ty());
+    ///
+    /// let pos = token.offset() + token.len();
+    ///
+    /// // Position was assigned to the index after the end of the token
+    /// assert_eq!(5, pos);
+    ///
+    /// let token = iter.next();
+    /// // There is no additional data to process
+    /// assert_eq!(None, token);
+    ///
+    /// drop(iter);
+    ///
+    /// buf.drain(..pos);
+    ///
+    /// let pos = 0;
+    ///
+    /// // End of file is reached while reading input
+    ///
+    /// // Verify that the buffer is empty. If it is not empty, then there is data
+    /// // which could not be identified as a complete token. This usually indicates
+    /// // an error has occurred.
+    /// assert!(buf.is_empty());
+    /// ```
     #[inline]
     pub fn iter(&self, mut pos: usize) -> impl Iterator<Item = Token<'a>> + '_ {
         iter::from_fn(move || self.tokenize(&mut pos))
