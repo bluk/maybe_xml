@@ -152,10 +152,10 @@
 #[cfg(all(feature = "alloc", not(feature = "std")))]
 extern crate alloc;
 
-pub use byte::{Lexer, Token};
+pub use lexer::{scan, Lexer, Token};
 
-pub mod byte;
 pub(crate) mod bytes;
+mod lexer;
 
 #[deprecated(
     since = "0.5.0",

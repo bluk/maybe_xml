@@ -10,7 +10,7 @@
 
 use core::iter;
 
-use crate::token::borrowed::TokenTy;
+use crate::token::Ty;
 
 mod scanner;
 
@@ -18,7 +18,7 @@ pub use scanner::scan;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Token<'a> {
-    pub ty: TokenTy<'a>,
+    pub ty: Ty<'a>,
     pub offset: usize,
     pub len: usize,
 }
@@ -64,7 +64,7 @@ impl<'a> IntoIterator for Lexer<'a> {
 /// # Example
 ///
 /// ```
-/// use maybe_xml::{byte::{Lexer}, token::borrowed::{EndTag, StartTag, TokenTy}};
+/// use maybe_xml::{Lexer, token::borrowed::{EndTag, StartTag, TokenTy}};
 /// use std::io::BufRead;
 ///
 /// let mut input = std::io::BufReader::new(r#"<ID>Example</id><name>Jane Doe</name>"#.as_bytes());
@@ -156,7 +156,7 @@ mod tests {
         let lexer = Lexer::from_slice(&buf);
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Characters(Characters::from("Hello".as_bytes())),
+                ty: Ty::Characters(Characters::from("Hello".as_bytes())),
                 offset: 0,
                 len: 5
             }),
@@ -168,7 +168,7 @@ mod tests {
         let lexer = Lexer::from_slice(&buf);
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Characters(Characters::from("wo".as_bytes())),
+                ty: Ty::Characters(Characters::from("wo".as_bytes())),
                 offset: 5,
                 len: 2
             }),
@@ -180,7 +180,7 @@ mod tests {
         let lexer = Lexer::from_slice(&buf);
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Characters(Characters::from("rld!".as_bytes())),
+                ty: Ty::Characters(Characters::from("rld!".as_bytes())),
                 offset: 7,
                 len: 4
             }),
