@@ -344,7 +344,7 @@ impl Characters {
     /// The text content of the characters.
     #[must_use]
     pub fn content(&self) -> Content<'_> {
-        Content::from(&self.bytes)
+        Content::from(self.bytes.as_slice())
     }
 }
 

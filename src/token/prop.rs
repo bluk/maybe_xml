@@ -12,27 +12,24 @@
 //! there may be interesting "properties" within the token such as the name of the
 //! tag or the contents of a Characters/CDATA token.
 
-use core::{fmt, str};
-
-#[cfg(all(feature = "alloc", not(feature = "std")))]
-use alloc::string::String;
-#[cfg(feature = "std")]
-use std::string::String;
-
-#[cfg(all(feature = "alloc", not(feature = "std")))]
-use alloc::vec::Vec;
-#[cfg(feature = "std")]
-use std::vec::Vec;
-
 use crate::bytes::QuoteState;
+use core::str;
 
 macro_rules! converters {
-    ($name:ident, false) => {
+    ($name:ident) => {
         impl<'a> $name<'a> {
-            /// All of the bytes representing the token property.
+            /// Instantiates a new view with the given bytes.
+            #[inline]
             #[must_use]
-            pub fn as_bytes(&self) -> &'a [u8] {
-                self.bytes
+            pub const fn new(bytes: &'a [u8]) -> Self {
+                Self(bytes)
+            }
+
+            /// All of the bytes representing the token property.
+            #[inline]
+            #[must_use]
+            pub const fn as_bytes(&self) -> &'a [u8] {
+                self.0
             }
 
             /// The token property represented as a str.
@@ -40,137 +37,42 @@ macro_rules! converters {
             /// # Errors
             ///
             /// If the bytes are not a UTF-8 string.
+            #[inline]
             pub fn to_str(&self) -> Result<&'a str, str::Utf8Error> {
-                str::from_utf8(&self.bytes)
+                str::from_utf8(&self.0)
             }
 
-            /// The token property as a new `Vec`.
-            #[cfg(any(feature = "alloc", feature = "std"))]
+            /// Returns the underlying slice.
+            #[inline]
             #[must_use]
-            pub fn to_vec(&self) -> Vec<u8> {
-                self.bytes.to_vec()
+            pub const fn into_inner(self) -> &'a [u8] {
+                self.0
             }
         }
 
         impl<'a> AsRef<[u8]> for $name<'a> {
             fn as_ref(&self) -> &'a [u8] {
-                self.bytes
+                self.0
             }
         }
-
-        impl<'a> fmt::Debug for $name<'a> {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                f.debug_struct(stringify!($name))
-                    .field("bytes", &self.bytes)
-                    .finish()
-            }
-        }
-
-        impl<'a> Eq for $name<'a> {}
 
         impl<'a> From<&'a [u8]> for $name<'a> {
-            fn from(bytes: &'a [u8]) -> Self {
-                Self { bytes }
-            }
-        }
-
-        impl<'a> From<&'a mut [u8]> for $name<'a> {
-            fn from(bytes: &'a mut [u8]) -> Self {
-                Self { bytes }
+            fn from(value: &'a [u8]) -> Self {
+                Self(value)
             }
         }
 
         impl<'a> From<&'a str> for $name<'a> {
-            fn from(str: &'a str) -> Self {
-                Self {
-                    bytes: str.as_bytes(),
-                }
-            }
-        }
-
-        #[cfg(any(feature = "alloc", feature = "std"))]
-        impl<'a> From<&'a Vec<u8>> for $name<'a> {
-            fn from(bytes: &'a Vec<u8>) -> Self {
-                Self { bytes }
-            }
-        }
-
-        #[cfg(any(feature = "alloc", feature = "std"))]
-        impl<'a> From<&'a String> for $name<'a> {
-            fn from(str: &'a String) -> Self {
-                Self {
-                    bytes: str.as_bytes(),
-                }
-            }
-        }
-
-        impl<'a> core::hash::Hash for $name<'a> {
-            fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
-                self.bytes.hash(state);
-            }
-        }
-
-        impl<'a, I> core::ops::Index<I> for $name<'a>
-        where
-            I: core::slice::SliceIndex<[u8]>,
-        {
-            type Output = <I as core::slice::SliceIndex<[u8]>>::Output;
-
-            fn index(&self, index: I) -> &<$name<'a> as core::ops::Index<I>>::Output {
-                self.bytes.index(index)
-            }
-        }
-
-        impl<'a> Ord for $name<'a> {
-            fn cmp(&self, other: &$name<'a>) -> core::cmp::Ordering {
-                self.bytes.cmp(&other.bytes)
-            }
-        }
-
-        impl<'a> PartialEq<[u8]> for $name<'a> {
-            fn eq(&self, other: &[u8]) -> bool {
-                self.bytes.eq(other)
-            }
-        }
-
-        impl<'a> PartialEq<$name<'a>> for $name<'a> {
-            fn eq(&self, other: &$name<'a>) -> bool {
-                self.bytes.eq(other.bytes)
-            }
-        }
-
-        #[cfg(any(feature = "alloc", feature = "std"))]
-        impl<'a> PartialEq<Vec<u8>> for $name<'a> {
-            fn eq(&self, other: &Vec<u8>) -> bool {
-                self.bytes.eq(other.as_slice())
-            }
-        }
-
-        impl<'a> PartialOrd<$name<'a>> for $name<'a> {
-            fn partial_cmp(&self, other: &$name<'a>) -> Option<core::cmp::Ordering> {
-                Some(self.bytes.cmp(other.bytes))
-            }
-        }
-    };
-    ($name:ident) => {
-        converters!($name, false);
-
-        impl<'a> IntoIterator for $name<'a> {
-            type Item = &'a u8;
-
-            type IntoIter = core::slice::Iter<'a, u8>;
-
-            fn into_iter(self) -> core::slice::Iter<'a, u8> {
-                self.bytes.into_iter()
+            fn from(value: &'a str) -> Self {
+                Self(value.as_bytes())
             }
         }
     };
 }
 
 /// The name of the tag (e.g. `name` in `<name>` or `</name>`).
-pub struct TagName<'a> {
-    bytes: &'a [u8],
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct TagName<'a>(&'a [u8]);
 
 impl<'a> TagName<'a> {
     /// The local part of the name.
@@ -179,12 +81,10 @@ impl<'a> TagName<'a> {
     /// If there is no namespace prefix, the entire name is returned.
     #[must_use]
     pub fn local(&self) -> LocalName<'a> {
-        if let Some(index) = self.bytes.iter().position(|b| *b == b':') {
-            LocalName {
-                bytes: &self.bytes[index + 1..],
-            }
+        if let Some(index) = self.0.iter().position(|b| *b == b':') {
+            LocalName(&self.0[index + 1..])
         } else {
-            LocalName { bytes: self.bytes }
+            LocalName(self.0)
         }
     }
 
@@ -193,12 +93,10 @@ impl<'a> TagName<'a> {
     /// For example if `xml:example` was the tag name, then `xml` would be the namespace prefix.
     #[must_use]
     pub fn namespace_prefix(&self) -> Option<NamespacePrefix<'a>> {
-        self.bytes
+        self.0
             .iter()
             .position(|b| *b == b':')
-            .map(|index| NamespacePrefix {
-                bytes: &self.bytes[..index],
-            })
+            .map(|index| NamespacePrefix(&self.0[..index]))
     }
 }
 
@@ -208,18 +106,16 @@ converters!(TagName);
 ///
 /// For example, if `xml:example` was the tag name, then `example` would be the local part of the name.
 /// If there is no namespace prefix, the entire name is returned.
-pub struct LocalName<'a> {
-    bytes: &'a [u8],
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct LocalName<'a>(&'a [u8]);
 
 converters!(LocalName);
 
 /// The namespace prefix if available.
 ///
 /// For example if `xml:namespace` was the tag name, then `xml` would be the namespace prefix.
-pub struct NamespacePrefix<'a> {
-    bytes: &'a [u8],
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct NamespacePrefix<'a>(&'a [u8]);
 
 converters!(NamespacePrefix);
 
@@ -228,20 +124,8 @@ converters!(NamespacePrefix);
 /// For the vast majority of use cases, a library user should call `iter()` or `.into_iter()`.
 ///
 /// The bytes may include additional spacing in the raw byte form.
-pub struct Attributes<'a> {
-    bytes: &'a [u8],
-}
-
-impl<'a> Attributes<'a> {
-    /// Returns an iterator which can be used to find all of the individual attributes.
-    #[must_use]
-    pub fn iter(&self) -> AttributeIter<'a> {
-        AttributeIter {
-            bytes: self.bytes,
-            index: 0,
-        }
-    }
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Attributes<'a>(&'a [u8]);
 
 impl<'a> IntoIterator for Attributes<'a> {
     type Item = Attribute<'a>;
@@ -249,13 +133,13 @@ impl<'a> IntoIterator for Attributes<'a> {
 
     fn into_iter(self) -> Self::IntoIter {
         AttributeIntoIter {
-            bytes: self.bytes,
+            bytes: self.0,
             index: 0,
         }
     }
 }
 
-converters!(Attributes, false);
+converters!(Attributes);
 
 fn iter_attr(mut index: usize, bytes: &[u8]) -> (usize, Option<Attribute<'_>>) {
     if index == bytes.len() {
@@ -275,9 +159,8 @@ fn iter_attr(mut index: usize, bytes: &[u8]) -> (usize, Option<Attribute<'_>>) {
                     QuoteState::Single => {}
                     QuoteState::Double => {
                         if saw_equals {
-                            let attr = Attribute {
-                                bytes: &bytes[(index + begin)..=(index + begin + loop_index)],
-                            };
+                            let attr =
+                                Attribute(&bytes[(index + begin)..=(index + begin + loop_index)]);
                             index += begin + loop_index + 1;
                             return (index, Some(attr));
                         }
@@ -287,9 +170,8 @@ fn iter_attr(mut index: usize, bytes: &[u8]) -> (usize, Option<Attribute<'_>>) {
                     QuoteState::None => quote_state = QuoteState::Single,
                     QuoteState::Single => {
                         if saw_equals {
-                            let attr = Attribute {
-                                bytes: &bytes[(index + begin)..=(index + begin + loop_index)],
-                            };
+                            let attr =
+                                Attribute(&bytes[(index + begin)..=(index + begin + loop_index)]);
                             index += begin + loop_index + 1;
                             return (index, Some(attr));
                         }
@@ -303,9 +185,8 @@ fn iter_attr(mut index: usize, bytes: &[u8]) -> (usize, Option<Attribute<'_>>) {
                     } else if saw_characters_after_equals {
                         match quote_state {
                             QuoteState::None => {
-                                let attr = Attribute {
-                                    bytes: &bytes[index + begin..index + begin + loop_index],
-                                };
+                                let attr =
+                                    Attribute(&bytes[index + begin..index + begin + loop_index]);
                                 index += begin + loop_index + 1;
                                 return (index, Some(attr));
                             }
@@ -318,16 +199,14 @@ fn iter_attr(mut index: usize, bytes: &[u8]) -> (usize, Option<Attribute<'_>>) {
                         saw_characters_after_equals = true;
                     } else if saw_space_before_equals {
                         if let Some(last_seen_char) = last_nonspace_index_before_equals {
-                            let attr = Attribute {
-                                bytes: &bytes[(index + begin)..=(index + begin + last_seen_char)],
-                            };
+                            let attr = Attribute(
+                                &bytes[(index + begin)..=(index + begin + last_seen_char)],
+                            );
                             index += begin + loop_index;
                             return (index, Some(attr));
                         }
 
-                        let attr = Attribute {
-                            bytes: &bytes[index + begin..index + begin + loop_index],
-                        };
+                        let attr = Attribute(&bytes[index + begin..index + begin + loop_index]);
                         index += begin + loop_index;
                         return (index, Some(attr));
                     } else {
@@ -336,9 +215,7 @@ fn iter_attr(mut index: usize, bytes: &[u8]) -> (usize, Option<Attribute<'_>>) {
                 }
             }
         }
-        let attr = Attribute {
-            bytes: &bytes[index + begin..],
-        };
+        let attr = Attribute(&bytes[index + begin..]);
         index = bytes.len();
         (index, Some(attr))
     } else {
@@ -348,24 +225,7 @@ fn iter_attr(mut index: usize, bytes: &[u8]) -> (usize, Option<Attribute<'_>>) {
 }
 
 /// An iterator which returns an individual attribute on every `next()` call.
-#[derive(Debug)]
-pub struct AttributeIter<'a> {
-    bytes: &'a [u8],
-    index: usize,
-}
-
-impl<'a> Iterator for AttributeIter<'a> {
-    type Item = Attribute<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let (new_index, item) = iter_attr(self.index, self.bytes);
-        self.index = new_index;
-        item
-    }
-}
-
-/// An iterator which returns an individual attribute on every `next()` call.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct AttributeIntoIter<'a> {
     bytes: &'a [u8],
     index: usize,
@@ -382,36 +242,31 @@ impl<'a> Iterator for AttributeIntoIter<'a> {
 }
 
 /// The name and the optional associated value of an attribute.
-pub struct Attribute<'a> {
-    bytes: &'a [u8],
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Attribute<'a>(&'a [u8]);
 
 impl<'a> Attribute<'a> {
     /// The attribute's name.
     #[must_use]
     pub fn name(&self) -> AttributeName<'a> {
-        if let Some(index) = self.bytes.iter().position(|b| *b == b'=') {
-            if let Some(last_nonspace) = self.bytes[..index]
-                .iter()
-                .rposition(|b| !super::is_space(*b))
+        if let Some(index) = self.0.iter().position(|b| *b == b'=') {
+            if let Some(last_nonspace) = self.0[..index].iter().rposition(|b| !super::is_space(*b))
             {
-                return AttributeName {
-                    bytes: &self.bytes[..=last_nonspace],
-                };
+                return AttributeName(&self.0[..=last_nonspace]);
             }
         }
-        AttributeName { bytes: self.bytes }
+        AttributeName(self.0)
     }
 
     /// The optional attribute value with the quotes removed.
     #[must_use]
     pub fn value(&self) -> Option<AttributeValue<'a>> {
-        if let Some(index) = self.bytes.iter().position(|b| *b == b'=') {
+        if let Some(index) = self.0.iter().position(|b| *b == b'=') {
             let mut quote_state = QuoteState::None;
             let mut begin = index + 1;
             let mut first_nonspace = None;
             let mut last_nonspace = index + 1;
-            for (loop_index, &byte) in self.bytes[index + 1..].iter().enumerate() {
+            for (loop_index, &byte) in self.0[index + 1..].iter().enumerate() {
                 match byte {
                     b'"' => match quote_state {
                         QuoteState::None => {
@@ -420,9 +275,9 @@ impl<'a> Attribute<'a> {
                         }
                         QuoteState::Single => {}
                         QuoteState::Double => {
-                            return Some(AttributeValue {
-                                bytes: &self.bytes[index + 1 + begin..index + 1 + loop_index],
-                            });
+                            return Some(AttributeValue(
+                                &self.0[index + 1 + begin..index + 1 + loop_index],
+                            ));
                         }
                     },
                     b'\'' => match quote_state {
@@ -431,9 +286,9 @@ impl<'a> Attribute<'a> {
                             quote_state = QuoteState::Single;
                         }
                         QuoteState::Single => {
-                            return Some(AttributeValue {
-                                bytes: &self.bytes[index + 1 + begin..index + 1 + loop_index],
-                            });
+                            return Some(AttributeValue(
+                                &self.0[index + 1 + begin..index + 1 + loop_index],
+                            ));
                         }
                         QuoteState::Double => {}
                     },
@@ -451,26 +306,20 @@ impl<'a> Attribute<'a> {
                 }
             }
 
-            first_nonspace.map(|begin| AttributeValue {
-                bytes: &self.bytes[(index + 1 + begin)..=(index + 1 + last_nonspace)],
+            first_nonspace.map(|begin| {
+                AttributeValue(&self.0[(index + 1 + begin)..=(index + 1 + last_nonspace)])
             })
         } else {
             None
         }
-        // .map(|index|
-
-        //     AttributeValue {
-        //     bytes: &self.bytes[index + 1..],
-        // })
     }
 }
 
 converters!(Attribute);
 
 /// An attribute's name.
-pub struct AttributeName<'a> {
-    bytes: &'a [u8],
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct AttributeName<'a>(&'a [u8]);
 
 impl<'a> AttributeName<'a> {
     /// The local part of the name.
@@ -479,11 +328,9 @@ impl<'a> AttributeName<'a> {
     /// If there is no namespace prefix, the entire name is returned.
     #[must_use]
     pub fn local(&self) -> LocalName<'a> {
-        self.bytes.iter().position(|b| *b == b':').map_or_else(
-            || LocalName { bytes: self.bytes },
-            |index| LocalName {
-                bytes: &self.bytes[index + 1..],
-            },
+        self.0.iter().position(|b| *b == b':').map_or_else(
+            || LocalName(self.0),
+            |index| LocalName(&self.0[index + 1..]),
         )
     }
 
@@ -492,42 +339,36 @@ impl<'a> AttributeName<'a> {
     /// For example if `xml:example` was the attribute name, then `xml` would be the namespace prefix.
     #[must_use]
     pub fn namespace_prefix(&self) -> Option<NamespacePrefix<'a>> {
-        self.bytes
+        self.0
             .iter()
             .position(|b| *b == b':')
-            .map(|index| NamespacePrefix {
-                bytes: &self.bytes[..index],
-            })
+            .map(|index| NamespacePrefix(&self.0[..index]))
     }
 }
 
 converters!(AttributeName);
 
 /// An attribute's value.
-pub struct AttributeValue<'a> {
-    bytes: &'a [u8],
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct AttributeValue<'a>(&'a [u8]);
 
 converters!(AttributeValue);
 
 /// The character content.
-pub struct Content<'a> {
-    bytes: &'a [u8],
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Content<'a>(&'a [u8]);
 
 converters!(Content);
 
 /// The target of the processing instruction (e.g. `xml` in `<?xml ?>`).
-pub struct Target<'a> {
-    bytes: &'a [u8],
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Target<'a>(&'a [u8]);
 
 converters!(Target);
 
 /// The content of the processing instruction (e.g. `encoding="utf8"` in `<?xml encoding="utf-8"?>`).
-pub struct Instructions<'a> {
-    bytes: &'a [u8],
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Instructions<'a>(&'a [u8]);
 
 converters!(Instructions);
 
@@ -570,14 +411,13 @@ mod tests {
     #[test]
     fn empty_attributes() {
         let attributes = Attributes::from(b"".as_ref());
-        assert_eq!(attributes.iter().next(), None);
         assert_eq!(attributes.into_iter().next(), None);
     }
 
     #[test]
     fn attributes_single() {
         let attributes = Attributes::from(b"attr=\"1\"".as_ref());
-        let mut attributes_iter = attributes.iter();
+        let mut attributes_iter = attributes.into_iter();
         assert_eq!(
             attributes_iter.next(),
             Some(Attribute::from(b"attr=\"1\"".as_ref()))
@@ -595,7 +435,7 @@ mod tests {
     #[test]
     fn attributes_single_with_spaces() {
         let attributes = Attributes::from(b"   attr=\"1 example\" ".as_ref());
-        let mut attributes_iter = attributes.iter();
+        let mut attributes_iter = attributes.into_iter();
         assert_eq!(
             attributes_iter.next(),
             Some(Attribute::from(b"attr=\"1 example\"".as_ref()))
@@ -615,7 +455,7 @@ mod tests {
         let attributes = Attributes::from(
             b"attr=\"1\" id='test' name=invalid name=\"multiple example\"".as_ref(),
         );
-        let mut attributes_iter = attributes.iter();
+        let mut attributes_iter = attributes.into_iter();
         assert_eq!(
             attributes_iter.next(),
             Some(Attribute::from(b"attr=\"1\"".as_ref()))
@@ -660,7 +500,7 @@ mod tests {
             b"     attr=\"1\"  id='test' test = new   name= invalid standalone   name=\"example\" "
                 .as_ref(),
         );
-        let mut attributes_iter = attributes.iter();
+        let mut attributes_iter = attributes.into_iter();
         assert_eq!(
             attributes_iter.next(),
             Some(Attribute::from(b"attr=\"1\"".as_ref()))
