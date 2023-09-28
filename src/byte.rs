@@ -94,20 +94,20 @@ pub use scanner::scan;
 ///         match token.ty {
 ///             TokenTy::StartTag => {
 ///                 let start_tag = StartTag::from(bytes);
-///                 Some(start_tag.name().to_str().map(|s| s.to_string()))
+///                 Some(start_tag.name().to_str())
 ///             }
 ///             TokenTy::EndTag => {
 ///                 let end_tag = EndTag::from(bytes);
-///                 Some(end_tag.name().to_str().map(|s| s.to_string()))
+///                 Some(end_tag.name().to_str())
 ///             }
 ///             _ => None,
 ///         }
 ///     });
 ///
-/// assert_eq!(Some(Ok("ID".to_string())), iter.next());
-/// assert_eq!(Some(Ok("id".to_string())), iter.next());
-/// assert_eq!(Some(Ok("name".to_string())), iter.next());
-/// assert_eq!(Some(Ok("name".to_string())), iter.next());
+/// assert_eq!(Some(Ok("ID")), iter.next());
+/// assert_eq!(Some(Ok("id")), iter.next());
+/// assert_eq!(Some(Ok("name")), iter.next());
+/// assert_eq!(Some(Ok("name")), iter.next());
 /// assert_eq!(None, iter.next());
 /// # Ok::<(), std::io::Error>(())
 /// ```

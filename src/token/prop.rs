@@ -31,7 +31,7 @@ macro_rules! converters {
         impl<'a> $name<'a> {
             /// All of the bytes representing the token property.
             #[must_use]
-            pub fn as_bytes(&self) -> &[u8] {
+            pub fn as_bytes(&self) -> &'a [u8] {
                 self.bytes
             }
 
@@ -40,7 +40,7 @@ macro_rules! converters {
             /// # Errors
             ///
             /// If the bytes are not a UTF-8 string.
-            pub fn to_str(&self) -> Result<&str, str::Utf8Error> {
+            pub fn to_str(&self) -> Result<&'a str, str::Utf8Error> {
                 str::from_utf8(&self.bytes)
             }
 
@@ -53,7 +53,7 @@ macro_rules! converters {
         }
 
         impl<'a> AsRef<[u8]> for $name<'a> {
-            fn as_ref(&self) -> &[u8] {
+            fn as_ref(&self) -> &'a [u8] {
                 self.bytes
             }
         }
@@ -387,7 +387,7 @@ pub struct Attribute<'a> {
 impl<'a> Attribute<'a> {
     /// The attribute's name.
     #[must_use]
-    pub fn name(&self) -> AttributeName<'_> {
+    pub fn name(&self) -> AttributeName<'a> {
         if let Some(index) = self.bytes.iter().position(|b| *b == b'=') {
             if let Some(last_nonspace) = self.bytes[..index]
                 .iter()
@@ -403,7 +403,7 @@ impl<'a> Attribute<'a> {
 
     /// The optional attribute value with the quotes removed.
     #[must_use]
-    pub fn value(&self) -> Option<AttributeValue<'_>> {
+    pub fn value(&self) -> Option<AttributeValue<'a>> {
         if let Some(index) = self.bytes.iter().position(|b| *b == b'=') {
             let mut quote_state = QuoteState::None;
             let mut begin = index + 1;

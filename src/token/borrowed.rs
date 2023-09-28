@@ -34,7 +34,7 @@ macro_rules! converters {
         impl<'a> $name<'a> {
             /// All of the bytes representing the token.
             #[must_use]
-            pub fn as_bytes(&self) -> &[u8] {
+            pub fn as_bytes(&self) -> &'a [u8] {
                 self.bytes
             }
 
@@ -43,7 +43,7 @@ macro_rules! converters {
             /// # Errors
             ///
             /// If the bytes are not a UTF-8 string.
-            pub fn to_str(&self) -> Result<&str, str::Utf8Error> {
+            pub fn to_str(&self) -> Result<&'a str, str::Utf8Error> {
                 str::from_utf8(&self.bytes)
             }
 
@@ -56,7 +56,7 @@ macro_rules! converters {
         }
 
         impl<'a> AsRef<[u8]> for $name<'a> {
-            fn as_ref(&self) -> &[u8] {
+            fn as_ref(&self) -> &'a [u8] {
                 self.bytes
             }
         }
@@ -205,7 +205,7 @@ pub struct StartTag<'a> {
 impl<'a> StartTag<'a> {
     /// The name of the tag.
     #[must_use]
-    pub fn name(&self) -> TagName<'_> {
+    pub fn name(&self) -> TagName<'a> {
         let index = self
             .bytes
             .iter()
@@ -216,7 +216,7 @@ impl<'a> StartTag<'a> {
 
     /// The attributes of the tag.
     #[must_use]
-    pub fn attributes(&self) -> Option<Attributes<'_>> {
+    pub fn attributes(&self) -> Option<Attributes<'a>> {
         self.bytes
             .iter()
             .position(|b| super::is_space(*b))
@@ -236,7 +236,7 @@ pub struct EmptyElementTag<'a> {
 impl<'a> EmptyElementTag<'a> {
     /// The name of the tag.
     #[must_use]
-    pub fn name(&self) -> TagName<'_> {
+    pub fn name(&self) -> TagName<'a> {
         let index = self
             .bytes
             .iter()
@@ -247,7 +247,7 @@ impl<'a> EmptyElementTag<'a> {
 
     /// The attributes of the tag.
     #[must_use]
-    pub fn attributes(&self) -> Option<Attributes<'_>> {
+    pub fn attributes(&self) -> Option<Attributes<'a>> {
         self.bytes
             .iter()
             .position(|b| super::is_space(*b))
@@ -265,7 +265,7 @@ pub struct EndTag<'a> {
 impl<'a> EndTag<'a> {
     /// The name of the tag.
     #[must_use]
-    pub fn name(&self) -> TagName<'_> {
+    pub fn name(&self) -> TagName<'a> {
         let index = self
             .bytes
             .iter()
@@ -285,7 +285,7 @@ pub struct Characters<'a> {
 impl<'a> Characters<'a> {
     /// The text content of the characters.
     #[must_use]
-    pub fn content(&self) -> Content<'_> {
+    pub fn content(&self) -> Content<'a> {
         Content::from(self.bytes)
     }
 }
@@ -302,7 +302,7 @@ converters!(ProcessingInstruction);
 impl<'a> ProcessingInstruction<'a> {
     /// The target of the tag.
     #[must_use]
-    pub fn target(&self) -> Target<'_> {
+    pub fn target(&self) -> Target<'a> {
         let index = self
             .bytes
             .iter()
@@ -313,7 +313,7 @@ impl<'a> ProcessingInstruction<'a> {
 
     /// The instructions of the tag.
     #[must_use]
-    pub fn instructions(&self) -> Option<Instructions<'_>> {
+    pub fn instructions(&self) -> Option<Instructions<'a>> {
         self.bytes
             .iter()
             .position(|b| super::is_space(*b))
@@ -354,7 +354,7 @@ pub struct Cdata<'a> {
 impl<'a> Cdata<'a> {
     /// The text content of the characters.
     #[must_use]
-    pub fn content(&self) -> Content<'_> {
+    pub fn content(&self) -> Content<'a> {
         Content::from(&self.bytes[9..self.bytes.len() - 3])
     }
 }
