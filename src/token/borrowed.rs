@@ -15,27 +15,23 @@
 
 use core::str;
 
-#[cfg(all(feature = "alloc", not(feature = "std")))]
-use alloc::string::String;
-#[cfg(feature = "std")]
-use std::string::String;
-
-#[cfg(all(feature = "alloc", not(feature = "std")))]
-use alloc::vec::Vec;
-#[cfg(feature = "std")]
-use std::vec::Vec;
-
-use core::fmt;
-
 use super::prop::{Attributes, Content, Instructions, TagName, Target};
 
 macro_rules! converters {
     ($name:ident) => {
         impl<'a> $name<'a> {
-            /// All of the bytes representing the token.
+            /// Instantiates a new view with the given bytes.
+            #[inline]
             #[must_use]
-            pub fn as_bytes(&self) -> &'a [u8] {
-                self.bytes
+            pub const fn new(bytes: &'a [u8]) -> Self {
+                Self(bytes)
+            }
+
+            /// All of the bytes representing the token.
+            #[inline]
+            #[must_use]
+            pub const fn as_bytes(&self) -> &'a [u8] {
+                self.0
             }
 
             /// The token represented as a str.
@@ -43,128 +39,58 @@ macro_rules! converters {
             /// # Errors
             ///
             /// If the bytes are not a UTF-8 string.
+            #[inline]
             pub fn to_str(&self) -> Result<&'a str, str::Utf8Error> {
-                str::from_utf8(&self.bytes)
+                str::from_utf8(&self.0)
             }
 
-            /// The token as a new `Vec`.
-            #[cfg(any(feature = "alloc", feature = "std"))]
+            /// Returns the underlying slice.
+            #[inline]
             #[must_use]
-            pub fn to_vec(&self) -> Vec<u8> {
-                self.bytes.to_vec()
+            pub const fn into_inner(self) -> &'a [u8] {
+                self.0
             }
         }
 
         impl<'a> AsRef<[u8]> for $name<'a> {
             fn as_ref(&self) -> &'a [u8] {
-                self.bytes
+                self.0
             }
         }
-
-        impl<'a> fmt::Debug for $name<'a> {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                f.debug_struct(stringify!($name))
-                    .field("bytes", &self.bytes)
-                    .finish()
-            }
-        }
-
-        impl<'a> Eq for $name<'a> {}
 
         impl<'a> From<&'a [u8]> for $name<'a> {
-            fn from(bytes: &'a [u8]) -> Self {
-                Self { bytes }
-            }
-        }
-
-        impl<'a> From<&'a mut [u8]> for $name<'a> {
-            fn from(bytes: &'a mut [u8]) -> Self {
-                Self { bytes }
+            fn from(value: &'a [u8]) -> Self {
+                Self(value)
             }
         }
 
         impl<'a> From<&'a str> for $name<'a> {
-            fn from(str: &'a str) -> Self {
-                Self {
-                    bytes: str.as_bytes(),
-                }
-            }
-        }
-
-        #[cfg(any(feature = "alloc", feature = "std"))]
-        impl<'a> From<&'a Vec<u8>> for $name<'a> {
-            fn from(bytes: &'a Vec<u8>) -> Self {
-                Self { bytes }
-            }
-        }
-
-        #[cfg(any(feature = "alloc", feature = "std"))]
-        impl<'a> From<&'a String> for $name<'a> {
-            fn from(str: &'a String) -> Self {
-                Self {
-                    bytes: str.as_bytes(),
-                }
-            }
-        }
-
-        impl<'a> core::hash::Hash for $name<'a> {
-            fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
-                self.bytes.hash(state);
-            }
-        }
-
-        impl<'a, I> core::ops::Index<I> for $name<'a>
-        where
-            I: core::slice::SliceIndex<[u8]>,
-        {
-            type Output = <I as core::slice::SliceIndex<[u8]>>::Output;
-
-            fn index(&self, index: I) -> &<$name<'a> as core::ops::Index<I>>::Output {
-                self.bytes.index(index)
-            }
-        }
-
-        impl<'a> IntoIterator for $name<'a> {
-            type Item = &'a u8;
-
-            type IntoIter = core::slice::Iter<'a, u8>;
-
-            fn into_iter(self) -> core::slice::Iter<'a, u8> {
-                self.bytes.into_iter()
-            }
-        }
-
-        impl<'a> Ord for $name<'a> {
-            fn cmp(&self, other: &$name<'a>) -> core::cmp::Ordering {
-                self.bytes.cmp(&other.bytes)
-            }
-        }
-
-        impl<'a> PartialEq<[u8]> for $name<'a> {
-            fn eq(&self, other: &[u8]) -> bool {
-                self.bytes.eq(other)
-            }
-        }
-
-        impl<'a> PartialEq<$name<'a>> for $name<'a> {
-            fn eq(&self, other: &$name<'a>) -> bool {
-                self.bytes.eq(other.bytes)
-            }
-        }
-
-        #[cfg(any(feature = "alloc", feature = "std"))]
-        impl<'a> PartialEq<Vec<u8>> for $name<'a> {
-            fn eq(&self, other: &Vec<u8>) -> bool {
-                self.bytes.eq(other.as_slice())
-            }
-        }
-
-        impl<'a> PartialOrd<$name<'a>> for $name<'a> {
-            fn partial_cmp(&self, other: &$name<'a>) -> Option<core::cmp::Ordering> {
-                Some(self.bytes.cmp(other.bytes))
+            fn from(value: &'a str) -> Self {
+                Self(value.as_bytes())
             }
         }
     };
+}
+
+/// The kind of token scanned
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TokenTy<'a> {
+    /// A start tag like `<hello>`.
+    StartTag(StartTag<'a>),
+    /// A standalone empty element tag like `<br/>`.
+    EmptyElementTag(EmptyElementTag<'a>),
+    /// An end element tag like `</goodbye>`.
+    EndTag(EndTag<'a>),
+    /// The character content between markup.
+    Characters(Characters<'a>),
+    /// A processing instruction like `<?xml-stylesheet ?>`.
+    ProcessingInstruction(ProcessingInstruction<'a>),
+    /// A declaration like `<!DOCTYPE >`.
+    Declaration(Declaration<'a>),
+    /// A comment like `<!-- Example -->`.
+    Comment(Comment<'a>),
+    /// Character data like `<![CDATA[ Example ]]>`.
+    Cdata(Cdata<'a>),
 }
 
 #[deprecated(
@@ -172,7 +98,7 @@ macro_rules! converters {
     note = "Use the crate's Token type to base which borrowed view type to use."
 )]
 /// Scanned byte values associated with a type.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Token<'a> {
     /// A start tag like `<hello>`.
     StartTag(StartTag<'a>),
@@ -202,29 +128,28 @@ pub enum Token<'a> {
 }
 
 /// A start tag for an element.
-pub struct StartTag<'a> {
-    bytes: &'a [u8],
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct StartTag<'a>(&'a [u8]);
 
 impl<'a> StartTag<'a> {
     /// The name of the tag.
     #[must_use]
     pub fn name(&self) -> TagName<'a> {
         let index = self
-            .bytes
+            .0
             .iter()
             .position(|b| super::is_space(*b))
-            .unwrap_or(self.bytes.len() - 1);
-        TagName::from(&self.bytes[1..index])
+            .unwrap_or(self.0.len() - 1);
+        TagName::from(&self.0[1..index])
     }
 
     /// The attributes of the tag.
     #[must_use]
     pub fn attributes(&self) -> Option<Attributes<'a>> {
-        self.bytes
+        self.0
             .iter()
             .position(|b| super::is_space(*b))
-            .map(|index| Attributes::from(&self.bytes[index + 1..self.bytes.len() - 1]))
+            .map(|index| Attributes::from(&self.0[index + 1..self.0.len() - 1]))
     }
 }
 
@@ -233,73 +158,69 @@ converters!(StartTag);
 /// An element which has no content.
 ///
 /// A tag like `<br/>` would be an empty element tag.
-pub struct EmptyElementTag<'a> {
-    bytes: &'a [u8],
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct EmptyElementTag<'a>(&'a [u8]);
 
 impl<'a> EmptyElementTag<'a> {
     /// The name of the tag.
     #[must_use]
     pub fn name(&self) -> TagName<'a> {
         let index = self
-            .bytes
+            .0
             .iter()
             .position(|b| super::is_space(*b))
-            .unwrap_or(self.bytes.len() - 2);
-        TagName::from(&self.bytes[1..index])
+            .unwrap_or(self.0.len() - 2);
+        TagName::from(&self.0[1..index])
     }
 
     /// The attributes of the tag.
     #[must_use]
     pub fn attributes(&self) -> Option<Attributes<'a>> {
-        self.bytes
+        self.0
             .iter()
             .position(|b| super::is_space(*b))
-            .map(|index| Attributes::from(&self.bytes[index + 1..self.bytes.len() - 2]))
+            .map(|index| Attributes::from(&self.0[index + 1..self.0.len() - 2]))
     }
 }
 
 converters!(EmptyElementTag);
 
 /// An end tag for an element.
-pub struct EndTag<'a> {
-    bytes: &'a [u8],
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct EndTag<'a>(&'a [u8]);
 
 impl<'a> EndTag<'a> {
     /// The name of the tag.
     #[must_use]
     pub fn name(&self) -> TagName<'a> {
         let index = self
-            .bytes
+            .0
             .iter()
             .position(|b| super::is_space(*b))
-            .unwrap_or(self.bytes.len() - 1);
-        TagName::from(&self.bytes[2..index])
+            .unwrap_or(self.0.len() - 1);
+        TagName::from(&self.0[2..index])
     }
 }
 
 converters!(EndTag);
 
 /// Content between markup.
-pub struct Characters<'a> {
-    bytes: &'a [u8],
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Characters<'a>(&'a [u8]);
 
 impl<'a> Characters<'a> {
     /// The text content of the characters.
     #[must_use]
     pub fn content(&self) -> Content<'a> {
-        Content::from(self.bytes)
+        Content::from(self.0)
     }
 }
 
 converters!(Characters);
 
 /// A document processing instruction.
-pub struct ProcessingInstruction<'a> {
-    bytes: &'a [u8],
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ProcessingInstruction<'a>(&'a [u8]);
 
 converters!(ProcessingInstruction);
 
@@ -308,20 +229,20 @@ impl<'a> ProcessingInstruction<'a> {
     #[must_use]
     pub fn target(&self) -> Target<'a> {
         let index = self
-            .bytes
+            .0
             .iter()
             .position(|b| super::is_space(*b))
-            .unwrap_or(self.bytes.len() - 2);
-        Target::from(&self.bytes[2..index])
+            .unwrap_or(self.0.len() - 2);
+        Target::from(&self.0[2..index])
     }
 
     /// The instructions of the tag.
     #[must_use]
     pub fn instructions(&self) -> Option<Instructions<'a>> {
-        self.bytes
+        self.0
             .iter()
             .position(|b| super::is_space(*b))
-            .map(|index| Instructions::from(&self.bytes[index + 1..self.bytes.len() - 2]))
+            .map(|index| Instructions::from(&self.0[index + 1..self.0.len() - 2]))
     }
 }
 
@@ -330,36 +251,32 @@ impl<'a> ProcessingInstruction<'a> {
 /// If a markup starting delimiter (e.g. a `<`) was read but there was no closing
 /// delimiter (e.g. `>`) read and the end of file marker is reached, then the
 /// leftover bytes are enclosed.
-pub struct BytesNotEvaluated<'a> {
-    bytes: &'a [u8],
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct BytesNotEvaluated<'a>(&'a [u8]);
 
 converters!(BytesNotEvaluated);
 
 /// A declaration like `<!DOCTYPE >`.
-pub struct Declaration<'a> {
-    bytes: &'a [u8],
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Declaration<'a>(&'a [u8]);
 
 converters!(Declaration);
 
 /// A comment like `<!-- Example -->`.
-pub struct Comment<'a> {
-    bytes: &'a [u8],
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Comment<'a>(&'a [u8]);
 
 converters!(Comment);
 
 /// Character data like `<![CDATA[ Example ]]>`.
-pub struct Cdata<'a> {
-    bytes: &'a [u8],
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Cdata<'a>(&'a [u8]);
 
 impl<'a> Cdata<'a> {
     /// The text content of the characters.
     #[must_use]
     pub fn content(&self) -> Content<'a> {
-        Content::from(&self.bytes[9..self.bytes.len() - 3])
+        Content::from(&self.0[9..self.0.len() - 3])
     }
 }
 
@@ -389,18 +306,9 @@ mod tests {
         assert_eq!(start_tag.to_str()?, "<abc>");
 
         let expected = "<abc>";
-        let start_tag = StartTag::from(expected);
+        let start_tag = StartTag::from(expected.as_bytes());
         assert_eq!(start_tag.to_str()?, "<abc>");
 
-        Ok(())
-    }
-
-    #[test]
-    #[cfg(any(feature = "alloc", feature = "std"))]
-    fn start_tag_from_alloc() -> Result<()> {
-        let expected = String::from("<abc>");
-        let start_tag = StartTag::from(&expected);
-        assert_eq!(start_tag.to_str()?, "<abc>");
         Ok(())
     }
 
@@ -408,22 +316,8 @@ mod tests {
     fn start_tag_partial_eq() -> Result<()> {
         let start_tag = StartTag::from(b"<abc>".as_ref());
         assert_eq!(start_tag.to_str()?, "<abc>");
-        assert_eq!(start_tag, b"<abc>"[..]);
-        assert_eq!(&start_tag, "<abc>".as_bytes());
-
-        assert!(&start_tag == "<abc>".as_bytes());
-        Ok(())
-    }
-
-    #[test]
-    #[cfg(any(feature = "alloc", feature = "std"))]
-    fn start_tag_partial_eq_alloc() -> Result<()> {
-        let start_tag = StartTag::from(b"<abc>".as_ref());
-        assert_eq!(start_tag.to_str()?, "<abc>");
-        assert_eq!(start_tag.to_str()?, String::from("<abc>"));
-        assert_eq!(start_tag, "<abc>".as_bytes().to_vec());
-
-        assert_eq!(&start_tag, &"<abc>".as_bytes().to_vec());
+        assert_eq!(start_tag.as_ref(), &b"<abc>"[..]);
+        assert_eq!(start_tag.as_bytes(), "<abc>".as_bytes());
         Ok(())
     }
 

@@ -152,7 +152,7 @@
 #[cfg(all(feature = "alloc", not(feature = "std")))]
 extern crate alloc;
 
-pub use byte::{Lexer, Token, TokenTy};
+pub use byte::{Lexer, Token};
 
 pub mod byte;
 pub(crate) mod bytes;

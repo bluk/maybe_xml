@@ -150,7 +150,7 @@ where
                         return Ok(Some(Token::Eof));
                     }
                     return Ok(Some(Token::EofWithBytesNotEvaluated(
-                        BytesNotEvaluated::from(&self.buffer),
+                        BytesNotEvaluated::from(self.buffer.as_slice()),
                     )));
                 }
                 Some(
@@ -173,53 +173,59 @@ where
                     self.buffer.extend_from_slice(&bytes[..read]);
                     self.position += u64::try_from(read).expect("read > u64::MAX");
                     self.reader.consume(read);
-                    return Ok(Some(Token::StartTag(StartTag::from(&self.buffer))));
+                    return Ok(Some(Token::StartTag(StartTag::from(
+                        self.buffer.as_slice(),
+                    ))));
                 }
                 Some(State::ScannedEmptyElementTag(read)) => {
                     self.buffer.extend_from_slice(&bytes[..read]);
                     self.position += u64::try_from(read).expect("read > u64::MAX");
                     self.reader.consume(read);
                     return Ok(Some(Token::EmptyElementTag(EmptyElementTag::from(
-                        &self.buffer,
+                        self.buffer.as_slice(),
                     ))));
                 }
                 Some(State::ScannedEndTag(read)) => {
                     self.buffer.extend_from_slice(&bytes[..read]);
                     self.position += u64::try_from(read).expect("read > u64::MAX");
                     self.reader.consume(read);
-                    return Ok(Some(Token::EndTag(EndTag::from(&self.buffer))));
+                    return Ok(Some(Token::EndTag(EndTag::from(self.buffer.as_slice()))));
                 }
                 Some(State::ScannedCharacters(read)) => {
                     self.buffer.extend_from_slice(&bytes[..read]);
                     self.position += u64::try_from(read).expect("read > u64::MAX");
                     self.reader.consume(read);
-                    return Ok(Some(Token::Characters(Characters::from(&self.buffer))));
+                    return Ok(Some(Token::Characters(Characters::from(
+                        self.buffer.as_slice(),
+                    ))));
                 }
                 Some(State::ScannedProcessingInstruction(read)) => {
                     self.buffer.extend_from_slice(&bytes[..read]);
                     self.position += u64::try_from(read).expect("read > u64::MAX");
                     self.reader.consume(read);
                     return Ok(Some(Token::ProcessingInstruction(
-                        ProcessingInstruction::from(&self.buffer),
+                        ProcessingInstruction::from(self.buffer.as_slice()),
                     )));
                 }
                 Some(State::ScannedDeclaration(read)) => {
                     self.buffer.extend_from_slice(&bytes[..read]);
                     self.position += u64::try_from(read).expect("read > u64::MAX");
                     self.reader.consume(read);
-                    return Ok(Some(Token::Declaration(Declaration::from(&self.buffer))));
+                    return Ok(Some(Token::Declaration(Declaration::from(
+                        self.buffer.as_slice(),
+                    ))));
                 }
                 Some(State::ScannedComment(read)) => {
                     self.buffer.extend_from_slice(&bytes[..read]);
                     self.position += u64::try_from(read).expect("read > u64::MAX");
                     self.reader.consume(read);
-                    return Ok(Some(Token::Comment(Comment::from(&self.buffer))));
+                    return Ok(Some(Token::Comment(Comment::from(self.buffer.as_slice()))));
                 }
                 Some(State::ScannedCdata(read)) => {
                     self.buffer.extend_from_slice(&bytes[..read]);
                     self.position += u64::try_from(read).expect("read > u64::MAX");
                     self.reader.consume(read);
-                    return Ok(Some(Token::Cdata(Cdata::from(&self.buffer))));
+                    return Ok(Some(Token::Cdata(Cdata::from(self.buffer.as_slice()))));
                 }
             };
         }

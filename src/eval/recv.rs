@@ -346,37 +346,39 @@ impl Evaluator {
             State::Reset | State::Evaluating => return Err(Error::NeedToRecvMoreBytes),
             State::EvaluatedStartTag => {
                 self.state = State::Reset;
-                Some(Token::StartTag(StartTag::from(&self.buf)))
+                Some(Token::StartTag(StartTag::from(self.buf.as_slice())))
             }
             State::EvaluatedEndTag => {
                 self.state = State::Reset;
-                Some(Token::EndTag(EndTag::from(&self.buf)))
+                Some(Token::EndTag(EndTag::from(self.buf.as_slice())))
             }
             State::EvaluatedEmptyElementTag => {
                 self.state = State::Reset;
-                Some(Token::EmptyElementTag(EmptyElementTag::from(&self.buf)))
+                Some(Token::EmptyElementTag(EmptyElementTag::from(
+                    self.buf.as_slice(),
+                )))
             }
             State::EvaluatedTextContent => {
                 self.state = State::Reset;
-                Some(Token::Characters(Characters::from(&self.buf)))
+                Some(Token::Characters(Characters::from(self.buf.as_slice())))
             }
             State::EvaluatedProcessingInstruction => {
                 self.state = State::Reset;
                 Some(Token::ProcessingInstruction(ProcessingInstruction::from(
-                    &self.buf,
+                    self.buf.as_slice(),
                 )))
             }
             State::EvaluatedDeclaration => {
                 self.state = State::Reset;
-                Some(Token::Declaration(Declaration::from(&self.buf)))
+                Some(Token::Declaration(Declaration::from(self.buf.as_slice())))
             }
             State::EvaluatedComment => {
                 self.state = State::Reset;
-                Some(Token::Comment(Comment::from(&self.buf)))
+                Some(Token::Comment(Comment::from(self.buf.as_slice())))
             }
             State::EvaluatedCdata => {
                 self.state = State::Reset;
-                Some(Token::Cdata(Cdata::from(&self.buf)))
+                Some(Token::Cdata(Cdata::from(self.buf.as_slice())))
             }
             State::Eof => {
                 self.state = State::Done;
@@ -384,7 +386,7 @@ impl Evaluator {
                     Some(Token::Eof)
                 } else {
                     Some(Token::EofWithBytesNotEvaluated(BytesNotEvaluated::from(
-                        &self.buf,
+                        self.buf.as_slice(),
                     )))
                 }
             }

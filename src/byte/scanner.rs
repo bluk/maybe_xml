@@ -1,8 +1,14 @@
 //! Scans byte sequences for tokens.
 
-use crate::bytes::{self, QuoteState};
+use crate::{
+    bytes::{self, QuoteState},
+    token::borrowed::{
+        Cdata, Characters, Comment, Declaration, EmptyElementTag, EndTag, ProcessingInstruction,
+        StartTag, TokenTy,
+    },
+};
 
-use super::{Token, TokenTy};
+use super::Token;
 
 /// Find the next `>` while being aware of quoted text.
 #[inline]
@@ -97,19 +103,20 @@ fn find_close_tag_char_with_brackets_and_quotes(input: &[u8]) -> Option<usize> {
 }
 
 #[inline]
-fn scan_text_content(input: &[u8]) -> Token {
+fn scan_text_content(input: &[u8]) -> Token<'_> {
     debug_assert_ne!(0, input.len());
     debug_assert_ne!(input[0], b'<');
 
+    let len = input.iter().position(|b| *b == b'<').unwrap_or(input.len());
     Token {
-        ty: TokenTy::Characters,
+        ty: TokenTy::Characters(Characters::from(&input[..len])),
         offset: 0,
-        len: input.iter().position(|b| *b == b'<').unwrap_or(input.len()),
+        len,
     }
 }
 
 #[inline]
-fn scan_markup(input: &[u8]) -> Option<Token> {
+fn scan_markup(input: &[u8]) -> Option<Token<'_>> {
     debug_assert_ne!(0, input.len());
     debug_assert_eq!(input[0], b'<');
 
@@ -127,7 +134,7 @@ fn scan_markup(input: &[u8]) -> Option<Token> {
 }
 
 #[inline]
-fn scan_start_or_empty_element_tag(input: &[u8]) -> Option<Token> {
+fn scan_start_or_empty_element_tag(input: &[u8]) -> Option<Token<'_>> {
     // Skip the head '<'
     const OFFSET: usize = 1;
 
@@ -141,13 +148,13 @@ fn scan_start_or_empty_element_tag(input: &[u8]) -> Option<Token> {
     if let Some(pos) = find_close_tag_char_with_quotes(&input[OFFSET..]) {
         if pos > 1 && input[OFFSET + pos - 2] == b'/' {
             Some(Token {
-                ty: TokenTy::EmptyElementTag,
+                ty: TokenTy::EmptyElementTag(EmptyElementTag::from(&input[..OFFSET + pos])),
                 offset: 0,
                 len: OFFSET + pos,
             })
         } else {
             Some(Token {
-                ty: TokenTy::StartTag,
+                ty: TokenTy::StartTag(StartTag::from(&input[..OFFSET + pos])),
                 offset: 0,
                 len: OFFSET + pos,
             })
@@ -158,7 +165,7 @@ fn scan_start_or_empty_element_tag(input: &[u8]) -> Option<Token> {
 }
 
 #[inline]
-fn scan_end_tag(input: &[u8]) -> Option<Token> {
+fn scan_end_tag(input: &[u8]) -> Option<Token<'_>> {
     // Skip the head '</'
     const OFFSET: usize = 2;
 
@@ -167,14 +174,14 @@ fn scan_end_tag(input: &[u8]) -> Option<Token> {
     debug_assert_eq!(input[1], b'/');
 
     find_close_tag_char_with_quotes(&input[OFFSET..]).map(|pos| Token {
-        ty: TokenTy::EndTag,
+        ty: TokenTy::EndTag(EndTag::from(&input[..OFFSET + pos])),
         offset: 0,
         len: OFFSET + pos,
     })
 }
 
 #[inline]
-fn scan_processing_instruction(input: &[u8]) -> Option<Token> {
+fn scan_processing_instruction(input: &[u8]) -> Option<Token<'_>> {
     // Skip the head '<?'
     const OFFSET: usize = 2;
 
@@ -197,14 +204,14 @@ fn scan_processing_instruction(input: &[u8]) -> Option<Token> {
             }
         })
         .map(|pos| Token {
-            ty: TokenTy::ProcessingInstruction,
+            ty: TokenTy::ProcessingInstruction(ProcessingInstruction::from(&input[..pos + 1])),
             offset: 0,
             len: pos + 1,
         })
 }
 
 #[inline]
-fn scan_declaration_comment_or_cdata(input: &[u8]) -> Option<Token> {
+fn scan_declaration_comment_or_cdata(input: &[u8]) -> Option<Token<'_>> {
     // Skip the head '<!'
     const OFFSET: usize = 2;
 
@@ -241,7 +248,7 @@ fn scan_declaration_comment_or_cdata(input: &[u8]) -> Option<Token> {
 }
 
 #[inline]
-fn scan_declaration(input: &[u8]) -> Option<Token> {
+fn scan_declaration(input: &[u8]) -> Option<Token<'_>> {
     // Skip the head '<!'
     const OFFSET: usize = 2;
 
@@ -250,14 +257,14 @@ fn scan_declaration(input: &[u8]) -> Option<Token> {
     debug_assert_eq!(input[1], b'!');
 
     find_close_tag_char_with_brackets_and_quotes(&input[OFFSET..]).map(|pos| Token {
-        ty: TokenTy::Declaration,
+        ty: TokenTy::Declaration(Declaration::from(&input[..OFFSET + pos])),
         offset: 0,
         len: OFFSET + pos,
     })
 }
 
 #[inline]
-fn scan_comment(input: &[u8]) -> Option<Token> {
+fn scan_comment(input: &[u8]) -> Option<Token<'_>> {
     // Skip the head '<!--'
     const OFFSET: usize = 4;
 
@@ -282,14 +289,14 @@ fn scan_comment(input: &[u8]) -> Option<Token> {
             }
         })
         .map(|pos| Token {
-            ty: TokenTy::Comment,
+            ty: TokenTy::Comment(Comment::from(&input[..pos + 1])),
             offset: 0,
             len: pos + 1,
         })
 }
 
 #[inline]
-fn scan_cdata(input: &[u8]) -> Option<Token> {
+fn scan_cdata(input: &[u8]) -> Option<Token<'_>> {
     // Skip the head '<![CDATA['
     const OFFSET: usize = 9;
 
@@ -318,7 +325,7 @@ fn scan_cdata(input: &[u8]) -> Option<Token> {
             }
         })
         .map(|pos| Token {
-            ty: TokenTy::Cdata,
+            ty: TokenTy::Cdata(Cdata::from(&input[..pos + 1])),
             offset: 0,
             len: pos + 1,
         })
@@ -342,7 +349,10 @@ fn scan_cdata(input: &[u8]) -> Option<Token> {
 /// # Examples
 ///
 /// ```
-/// use maybe_xml::{byte::{self, Token, TokenTy}, token::borrowed::StartTag};
+/// use maybe_xml::{
+///     byte::{self, Token},
+///     token::borrowed::{Characters, StartTag, TokenTy}
+/// };
 ///
 /// let mut buffer = Vec::new();
 /// buffer.extend(b"<h");
@@ -358,7 +368,7 @@ fn scan_cdata(input: &[u8]) -> Option<Token> {
 /// let token = byte::scan(&buffer);
 /// assert_eq!(
 ///     Some(Token {
-///         ty: TokenTy::StartTag,
+///         ty: TokenTy::StartTag(StartTag::from("<hello>")),
 ///         offset: 0,
 ///         len: 7,
 ///     }),
@@ -380,7 +390,7 @@ fn scan_cdata(input: &[u8]) -> Option<Token> {
 /// let token = byte::scan(&buffer);
 /// assert_eq!(
 ///     Some(Token {
-///         ty: TokenTy::Characters,
+///         ty: TokenTy::Characters(Characters::from("Text Content")),
 ///         offset: 0,
 ///         len: 12,
 ///     }),
@@ -397,7 +407,7 @@ fn scan_cdata(input: &[u8]) -> Option<Token> {
 /// // usually indicates an error has occurred.
 /// ```
 #[must_use]
-pub fn scan(input: &[u8]) -> Option<Token> {
+pub fn scan(input: &[u8]) -> Option<Token<'_>> {
     match bytes::peek(input) {
         None => None,
         Some(b'<') => scan_markup(input),
@@ -418,7 +428,7 @@ mod tests {
     fn text_content() {
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Characters,
+                ty: TokenTy::Characters(Characters::new(b"Hello")),
                 offset: 0,
                 len: 5,
             }),
@@ -426,7 +436,7 @@ mod tests {
         );
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Characters,
+                ty: TokenTy::Characters(Characters::new(b" wo")),
                 offset: 0,
                 len: 3,
             }),
@@ -434,7 +444,7 @@ mod tests {
         );
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Characters,
+                ty: TokenTy::Characters(Characters::new(b"rld!")),
                 offset: 0,
                 len: 4,
             }),
@@ -449,13 +459,14 @@ mod tests {
 
     #[test]
     fn start_tag() {
+        let bytes = b"<hello>";
         assert_eq!(
             Some(Token {
-                ty: TokenTy::StartTag,
+                ty: TokenTy::StartTag(StartTag::new(bytes)),
                 offset: 0,
                 len: 7,
             }),
-            scan(b"<hello>")
+            scan(bytes)
         );
     }
 
@@ -463,7 +474,7 @@ mod tests {
     fn start_tag_with_more_at_end() {
         assert_eq!(
             Some(Token {
-                ty: TokenTy::StartTag,
+                ty: TokenTy::StartTag(StartTag::new(b"<hello>")),
                 offset: 0,
                 len: 7,
             }),
@@ -475,7 +486,7 @@ mod tests {
     fn start_tag_with_single_quotes_attribute() {
         assert_eq!(
             Some(Token {
-                ty: TokenTy::StartTag,
+                ty: TokenTy::StartTag(StartTag::new(b"<hello a='val>'>")),
                 offset: 0,
                 len: 16,
             }),
@@ -487,7 +498,7 @@ mod tests {
     fn start_tag_with_double_quotes_attribute() {
         assert_eq!(
             Some(Token {
-                ty: TokenTy::StartTag,
+                ty: TokenTy::StartTag(StartTag::new(r#"<hello a="val>">"#.as_bytes())),
                 offset: 0,
                 len: 16,
             }),
@@ -497,37 +508,40 @@ mod tests {
 
     #[test]
     fn empty_element_tag() {
+        let bytes = b"<hello/>";
         assert_eq!(
             Some(Token {
-                ty: TokenTy::EmptyElementTag,
+                ty: TokenTy::EmptyElementTag(EmptyElementTag::new(bytes)),
                 offset: 0,
                 len: 8,
             }),
-            scan(b"<hello/>")
+            scan(bytes)
         );
     }
 
     #[test]
     fn empty_element_tag_space_after_slash_means_start_tag() {
+        let bytes = b"<hello / >";
         assert_eq!(
             Some(Token {
-                ty: TokenTy::StartTag,
+                ty: TokenTy::StartTag(StartTag::new(bytes)),
                 offset: 0,
                 len: 10,
             }),
-            scan(b"<hello / >")
+            scan(bytes)
         );
     }
 
     #[test]
     fn empty_element_tag_with_double_quotes_attribute() {
+        let bytes = r#"<hello a="val/>"/>"#.as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::EmptyElementTag,
+                ty: TokenTy::EmptyElementTag(EmptyElementTag::new(bytes)),
                 offset: 0,
                 len: 18,
             }),
-            scan(r#"<hello a="val/>"/>"#.as_bytes())
+            scan(bytes)
         );
     }
 
@@ -535,7 +549,7 @@ mod tests {
     fn empty_element_tag_with_last_slash_means_start_tag() {
         assert_eq!(
             Some(Token {
-                ty: TokenTy::StartTag,
+                ty: TokenTy::StartTag(StartTag::new(b"<hello/ invalid>")),
                 offset: 0,
                 len: 16,
             }),
@@ -545,54 +559,52 @@ mod tests {
 
     #[test]
     fn end_tag() {
+        let bytes = b"</goodbye>";
         assert_eq!(
             Some(Token {
-                ty: TokenTy::EndTag,
+                ty: TokenTy::EndTag(EndTag::new(bytes)),
                 offset: 0,
                 len: 10,
             }),
-            scan(b"</goodbye>")
+            scan(bytes)
         );
     }
 
     #[test]
     fn end_tag_with_single_quotes_attribute() {
-        let bytes = b"</goodbye a='val>'>Content";
         assert_eq!(
             Some(Token {
-                ty: TokenTy::EndTag,
+                ty: TokenTy::EndTag(EndTag::new(b"</goodbye a='val>'>")),
                 offset: 0,
                 len: 19,
             }),
-            scan(bytes)
+            scan(b"</goodbye a='val>'>Content")
         );
-        assert_eq!(&bytes[..19], b"</goodbye a='val>'>");
     }
 
     #[test]
     fn end_tag_with_double_quotes_attribute() {
-        let bytes = r#"</goodbye a="val>">Content"#.as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::EndTag,
+                ty: TokenTy::EndTag(EndTag::new(r#"</goodbye a="val>">"#.as_bytes())),
                 offset: 0,
                 len: 19,
             }),
-            scan(bytes)
+            scan(r#"</goodbye a="val>">Content"#.as_bytes())
         );
-        assert_eq!(&bytes[..19], r#"</goodbye a="val>">"#.as_bytes());
     }
 
     #[test]
     fn processing_instruction() {
-        let bytes = r#"<?test a="b" ?>Some content"#.as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::ProcessingInstruction,
+                ty: TokenTy::ProcessingInstruction(ProcessingInstruction::new(
+                    r#"<?test a="b" ?>"#.as_bytes()
+                )),
                 offset: 0,
                 len: 15,
             }),
-            scan(bytes),
+            scan(r#"<?test a="b" ?>Some content"#.as_bytes()),
         );
     }
 
@@ -601,7 +613,7 @@ mod tests {
         let bytes = r#"<?test? > a="v"?>"#.as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::ProcessingInstruction,
+                ty: TokenTy::ProcessingInstruction(ProcessingInstruction::new(bytes)),
                 offset: 0,
                 len: 17,
             }),
@@ -611,27 +623,29 @@ mod tests {
 
     #[test]
     fn pi_with_single_quotes_attribute() {
-        let bytes = r#"<?goodbye a='val>'?>Content"#.as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::ProcessingInstruction,
+                ty: TokenTy::ProcessingInstruction(ProcessingInstruction::new(
+                    r#"<?goodbye a='val>'?>"#.as_bytes()
+                )),
                 offset: 0,
                 len: 20,
             }),
-            scan(bytes),
+            scan(r#"<?goodbye a='val>'?>Content"#.as_bytes()),
         );
     }
 
     #[test]
     fn pi_with_double_quotes_attribute() {
-        let bytes = r#"<?goodbye a="val?>"?>Content"#.as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::ProcessingInstruction,
+                ty: TokenTy::ProcessingInstruction(ProcessingInstruction::new(
+                    r#"<?goodbye a="val?>"#.as_bytes()
+                )),
                 offset: 0,
                 len: 18,
             }),
-            scan(bytes),
+            scan(r#"<?goodbye a="val?>"?>Content"#.as_bytes()),
         );
     }
 
@@ -647,7 +661,7 @@ mod tests {
         let bytes = r#"<!DOCTYPE test [<!ELEMENT test (#PCDATA)>]>"#.as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Declaration,
+                ty: TokenTy::Declaration(Declaration::new(bytes)),
                 offset: 0,
                 len: bytes.len(),
             }),
@@ -657,27 +671,25 @@ mod tests {
 
     #[test]
     fn declaration_with_single_quotes_attribute() {
-        let bytes = r#"<!goodbye a='val>'>Content"#.as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Declaration,
+                ty: TokenTy::Declaration(Declaration::new(r#"<!goodbye a='val>'>"#.as_bytes())),
                 offset: 0,
                 len: 19,
             }),
-            scan(bytes),
+            scan(r#"<!goodbye a='val>'>Content"#.as_bytes()),
         );
     }
 
     #[test]
     fn declaration_with_double_quotes_attribute() {
-        let bytes = r#"<!goodbye a="val>">Content"#.as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Declaration,
+                ty: TokenTy::Declaration(Declaration::new(r#"<!goodbye a="val>">"#.as_bytes())),
                 offset: 0,
                 len: 19,
             }),
-            scan(bytes),
+            scan(r#"<!goodbye a="val>">Content"#.as_bytes()),
         );
     }
 
@@ -686,7 +698,7 @@ mod tests {
         let bytes = r#"<![%test;[<!ELEMENT test (something*)>]]>"#.as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Declaration,
+                ty: TokenTy::Declaration(Declaration::new(bytes)),
                 offset: 0,
                 len: bytes.len(),
             }),
@@ -696,27 +708,27 @@ mod tests {
 
     #[test]
     fn declaration_with_unclosed_single_bracket() {
-        let bytes = r#"<![test>>] >Content"#.as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Declaration,
+                ty: TokenTy::Declaration(Declaration::new(r#"<![test>>] >"#.as_bytes())),
                 offset: 0,
                 len: 12,
             }),
-            scan(bytes),
+            scan(r#"<![test>>] >Content"#.as_bytes()),
         );
     }
 
     #[test]
     fn declaration_with_unclosed_double_bracket() {
-        let bytes = r#"<![test>[more>>] >Content>>] >Content"#.as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Declaration,
+                ty: TokenTy::Declaration(Declaration::new(
+                    r#"<![test>[more>>] >Content>>] >"#.as_bytes()
+                )),
                 offset: 0,
                 len: 30,
             }),
-            scan(bytes),
+            scan(r#"<![test>[more>>] >Content>>] >Content"#.as_bytes()),
         );
     }
 
@@ -725,7 +737,7 @@ mod tests {
         let bytes = r#"<!-- Comment -->"#.as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Comment,
+                ty: TokenTy::Comment(Comment::new(bytes)),
                 offset: 0,
                 len: bytes.len(),
             }),
@@ -735,40 +747,37 @@ mod tests {
 
     #[test]
     fn comment_with_trailing_data() {
-        let bytes = r#"<!-- Comment -->Content"#.as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Comment,
+                ty: TokenTy::Comment(Comment::new(r#"<!-- Comment -->"#.as_bytes())),
                 offset: 0,
                 len: 16,
             }),
-            scan(bytes),
+            scan(r#"<!-- Comment -->Content"#.as_bytes()),
         );
     }
 
     #[test]
     fn comment_with_single_quotes_attribute() {
-        let bytes = r#"<!-- goodbye a='val-->'-->Content"#.as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Comment,
+                ty: TokenTy::Comment(Comment::new(r#"<!-- goodbye a='val-->"#.as_bytes())),
                 offset: 0,
                 len: 22,
             }),
-            scan(bytes),
+            scan(r#"<!-- goodbye a='val-->'-->Content"#.as_bytes()),
         );
     }
 
     #[test]
     fn comment_with_double_quotes_attribute() {
-        let bytes = r#"<!--goodbye a="val-->"-->Content"#.as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Comment,
+                ty: TokenTy::Comment(Comment::new(r#"<!--goodbye a="val-->"#.as_bytes())),
                 offset: 0,
                 len: 21,
             }),
-            scan(bytes),
+            scan(r#"<!--goodbye a="val-->"-->Content"#.as_bytes()),
         );
     }
 
@@ -777,16 +786,16 @@ mod tests {
         let bytes = r#"<!-goodbye a="-->"#.as_bytes();
         assert_eq!(None, scan(bytes));
 
-        let bytes = r#"<!-goodbye a="-->val-->">Content"#.as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Declaration,
+                ty: TokenTy::Declaration(Declaration::new(
+                    r#"<!-goodbye a="-->val-->">"#.as_bytes()
+                )),
                 offset: 0,
                 len: 25,
             }),
-            scan(bytes),
+            scan(r#"<!-goodbye a="-->val-->">Content"#.as_bytes()),
         );
-        assert_eq!(r#"<!-goodbye a="-->val-->">"#.as_bytes(), &bytes[..25]);
     }
 
     #[test]
@@ -794,33 +803,34 @@ mod tests {
         let bytes = r#"<!--goodbye a="--"#.as_bytes();
         assert_eq!(None, scan(bytes));
 
-        let bytes = r#"<!--goodbye a="--val-->"-- test -->Content"#.as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Comment,
+                ty: TokenTy::Comment(Comment::new(r#"<!--goodbye a="--val-->"#.as_bytes())),
                 offset: 0,
                 len: 23,
             }),
-            scan(bytes),
+            scan(r#"<!--goodbye a="--val-->"-- test -->Content"#.as_bytes()),
         );
     }
 
     #[test]
     fn comment_with_single_dash() {
-        let bytes = r#"<!--goodbye a="--"#.as_bytes();
-        assert_eq!(None, scan(bytes));
+        assert_eq!(None, scan(r#"<!--goodbye a="--"#.as_bytes()));
 
-        let bytes = r#"<!--goodbye a="--val--" test ->Content"#.as_bytes();
-        assert_eq!(None, scan(bytes));
+        assert_eq!(
+            None,
+            scan(r#"<!--goodbye a="--val--" test ->Content"#.as_bytes())
+        );
 
-        let bytes = r#"<!--goodbye a="--val--" test ->ContentMore -->Real Content"#.as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Comment,
+                ty: TokenTy::Comment(Comment::new(
+                    r#"<!--goodbye a="--val--" test ->ContentMore -->"#.as_bytes()
+                )),
                 offset: 0,
                 len: 46,
             }),
-            scan(bytes),
+            scan(r#"<!--goodbye a="--val--" test ->ContentMore -->Real Content"#.as_bytes()),
         );
     }
 
@@ -829,7 +839,7 @@ mod tests {
         let bytes = r#"<!-->-->"#.as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Comment,
+                ty: TokenTy::Comment(Comment::new(bytes)),
                 offset: 0,
                 len: bytes.len(),
             }),
@@ -848,7 +858,7 @@ mod tests {
         let bytes = r#"<![CDATA[ Content ]]>"#.as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Cdata,
+                ty: TokenTy::Cdata(Cdata::new(bytes)),
                 offset: 0,
                 len: bytes.len(),
             }),
@@ -861,7 +871,7 @@ mod tests {
         let bytes = r#"<![&random[ Declaration ]]]>"#.as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Declaration,
+                ty: TokenTy::Declaration(Declaration::new(bytes)),
                 offset: 0,
                 len: bytes.len(),
             }),
@@ -871,116 +881,104 @@ mod tests {
 
     #[test]
     fn cdata_with_trailing_data() {
-        let bytes = r"<![CDATA[ Content ]]> Unused Content".as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Cdata,
+                ty: TokenTy::Cdata(Cdata::new(r"<![CDATA[ Content ]]>".as_bytes())),
                 offset: 0,
                 len: 21,
             }),
-            scan(bytes),
+            scan(r"<![CDATA[ Content ]]> Unused Content".as_bytes()),
         );
     }
 
     #[test]
     fn cdata_with_no_space_trailing_data() {
-        let bytes = r"<![CDATA[ Content ]]>Content".as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Cdata,
+                ty: TokenTy::Cdata(Cdata::new(r"<![CDATA[ Content ]]>".as_bytes())),
                 offset: 0,
                 len: 21,
             }),
-            scan(bytes),
+            scan(r"<![CDATA[ Content ]]>Content".as_bytes()),
         );
     }
 
     #[test]
     fn cdata_with_single_quotes() {
-        let bytes = r#"<![CDATA[ Content ']]>']]>Unused Content"#.as_bytes();
+        // The single quote does not escape here
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Cdata,
+                ty: TokenTy::Cdata(Cdata::new(r#"<![CDATA[ Content ']]>"#.as_bytes())),
                 offset: 0,
                 len: 22,
             }),
-            scan(bytes),
+            scan(r#"<![CDATA[ Content ']]>']]>Unused Content"#.as_bytes()),
         );
-        // The single quote does not escape here
-        assert_eq!(r#"<![CDATA[ Content ']]>"#.as_bytes(), &bytes[..22]);
     }
 
     #[test]
     fn cdata_with_double_quotes() {
-        let bytes = r#"<![CDATA[ goodbye a="]]>"]]>Content"#.as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Cdata,
+                ty: TokenTy::Cdata(Cdata::new(r#"<![CDATA[ goodbye a="]]>"#.as_bytes())),
                 offset: 0,
                 len: 24,
             }),
-            scan(bytes),
+            scan(r#"<![CDATA[ goodbye a="]]>"]]>Content"#.as_bytes()),
         );
     }
 
     #[test]
     fn cdata_with_invalid_start_means_declaration() {
         // missing "["
-        let bytes = r#"<![CDATA Content a="]]>"#.as_bytes();
-        assert_eq!(None, scan(bytes));
+        assert_eq!(None, scan(r#"<![CDATA Content a="]]>"#.as_bytes()));
 
-        let bytes = r#"<![CDATA Content a="]]>]]>"]]>Content"#.as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Declaration,
+                ty: TokenTy::Declaration(Declaration::new(
+                    r#"<![CDATA Content a="]]>]]>"]]>"#.as_bytes()
+                )),
                 offset: 0,
                 len: 30,
             }),
-            scan(bytes),
+            scan(r#"<![CDATA Content a="]]>]]>"]]>Content"#.as_bytes()),
         );
-        assert_eq!(r#"<![CDATA Content a="]]>]]>"]]>"#.as_bytes(), &bytes[..30]);
     }
 
     #[test]
     fn cdata_with_double_right_bracket_inside() {
-        let bytes = r#"<![CDATA[ Content a="]>"#.as_bytes();
-        assert_eq!(None, scan(bytes));
+        assert_eq!(None, scan(r#"<![CDATA[ Content a="]>"#.as_bytes()));
 
-        let bytes = r#"<![CDATA[ Content a="]>other ]]"]] test ]]>Content"#.as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Cdata,
+                ty: TokenTy::Cdata(Cdata::new(
+                    r#"<![CDATA[ Content a="]>other ]]"]] test ]]>"#.as_bytes()
+                )),
                 offset: 0,
                 len: 43,
             }),
-            scan(bytes),
-        );
-        assert_eq!(
-            r#"<![CDATA[ Content a="]>other ]]"]] test ]]>"#.as_bytes(),
-            &bytes[..43]
+            scan(r#"<![CDATA[ Content a="]>other ]]"]] test ]]>Content"#.as_bytes()),
         );
     }
 
     #[test]
     fn cdata_with_single_closing_bracket() {
-        let bytes = r#"<![CDATA[ Content a="]>"#.as_bytes();
-        assert_eq!(None, scan(bytes));
+        assert_eq!(None, scan(r#"<![CDATA[ Content a="]>"#.as_bytes()));
 
-        let bytes = r#"<![CDATA[ Content a="]>]>" test ]>Content"#.as_bytes();
-        assert_eq!(None, scan(bytes));
+        assert_eq!(
+            None,
+            scan(r#"<![CDATA[ Content a="]>]>" test ]>Content"#.as_bytes())
+        );
 
-        let bytes = r#"<![CDATA[ Content a="]>]>" test ]>ContentMore ]]>Real Content"#.as_bytes();
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Cdata,
+                ty: TokenTy::Cdata(Cdata::new(
+                    r#"<![CDATA[ Content a="]>]>" test ]>ContentMore ]]>"#.as_bytes()
+                )),
                 offset: 0,
                 len: 49,
             }),
-            scan(bytes),
-        );
-        assert_eq!(
-            r#"<![CDATA[ Content a="]>]>" test ]>ContentMore ]]>"#.as_bytes(),
-            &bytes[..49]
+            scan(r#"<![CDATA[ Content a="]>]>" test ]>ContentMore ]]>Real Content"#.as_bytes()),
         );
     }
 }

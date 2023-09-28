@@ -10,23 +10,15 @@
 
 use core::iter;
 
+use crate::token::borrowed::TokenTy;
+
 mod scanner;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum TokenTy {
-    StartTag,
-    EmptyElementTag,
-    EndTag,
-    Characters,
-    ProcessingInstruction,
-    Declaration,
-    Comment,
-    Cdata,
-}
+pub use scanner::scan;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Token {
-    pub ty: TokenTy,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Token<'a> {
+    pub ty: TokenTy<'a>,
     pub offset: usize,
     pub len: usize,
 }
@@ -43,7 +35,7 @@ impl<'a> Lexer<'a> {
         Self { input }
     }
 
-    pub fn tokenize(&self, pos: &mut usize) -> Option<Token> {
+    pub fn tokenize(&self, pos: &mut usize) -> Option<Token<'a>> {
         let bytes = &self.input[*pos..];
         let mut token = scan(bytes)?;
         token.offset = *pos;
@@ -52,13 +44,13 @@ impl<'a> Lexer<'a> {
     }
 
     #[inline]
-    pub fn iter(&self, mut pos: usize) -> impl Iterator<Item = Token> + '_ {
+    pub fn iter(&self, mut pos: usize) -> impl Iterator<Item = Token<'a>> + '_ {
         iter::from_fn(move || self.tokenize(&mut pos))
     }
 }
 
 impl<'a> IntoIterator for Lexer<'a> {
-    type Item = Token;
+    type Item = Token<'a>;
 
     type IntoIter = IntoIter<'a>;
 
@@ -67,21 +59,12 @@ impl<'a> IntoIterator for Lexer<'a> {
     }
 }
 
-pub use scanner::scan;
-
 /// The returned iterator type when [`IntoIterator::into_iter()`] is called on [`Lexer`].
-///
-/// # Important
-///
-/// Note that in case the underlying `BufRead` encounters an error, the iterator
-/// will store the error state and will return `None` from the `next()` method.
-///
-/// When the end of file state is reached, `next()` will always return `None`.
 ///
 /// # Example
 ///
 /// ```
-/// use maybe_xml::{byte::{Lexer, TokenTy}, token::borrowed::{StartTag, EndTag}};
+/// use maybe_xml::{byte::{Lexer}, token::borrowed::{EndTag, StartTag, TokenTy}};
 /// use std::io::BufRead;
 ///
 /// let mut input = std::io::BufReader::new(r#"<ID>Example</id><name>Jane Doe</name>"#.as_bytes());
@@ -90,14 +73,11 @@ pub use scanner::scan;
 ///
 /// let mut iter = lexer.into_iter()
 ///     .filter_map(|token| {
-///         let bytes = &buffer[token.offset..token.offset + token.len];
 ///         match token.ty {
-///             TokenTy::StartTag => {
-///                 let start_tag = StartTag::from(bytes);
+///             TokenTy::StartTag(start_tag) => {
 ///                 Some(start_tag.name().to_str())
 ///             }
-///             TokenTy::EndTag => {
-///                 let end_tag = EndTag::from(bytes);
+///             TokenTy::EndTag(end_tag) => {
 ///                 Some(end_tag.name().to_str())
 ///             }
 ///             _ => None,
@@ -126,7 +106,7 @@ impl<'a> IntoIter<'a> {
 }
 
 impl<'a> Iterator for IntoIter<'a> {
-    type Item = Token;
+    type Item = Token<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.tokenize(&mut self.pos)
@@ -168,13 +148,15 @@ mod tests {
     #[cfg(any(feature = "std", feature = "alloc"))]
     #[test]
     fn text_content() {
+        use crate::token::borrowed::Characters;
+
         let mut buf = Vec::new();
         let mut pos = 0;
         buf.extend("Hello".as_bytes());
         let lexer = Lexer::from_slice(&buf);
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Characters,
+                ty: TokenTy::Characters(Characters::from("Hello".as_bytes())),
                 offset: 0,
                 len: 5
             }),
@@ -186,7 +168,7 @@ mod tests {
         let lexer = Lexer::from_slice(&buf);
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Characters,
+                ty: TokenTy::Characters(Characters::from("wo".as_bytes())),
                 offset: 5,
                 len: 2
             }),
@@ -198,7 +180,7 @@ mod tests {
         let lexer = Lexer::from_slice(&buf);
         assert_eq!(
             Some(Token {
-                ty: TokenTy::Characters,
+                ty: TokenTy::Characters(Characters::from("rld!".as_bytes())),
                 offset: 7,
                 len: 4
             }),
