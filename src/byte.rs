@@ -27,6 +27,7 @@ pub enum TokenTy {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Token {
     pub ty: TokenTy,
+    pub offset: usize,
     pub len: usize,
 }
 
@@ -44,7 +45,8 @@ impl<'a> Lexer<'a> {
 
     pub fn tokenize(&self, pos: &mut usize) -> Option<Token> {
         let bytes = &self.input[*pos..];
-        let token = scanner::scan(bytes)?;
+        let mut token = scanner::scan(bytes)?;
+        token.offset = *pos;
         *pos += token.len;
         Some(token)
     }
@@ -67,87 +69,48 @@ impl<'a> IntoIterator for Lexer<'a> {
 
 pub use scanner::scan;
 
-// /// The returned iterator type when `into_iter()` is called on `BufReadEvaluator`.
-// ///
-// /// The iterator is created from a `BufReadEvaluator` by calling `into_iter()`.
-// /// It returns owned tokens.
-// ///
-// /// One notable limitation of the iterator is that if `map()`, `filter()`, or any
-// /// other iterator adapter method, then the `clear_error()` and `position()` methods
-// /// are unavailable because the adapters do not have those methods.
-// /// If the underlying `BufRead` encounters an error, then there is no method to
-// /// clear the error state to try reading again, and the iterator will always return `None`.
-// ///
-// /// # Important
-// ///
-// /// Note that in case the underlying `BufRead` encounters an error, the iterator
-// /// will store the error state and will return `None` from the `next()` method.
-// ///
-// /// When the end of file state is reached, `next()` will always return `None`.
-// ///
-// /// # Example
-// ///
-// /// ```
-// /// # #[cfg(feature = "std")]
-// /// use maybe_xml::token::owned::{Token, StartTag, Characters, EndTag};
-// ///
-// /// # #[derive(Debug)]
-// /// # enum Error {
-// /// # Io(std::io::Error),
-// /// # Utf8(std::str::Utf8Error),
-// /// # }
-// /// # impl From<std::io::Error> for Error {
-// /// # fn from(e: std::io::Error) -> Self {
-// /// # Error::Io(e)
-// /// # }
-// /// # }
-// /// # impl From<std::str::Utf8Error> for Error {
-// /// # fn from(e: std::str::Utf8Error) -> Self {
-// /// # Error::Utf8(e)
-// /// # }
-// /// # }
-// /// # fn main() -> Result<(), Error> {
-// /// # #[cfg(feature = "std")]
-// /// # {
-// /// let mut input = std::io::BufReader::new(r#"<ID>Example</ID>"#.as_bytes());
-// ///
-// /// let eval = maybe_xml::eval::bufread::BufReadEvaluator::from_reader(input);
-// ///
-// /// let mut iter = eval.into_iter()
-// ///     .map(|token| match token {
-// ///         Token::StartTag(start_tag) => {
-// ///             if let Ok(str) = start_tag.to_str() {
-// ///                 Token::StartTag(StartTag::from(str.to_lowercase()))
-// ///             } else {
-// ///                 Token::StartTag(start_tag)
-// ///             }
-// ///         }
-// ///         Token::EndTag(end_tag) => {
-// ///             if let Ok(str) = end_tag.to_str() {
-// ///                 Token::EndTag(EndTag::from(str.to_lowercase()))
-// ///             } else {
-// ///                 Token::EndTag(end_tag)
-// ///             }
-// ///         }
-// ///         _ => token,
-// ///     });
-// ///
-// /// let token = iter.next();
-// /// assert_eq!(token, Some(Token::StartTag(StartTag::from("<id>"))));
-// /// match token {
-// ///     Some(Token::StartTag(start_tag)) => {
-// ///         assert_eq!(start_tag.name().to_str()?, "id");
-// ///     }
-// ///     _ => panic!("unexpected token"),
-// /// }
-// /// assert_eq!(iter.next(), Some(Token::Characters(Characters::from("Example"))));
-// /// assert_eq!(iter.next(), Some(Token::EndTag(EndTag::from("</id>"))));
-// /// assert_eq!(iter.next(), Some(Token::Eof));
-// /// assert_eq!(iter.next(), None);
-// /// # }
-// /// # Ok(())
-// /// # }
-// /// ```
+/// The returned iterator type when [`IntoIterator::into_iter()`] is called on [`Lexer`].
+///
+/// # Important
+///
+/// Note that in case the underlying `BufRead` encounters an error, the iterator
+/// will store the error state and will return `None` from the `next()` method.
+///
+/// When the end of file state is reached, `next()` will always return `None`.
+///
+/// # Example
+///
+/// ```
+/// use maybe_xml::{byte::{Lexer, TokenTy}, token::borrowed::{StartTag, EndTag}};
+/// use std::io::BufRead;
+///
+/// let mut input = std::io::BufReader::new(r#"<ID>Example</id><name>Jane Doe</name>"#.as_bytes());
+/// let buffer = input.fill_buf()?;
+/// let lexer = Lexer::from_slice(buffer);
+///
+/// let mut iter = lexer.into_iter()
+///     .filter_map(|token| {
+///         let bytes = &buffer[token.offset..token.offset + token.len];
+///         match token.ty {
+///             TokenTy::StartTag => {
+///                 let start_tag = StartTag::from(bytes);
+///                 Some(start_tag.name().to_str().map(|s| s.to_string()))
+///             }
+///             TokenTy::EndTag => {
+///                 let end_tag = EndTag::from(bytes);
+///                 Some(end_tag.name().to_str().map(|s| s.to_string()))
+///             }
+///             _ => None,
+///         }
+///     });
+///
+/// assert_eq!(Some(Ok("ID".to_string())), iter.next());
+/// assert_eq!(Some(Ok("id".to_string())), iter.next());
+/// assert_eq!(Some(Ok("name".to_string())), iter.next());
+/// assert_eq!(Some(Ok("name".to_string())), iter.next());
+/// assert_eq!(None, iter.next());
+/// # Ok::<(), std::io::Error>(())
+/// ```
 #[derive(Debug)]
 pub struct IntoIter<'a> {
     inner: Lexer<'a>,
@@ -155,7 +118,9 @@ pub struct IntoIter<'a> {
 }
 
 impl<'a> IntoIter<'a> {
-    fn new(inner: Lexer<'a>, pos: usize) -> Self {
+    #[inline]
+    #[must_use]
+    pub fn new(inner: Lexer<'a>, pos: usize) -> Self {
         Self { inner, pos }
     }
 }
@@ -171,6 +136,11 @@ impl<'a> Iterator for IntoIter<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(all(feature = "alloc", not(feature = "std")))]
+    use alloc::vec::Vec;
+    #[cfg(feature = "std")]
+    use std::vec::Vec;
 
     #[test]
     fn none_on_empty() {
@@ -195,6 +165,7 @@ mod tests {
         lexer.tokenize(&mut pos);
     }
 
+    #[cfg(any(feature = "std", feature = "alloc"))]
     #[test]
     fn text_content() {
         let mut buf = Vec::new();
@@ -204,32 +175,31 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Characters,
+                offset: 0,
                 len: 5
             }),
             lexer.tokenize(&mut pos)
         );
         assert_eq!(buf.len(), pos);
-        buf.clear();
-        pos = 0;
 
         buf.extend("wo".as_bytes());
         let lexer = Lexer::from_slice(&buf);
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Characters,
+                offset: 5,
                 len: 2
             }),
             lexer.tokenize(&mut pos)
         );
         assert_eq!(buf.len(), pos);
-        buf.clear();
-        pos = 0;
 
         buf.extend("rld!<".as_bytes());
         let lexer = Lexer::from_slice(&buf);
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Characters,
+                offset: 7,
                 len: 4
             }),
             lexer.tokenize(&mut pos)

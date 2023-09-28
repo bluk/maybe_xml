@@ -103,6 +103,7 @@ fn scan_text_content(input: &[u8]) -> Token {
 
     Token {
         ty: TokenTy::Characters,
+        offset: 0,
         len: input.iter().position(|b| *b == b'<').unwrap_or(input.len()),
     }
 }
@@ -144,11 +145,13 @@ fn scan_start_or_empty_element_tag(input: &[u8]) -> Option<Token> {
     if pos > 1 && input[OFFSET + pos - 2] == b'/' {
         Some(Token {
             ty: TokenTy::EmptyElementTag,
+            offset: 0,
             len: OFFSET + pos,
         })
     } else {
         Some(Token {
             ty: TokenTy::StartTag,
+            offset: 0,
             len: OFFSET + pos,
         })
     }
@@ -169,6 +172,7 @@ fn scan_end_tag(input: &[u8]) -> Option<Token> {
 
     Some(Token {
         ty: TokenTy::EndTag,
+        offset: 0,
         len: OFFSET + pos,
     })
 }
@@ -192,6 +196,7 @@ fn scan_processing_instruction(input: &[u8]) -> Option<Token> {
         .find_map(|(pos, b)| (*b == b'>' && input[pos - 1] == b'?').then_some(pos))
         .map(|pos| Token {
             ty: TokenTy::ProcessingInstruction,
+            offset: 0,
             len: pos + 1,
         })
 }
@@ -247,6 +252,7 @@ fn scan_declaration(input: &[u8]) -> Option<Token> {
 
     Some(Token {
         ty: TokenTy::Declaration,
+        offset: 0,
         len: OFFSET + pos,
     })
 }
@@ -272,6 +278,7 @@ fn scan_comment(input: &[u8]) -> Option<Token> {
         .find_map(|(pos, b)| (*b == b'>' && &input[pos - 2..pos] == b"--").then_some(pos))
         .map(|pos| Token {
             ty: TokenTy::Comment,
+            offset: 0,
             len: pos + 1,
         })
 }
@@ -301,10 +308,83 @@ fn scan_cdata(input: &[u8]) -> Option<Token> {
         .find_map(|(pos, b)| (*b == b'>' && &input[pos - 2..pos] == b"]]").then_some(pos))
         .map(|pos| Token {
             ty: TokenTy::Cdata,
+            offset: 0,
             len: pos + 1,
         })
 }
 
+/// Scans a slice of bytes from the beginning and attempts to find a token.
+///
+/// Returns `Some(Token)` if a token is found. In this case, the slice of bytes
+/// from `&input[Token.offset..Token.len]` can be parsed as a `Token.ty`. After
+/// processing the (sub)slice, then you can discard the bytes already processed.
+///
+/// Returns `None` if a token is not found. If the input is the last bytes to
+/// process (e.g.  an end of file was reached), then the remaining input does
+/// not form a complete token. Usually, this indicates an error has occurred.
+///
+/// If there are more bytes to be processed, then append the additional bytes to
+/// the existing bytes and pass them new bytes into this function again.
+///
+/// The function does not carry any state.
+///
+/// # Examples
+///
+/// ```
+/// use maybe_xml::{byte::{self, Token, TokenTy}, token::borrowed::StartTag};
+///
+/// let mut buffer = Vec::new();
+/// buffer.extend(b"<h");
+///
+/// // The scan cannot find a completed token so `None` is returned.
+/// // If there is additional data, append it to the buffer and scan again.
+/// assert_eq!(None, byte::scan(&buffer));
+///
+/// // In an I/O loop (for example), additional data may arrive, so append it to
+/// // the existing unprocessed slice of data.
+/// buffer.extend(b"ello>Text Content");
+///
+/// let token = byte::scan(&buffer);
+/// assert_eq!(
+///     Some(Token {
+///         ty: TokenTy::StartTag,
+///         offset: 0,
+///         len: 7,
+///     }),
+///     token
+/// );
+///
+/// let token = token.unwrap();
+/// let bytes = &buffer[token.offset..token.offset + token.len];
+/// assert_eq!(b"<hello>", bytes);
+/// assert_eq!(
+///     Ok("hello"),
+///     StartTag::from(bytes).name().to_str()
+/// );
+///
+/// // Discard the processed data
+/// buffer.drain(token.offset..token.offset + token.len);
+///
+/// // Scan the remaining data
+/// let token = byte::scan(&buffer);
+/// assert_eq!(
+///     Some(Token {
+///         ty: TokenTy::Characters,
+///         offset: 0,
+///         len: 12,
+///     }),
+///     token
+/// );
+///
+/// let token = token.unwrap();
+/// buffer.drain(token.offset..token.offset + token.len);
+/// assert!(buffer.is_empty());
+///
+/// // If there is no additional data (e.g. end of file is reached), then check
+/// // that the buffer is empty. If it is not empty, then there is unprocessed
+/// // data which cannot be scanned into a complete token. The left over data
+/// // usually indicates an error has occurred.
+/// ```
 #[must_use]
 pub fn scan(input: &[u8]) -> Option<Token> {
     match bytes::peek(input) {
@@ -328,6 +408,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Characters,
+                offset: 0,
                 len: 5,
             }),
             scan(b"Hello")
@@ -335,6 +416,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Characters,
+                offset: 0,
                 len: 3,
             }),
             scan(b" wo")
@@ -342,6 +424,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Characters,
+                offset: 0,
                 len: 4,
             }),
             scan(b"rld!<")
@@ -358,6 +441,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::StartTag,
+                offset: 0,
                 len: 7,
             }),
             scan(b"<hello>")
@@ -369,6 +453,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::StartTag,
+                offset: 0,
                 len: 7,
             }),
             scan(b"<hello>Content")
@@ -380,6 +465,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::StartTag,
+                offset: 0,
                 len: 16,
             }),
             scan(b"<hello a='val>'>Content")
@@ -391,6 +477,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::StartTag,
+                offset: 0,
                 len: 16,
             }),
             scan(r#"<hello a="val>">Content"#.as_bytes())
@@ -402,6 +489,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::EmptyElementTag,
+                offset: 0,
                 len: 8,
             }),
             scan(b"<hello/>")
@@ -413,6 +501,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::StartTag,
+                offset: 0,
                 len: 10,
             }),
             scan(b"<hello / >")
@@ -424,6 +513,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::EmptyElementTag,
+                offset: 0,
                 len: 18,
             }),
             scan(r#"<hello a="val/>"/>"#.as_bytes())
@@ -435,6 +525,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::StartTag,
+                offset: 0,
                 len: 16,
             }),
             scan(b"<hello/ invalid>Content")
@@ -446,6 +537,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::EndTag,
+                offset: 0,
                 len: 10,
             }),
             scan(b"</goodbye>")
@@ -458,6 +550,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::EndTag,
+                offset: 0,
                 len: 19,
             }),
             scan(bytes)
@@ -471,6 +564,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::EndTag,
+                offset: 0,
                 len: 19,
             }),
             scan(bytes)
@@ -484,6 +578,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::ProcessingInstruction,
+                offset: 0,
                 len: 15,
             }),
             scan(bytes),
@@ -496,6 +591,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::ProcessingInstruction,
+                offset: 0,
                 len: 17,
             }),
             scan(bytes),
@@ -508,6 +604,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::ProcessingInstruction,
+                offset: 0,
                 len: 20,
             }),
             scan(bytes),
@@ -520,6 +617,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::ProcessingInstruction,
+                offset: 0,
                 len: 18,
             }),
             scan(bytes),
@@ -539,6 +637,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Declaration,
+                offset: 0,
                 len: bytes.len(),
             }),
             scan(bytes),
@@ -551,6 +650,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Declaration,
+                offset: 0,
                 len: 19,
             }),
             scan(bytes),
@@ -563,6 +663,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Declaration,
+                offset: 0,
                 len: 19,
             }),
             scan(bytes),
@@ -575,6 +676,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Declaration,
+                offset: 0,
                 len: bytes.len(),
             }),
             scan(bytes),
@@ -587,6 +689,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Declaration,
+                offset: 0,
                 len: 12,
             }),
             scan(bytes),
@@ -599,6 +702,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Declaration,
+                offset: 0,
                 len: 30,
             }),
             scan(bytes),
@@ -611,6 +715,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Comment,
+                offset: 0,
                 len: bytes.len(),
             }),
             scan(bytes),
@@ -623,6 +728,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Comment,
+                offset: 0,
                 len: 16,
             }),
             scan(bytes),
@@ -635,6 +741,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Comment,
+                offset: 0,
                 len: 22,
             }),
             scan(bytes),
@@ -647,6 +754,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Comment,
+                offset: 0,
                 len: 21,
             }),
             scan(bytes),
@@ -662,6 +770,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Declaration,
+                offset: 0,
                 len: 25,
             }),
             scan(bytes),
@@ -678,6 +787,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Comment,
+                offset: 0,
                 len: 23,
             }),
             scan(bytes),
@@ -696,6 +806,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Comment,
+                offset: 0,
                 len: 46,
             }),
             scan(bytes),
@@ -708,6 +819,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Comment,
+                offset: 0,
                 len: bytes.len(),
             }),
             scan(bytes),
@@ -726,6 +838,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Cdata,
+                offset: 0,
                 len: bytes.len(),
             }),
             scan(bytes),
@@ -738,6 +851,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Declaration,
+                offset: 0,
                 len: bytes.len(),
             }),
             scan(bytes),
@@ -750,6 +864,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Cdata,
+                offset: 0,
                 len: 21,
             }),
             scan(bytes),
@@ -762,6 +877,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Cdata,
+                offset: 0,
                 len: 21,
             }),
             scan(bytes),
@@ -774,6 +890,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Cdata,
+                offset: 0,
                 len: 22,
             }),
             scan(bytes),
@@ -788,6 +905,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Cdata,
+                offset: 0,
                 len: 24,
             }),
             scan(bytes),
@@ -804,6 +922,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Declaration,
+                offset: 0,
                 len: 30,
             }),
             scan(bytes),
@@ -820,6 +939,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Cdata,
+                offset: 0,
                 len: 43,
             }),
             scan(bytes),
@@ -842,6 +962,7 @@ mod tests {
         assert_eq!(
             Some(Token {
                 ty: TokenTy::Cdata,
+                offset: 0,
                 len: 49,
             }),
             scan(bytes),
