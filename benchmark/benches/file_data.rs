@@ -8,10 +8,10 @@
 
 use criterion::{criterion_group, criterion_main, Criterion};
 
-const SIMPLE_1_BYTES: &[u8] = include_bytes!("../tests/resources/simple-1.xml");
-const SVG_1_BYTES: &[u8] = include_bytes!("../tests/resources/svg-1.xml");
-const RSS_1_BYTES: &[u8] = include_bytes!("../tests/resources/rss-1.xml");
-const LARGE_1_BYTES: &[u8] = include_bytes!("../tests/resources/large-1.xml");
+const SIMPLE_1_BYTES: &[u8] = include_bytes!("../../maybe_xml/tests/resources/simple-1.xml");
+const SVG_1_BYTES: &[u8] = include_bytes!("../../maybe_xml/tests/resources/svg-1.xml");
+const RSS_1_BYTES: &[u8] = include_bytes!("../../maybe_xml/tests/resources/rss-1.xml");
+const LARGE_1_BYTES: &[u8] = include_bytes!("../../maybe_xml/tests/resources/large-1.xml");
 
 fn scanner_scan(bytes: &[u8]) -> usize {
     use maybe_xml::scanner::{Scanner, State};
