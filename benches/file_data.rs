@@ -6,8 +6,6 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-#![allow(deprecated)]
-
 use criterion::{criterion_group, criterion_main, Criterion};
 
 const SIMPLE_1_BYTES: &[u8] = include_bytes!("../tests/resources/simple-1.xml");
@@ -48,113 +46,6 @@ fn scanner_scan(bytes: &[u8]) -> usize {
                 bytes = &bytes[read..];
                 count += 1;
             }
-        }
-    }
-
-    count
-}
-
-fn recv_buf_reader_recv_and_next_token(bytes: &[u8]) -> usize {
-    use maybe_xml::{eval::recv::Evaluator, token::borrowed::Token};
-
-    let mut eval = Evaluator::new();
-    let mut count = 0;
-
-    let mut bytes = bytes;
-
-    loop {
-        let read = eval.recv(bytes);
-        bytes = &bytes[read..];
-        if let Ok(token) = eval.next_token() {
-            if let Some(token) = token {
-                match token {
-                    Token::StartTag(_start_tag) => {
-                        count += 1;
-                    }
-                    Token::EmptyElementTag(_empty_element_tag) => {}
-                    Token::EndTag(_end_tag) => {}
-                    Token::Characters(_characters) => {}
-                    Token::ProcessingInstruction(_processing_instruction) => {}
-                    Token::Declaration(_declaration) => {}
-                    Token::Comment(_comment) => {}
-                    Token::Cdata(_cdata) => {}
-                    Token::Eof => {
-                        break;
-                    }
-                    Token::EofWithBytesNotEvaluated(_bytes_not_evaluated) => break,
-                }
-            } else {
-                break;
-            }
-        }
-    }
-
-    count
-}
-
-fn io_buf_reader_next_token(bytes: &[u8]) -> usize {
-    use maybe_xml::{eval::bufread::BufReadEvaluator, token::borrowed::Token};
-
-    let mut eval = BufReadEvaluator::from_reader(bytes);
-    let mut count = 0;
-
-    loop {
-        let token = eval.next_token().unwrap();
-        if let Some(token) = token {
-            match token {
-                Token::StartTag(_start_tag) => {
-                    count += 1;
-                }
-                Token::EmptyElementTag(_empty_element_tag) => {}
-                Token::EndTag(_end_tag) => {}
-                Token::Characters(_characters) => {}
-                Token::ProcessingInstruction(_processing_instruction) => {}
-                Token::Declaration(_declaration) => {}
-                Token::Comment(_comment) => {}
-                Token::Cdata(_cdata) => {}
-                Token::Eof => {
-                    break;
-                }
-                Token::EofWithBytesNotEvaluated(_bytes_not_evaluated) => {
-                    break;
-                }
-            }
-        } else {
-            break;
-        }
-    }
-
-    count
-}
-
-fn io_buf_reader_into_iter_next(bytes: &[u8]) -> usize {
-    use maybe_xml::{eval::bufread::BufReadEvaluator, token::owned::Token};
-
-    let mut eval = BufReadEvaluator::from_reader(bytes).into_iter();
-
-    let mut count = 0;
-
-    loop {
-        let token = eval.next();
-        if let Some(token) = token {
-            match token {
-                Token::StartTag(_start_tag) => {
-                    count += 1;
-                }
-                Token::EmptyElementTag(_empty_element_tag) => {}
-                Token::EndTag(_end_tag) => {}
-                Token::Characters(_characters) => {}
-                Token::ProcessingInstruction(_processing_instruction) => {}
-                Token::Declaration(_declaration) => {}
-                Token::Comment(_comment) => {}
-                Token::Cdata(_cdata) => {}
-                Token::Eof => {
-                    break;
-                }
-                Token::EofWithBytesNotEvaluated(_bytes_not_evaluated) => break,
-            }
-        } else {
-            break;
         }
     }
 
@@ -206,81 +97,6 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("scanner_scan_large_1", |b| {
         b.iter(|| {
             let count = scanner_scan(LARGE_1_BYTES);
-            assert_eq!(9885, count);
-        });
-    });
-
-    c.bench_function("recv_buf_reader_recv_and_next_event_simple_xml_1", |b| {
-        b.iter(|| {
-            let count = recv_buf_reader_recv_and_next_token(SIMPLE_1_BYTES);
-            assert_eq!(1, count);
-        });
-    });
-    c.bench_function("recv_buf_reader_recv_and_next_event_svg_1", |b| {
-        b.iter(|| {
-            let count = recv_buf_reader_recv_and_next_token(SVG_1_BYTES);
-            assert_eq!(1, count);
-        });
-    });
-    c.bench_function("recv_buf_reader_recv_and_next_event_rss_1", |b| {
-        b.iter(|| {
-            let count = recv_buf_reader_recv_and_next_token(RSS_1_BYTES);
-            assert_eq!(36, count);
-        });
-    });
-    c.bench_function("recv_evaluator_recv_and_next_token_large_1", |b| {
-        b.iter(|| {
-            let count = recv_buf_reader_recv_and_next_token(LARGE_1_BYTES);
-            assert_eq!(9885, count);
-        });
-    });
-
-    c.bench_function("io_buf_reader_next_event_simple_xml_1", |b| {
-        b.iter(|| {
-            let count = io_buf_reader_next_token(SIMPLE_1_BYTES);
-            assert_eq!(1, count);
-        });
-    });
-    c.bench_function("io_buf_reader_next_event_svg_1", |b| {
-        b.iter(|| {
-            let count = io_buf_reader_next_token(SVG_1_BYTES);
-            assert_eq!(1, count);
-        });
-    });
-    c.bench_function("io_buf_reader_next_event_rss_1", |b| {
-        b.iter(|| {
-            let count = io_buf_reader_next_token(RSS_1_BYTES);
-            assert_eq!(36, count);
-        });
-    });
-    c.bench_function("buf_read_evaluator_next_token_large_1", |b| {
-        b.iter(|| {
-            let count = io_buf_reader_next_token(LARGE_1_BYTES);
-            assert_eq!(9885, count);
-        });
-    });
-
-    c.bench_function("io_buf_reader_into_iter_next_simple_xml_1", |b| {
-        b.iter(|| {
-            let count = io_buf_reader_into_iter_next(SIMPLE_1_BYTES);
-            assert_eq!(1, count);
-        });
-    });
-    c.bench_function("io_buf_reader_into_iter_next_svg_1", |b| {
-        b.iter(|| {
-            let count = io_buf_reader_into_iter_next(SVG_1_BYTES);
-            assert_eq!(1, count);
-        });
-    });
-    c.bench_function("io_buf_reader_into_iter_next_rss_1", |b| {
-        b.iter(|| {
-            let count = io_buf_reader_into_iter_next(RSS_1_BYTES);
-            assert_eq!(36, count);
-        });
-    });
-    c.bench_function("buf_read_evaluator_into_iter_next_large_1", |b| {
-        b.iter(|| {
-            let count = io_buf_reader_into_iter_next(LARGE_1_BYTES);
             assert_eq!(9885, count);
         });
     });

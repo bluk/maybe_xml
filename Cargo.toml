@@ -29,7 +29,6 @@ alloc = []
 
 [dev-dependencies]
 criterion = "0.5.1"
-rand = "0.8.5"
 
 [[bench]]
 name = "file_data"

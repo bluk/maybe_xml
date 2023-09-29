@@ -591,7 +591,7 @@ impl Scanner {
     /// the empty byte slice, even if future byte slices are non-empty.
     ///
     /// ```
-    /// # use maybe_xml::{token::borrowed::{StartTag, Characters, EndTag, Token}, scanner::{State, Scanner}};
+    /// # use maybe_xml::{token::{StartTag, Characters, EndTag, Token}, scanner::{State, Scanner}};
     /// # use std::io::BufRead;
     /// # #[derive(Debug)]
     /// # enum Error {

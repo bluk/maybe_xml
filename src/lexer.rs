@@ -368,7 +368,7 @@ mod tests {
     #[cfg(any(feature = "std", feature = "alloc"))]
     #[test]
     fn text_content() {
-        use crate::token::borrowed::Characters;
+        use crate::token::Characters;
 
         let mut buf = Vec::new();
         let mut pos = 0;

@@ -6,12 +6,6 @@ XML pull parsers.
 
 * [Latest API Documentation][api_docs]
 
-## Deprecations
-
-In this version, there are several modules and types which are deprecated.
-Instead of a couple different ways to tokenize input, a single `Lexer`
-is now used. All of the deprecated functionality will be removed in a future version.
-
 ## Usage
 
 The library user creates a `Lexer` from a slice of bytes. The slice of
@@ -33,14 +27,18 @@ office suite documents, RSS/Atom feeds, config files, SVG, and web service messa
 
 ## Installation
 
-By default, features which depend on the Rust `std` library are included.
+By default, the `std` feature is enabled.
 
 ```toml
 [dependencies]
 maybe_xml = "0.5.0"
 ```
 
-### Alloc Only
+Currently, all functionality is available even with `no alloc` and `no std`. The
+library does not allocate or use features available only in the `alloc` or `std` libraries.
+Future functionality may require `alloc` or `std`, so please set the appropriate feature set.
+
+### Alloc only
 
 If the host environment has an allocator but does not have access to the Rust `std` library:
 
@@ -49,10 +47,7 @@ If the host environment has an allocator but does not have access to the Rust `s
 maybe_xml = { version = "0.5.0", default-features = false, features = ["alloc"]}
 ```
 
-Most of the library, except for `Evaluator`s which rely on `std` types (such as `std::io::BufRead`),
-is still available.
-
-### No allocator
+### No allocator / core only
 
 If the host environment does not have an allocator:
 
@@ -60,8 +55,6 @@ If the host environment does not have an allocator:
 [dependencies]
 maybe_xml = { version = "0.5.0", default-features = false }
 ```
-
-`Lexer` and all non-deprecated functionality is available.
 
 ## Examples
 

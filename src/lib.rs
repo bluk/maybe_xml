@@ -10,12 +10,6 @@
 //! effect, the library provides a non-validating lexer. The interface is similar to many
 //! XML pull parsers.
 //!
-//! # Deprecations
-//!
-//! In this version, there are several modules and types which are deprecated.
-//! Instead of a couple different ways to tokenize input, a single [`Lexer`]
-//! is now used. All of the deprecated functionality will be removed in a future version.
-//!
 //! # Usage
 //!
 //! The library user creates a [`Lexer`] from a slice of bytes. The slice of
@@ -131,19 +125,12 @@
     unused_lifetimes,
     unused_qualifications
 )]
-#![allow(deprecated)]
 
 #[cfg(all(feature = "alloc", not(feature = "std")))]
 extern crate alloc;
 
 pub(crate) mod bytes;
 mod lexer;
-
-#[deprecated(
-    since = "0.5.0",
-    note = "Use Lexer which does not allocate and provides greater flexibility to the caller."
-)]
-pub mod eval;
 pub mod scanner;
 pub mod token;
 

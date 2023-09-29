@@ -12,14 +12,6 @@
 //! with a type of token using [`Ty`]. There are specific token types like
 //! [`StartTag`] which provide a view of the bytes and provide helper methods.
 
-#[deprecated(
-    since = "0.5.0",
-    note = "Use the crate's Token type to base which borrowed view type to use."
-)]
-pub mod borrowed;
-#[cfg(any(feature = "alloc", feature = "std"))]
-#[deprecated(since = "0.5.0", note = "Use Lexer with borrowed type views.")]
-pub mod owned;
 pub mod prop;
 
 #[inline]
