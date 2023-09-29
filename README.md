@@ -6,25 +6,25 @@ XML pull parsers.
 
 * [Latest API Documentation][api_docs]
 
-The library does 3 things:
+## Deprecations
 
-1. A `Scanner` receives byte slices and identifies the start and end of tokens like
-   tags, character content, and declarations.
+In this version, there are several modules and types which are deprecated.
+Instead of a couple different ways to tokenize input, a single `Lexer`
+is now used. All of the deprecated functionality will be removed in a future version.
 
-2. An `Evaluator` transforms bytes from an input source (like instances of types which implement
-   `std::io::BufRead`) into complete tokens via either a cursor or an iterator pull
-   style API.
+## Usage
 
-   From an implementation point of view, when a library user asks an
-   `Evaluator` for the next token, the `Evaluator` reads the input and passes the
-   bytes to an internal `Scanner`. The `Evaluator` buffers the scanned bytes and keeps reading
-   until the `Scanner` determines a token has been completely read. Then all of the bytes
-   which represent the token are returned to the library user as a variant of a token type.
+The library user creates a `Lexer` from a slice of bytes. The slice of
+bytes is usually from a buffer managed by the library user. For instance, it
+could be a buffer of data that is being read over a network socket, a memory
+mapped file, or just a `Vec` of bytes.
 
-3. Each token type provides methods which can provide views into the underlying bytes.
-   For instance, a tag token could provide a `name()` method which returns a `TagName`.
-   The `TagName` provides a method like `to_str()` which can be called to get a `str`
-   representation of the tag name.
+Then, the library user can call `Lexer::tokenize()` to try to get the next
+`Token`. If successful, repeat calling `tokenize` and process the available
+tokens.
+
+Alternatively, the user can turn the `Lexer` into an iterator via
+`Lexer::iter()` or `IntoIterator::into_iter()`.
 
 ## Purpose
 
@@ -37,7 +37,7 @@ By default, features which depend on the Rust `std` library are included.
 
 ```toml
 [dependencies]
-maybe_xml = "0.4.0"
+maybe_xml = "0.5.0"
 ```
 
 ### Alloc Only
@@ -46,7 +46,7 @@ If the host environment has an allocator but does not have access to the Rust `s
 
 ```toml
 [dependencies]
-maybe_xml = { version = "0.4.0", default-features = false, features = ["alloc"]}
+maybe_xml = { version = "0.5.0", default-features = false, features = ["alloc"]}
 ```
 
 Most of the library, except for `Evaluator`s which rely on `std` types (such as `std::io::BufRead`),
@@ -58,53 +58,74 @@ If the host environment does not have an allocator:
 
 ```toml
 [dependencies]
-maybe_xml = { version = "0.4.0", default-features = false }
+maybe_xml = { version = "0.5.0", default-features = false }
 ```
 
-The `Scanner` and the borrowed versions of the tokens are available.
+`Lexer` and all non-deprecated functionality is available.
 
-## Example
+## Examples
 
-The following is a short example showing the iterator API. The full example with all the module imports and error handling is in the `lib.rs` source file.
+### Using `Iterator` functionality
 
 ```rust
-use maybe_xml::token::owned::{Token, StartTag, Characters, EndTag};
+use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Token, Ty}};
 
-let mut input = std::io::BufReader::new(r#"<ID>Example</ID>"#.as_bytes());
+let input = b"<id>Example</id>";
 
-let eval = maybe_xml::eval::bufread::BufReadEvaluator::from_reader(input);
+let lexer = Lexer::from_slice(input);
 
-let mut iter = eval.into_iter()
-    .map(|token| match token {
-        Token::StartTag(start_tag) => {
-            if let Ok(str) = start_tag.to_str() {
-                Token::StartTag(StartTag::from(str.to_lowercase()))
-            } else {
-                Token::StartTag(start_tag)
-            }
-        }
-        Token::EndTag(end_tag) => {
-            if let Ok(str) = end_tag.to_str() {
-                Token::EndTag(EndTag::from(str.to_lowercase()))
-            } else {
-                Token::EndTag(end_tag)
-            }
-        }
-        _ => token,
-    });
+let mut iter = lexer.into_iter().map(|token| token.ty());
 
-let token = iter.next();
-assert_eq!(token, Some(Token::StartTag(StartTag::from("<id>"))));
-match token {
-    Some(Token::StartTag(start_tag)) => {
+let token_type = iter.next();
+assert_eq!(token_type, Some(Ty::StartTag(StartTag::from("<id>"))));
+match token_type {
+    Some(Ty::StartTag(start_tag)) => {
         assert_eq!(start_tag.name().to_str()?, "id");
     }
     _ => panic!("unexpected token"),
 }
-assert_eq!(iter.next(), Some(Token::Characters(Characters::from("Example"))));
-assert_eq!(iter.next(), Some(Token::EndTag(EndTag::from("</id>"))));
-assert_eq!(iter.next(), Some(Token::Eof));
+assert_eq!(iter.next(), Some(Ty::Characters(Characters::from("Example"))));
+assert_eq!(iter.next(), Some(Ty::EndTag(EndTag::from("</id>"))));
 assert_eq!(iter.next(), None);
+# Ok::<(), core::str::Utf8Error>(())
+```
+
+### Using `Lexer::tokenize()` directly
+
+```rust
+use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Ty}};
+
+let mut buf = Vec::new();
+// Note the missing closing tag character `>` in the end tag.
+buf.extend(b"<id>123</id");
+
+let lexer = Lexer::from_slice(&buf);
+let mut pos = 0;
+
+let token = lexer.tokenize(&mut pos).unwrap();
+assert_eq!(0, token.offset());
+assert_eq!(Ty::StartTag(StartTag::from("<id>".as_bytes())), token.ty());
+
+let token = lexer.tokenize(&mut pos).unwrap();
+assert_eq!(4, token.offset());
+assert_eq!(Ty::Characters(Characters::from("123".as_bytes())), token.ty());
+
+let token = lexer.tokenize(&mut pos);
+// The last token is incomplete because it is missing the `>`
+assert_eq!(None, token);
+
+// The position was updated as tokenize() was called
+assert_eq!(7, pos);
+
+// Remove the tokenized data and reset the position
+buf.drain(..pos);
+pos = 0;
+
+// Verify that the buffer is empty. If it is not empty, then there is data
+// which could not be identified as a complete token. This usually indicates
+// an error has occurred. If there is more data (say coming from a network
+// socket), then append the new data when it becomes available and call
+// tokenize again.
 ```
 
 ## License

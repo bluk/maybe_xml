@@ -1,5 +1,37 @@
 # CHANGELOG
 
+## [0.5.0] - 2023-09-28
+
+### Added
+
+- Add `Lexer` type which is the replacement for all evaluators. It borrows the
+  input (a slice of bytes) and tokenizes with a borrowed `Token`. It has the
+  benefits of both the existing evaluators (namely borrowing byte slices from the
+  input so no allocations are necessary and allowing an `Iterator` API).
+- Add `scan` function which scans for a token at the beginning of a slice.
+
+### Deprecated
+
+- Add deprecations to owned token types and all evaluators. The code will be
+  removed in a future version.
+
+### Fixed
+
+- Fixed wrong lifetimes in the borrowed token types. The lifetimes should have
+  been tied to the borrowed input instead of the token's type.
+
+### Changed
+
+- Derive most trait implementations for token and property types.
+- Change the minimum Rust supported version to `1.60.0` by changing newer
+  syntax code like `let...else` to older supported syntax.
+- Add `#[must_use]` and `const` to functions.
+
+### Removed
+
+- Remove Token `From` implementations and other methods which are available
+  when using `as_bytes()`.
+
 ## [0.4.0] - 2023-09-19
 
 ### Fixed
@@ -48,7 +80,8 @@
 
 * Initial implementation.
 
-[Unreleased]: https://github.com/bluk/maybe_xml/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/bluk/maybe_xml/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/bluk/maybe_xml/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/bluk/maybe_xml/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/bluk/maybe_xml/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/bluk/maybe_xml/compare/v0.1.0...v0.2.0
