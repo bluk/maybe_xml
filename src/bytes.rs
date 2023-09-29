@@ -34,6 +34,7 @@ pub(crate) enum QuoteContextAwareFoundState {
 pub(crate) struct AlreadyFoundByteSeqCount(pub(crate) usize);
 
 #[inline]
+#[must_use]
 pub(crate) fn quote_context_aware_find(
     buf: &[u8],
     mut quote_state: QuoteState,
@@ -72,11 +73,13 @@ pub(crate) fn quote_context_aware_find(
 }
 
 #[inline]
+#[must_use]
 pub(crate) fn peek(bytes: &[u8]) -> Option<u8> {
     bytes.first().copied()
 }
 
 #[inline]
+#[must_use]
 pub(crate) fn peek2(bytes: &[u8]) -> Option<u8> {
     let pos = 1;
     if pos < bytes.len() {
@@ -87,6 +90,7 @@ pub(crate) fn peek2(bytes: &[u8]) -> Option<u8> {
 }
 
 #[inline]
+#[must_use]
 pub(crate) fn quote_and_bracket_context_aware_find(
     buf: &[u8],
     already_found_byte_seq_count: AlreadyFoundByteSeqCount,
@@ -147,6 +151,7 @@ pub(crate) fn quote_and_bracket_context_aware_find(
 }
 
 #[inline]
+#[must_use]
 fn quote_and_bracket_context_aware_find_2(
     buf: &[u8],
     mut quote_state: QuoteState,
@@ -230,6 +235,7 @@ fn quote_and_bracket_context_aware_find_2(
 }
 
 #[inline]
+#[must_use]
 pub(crate) fn find_matching_suffix(byte_seq: &[u8], buf: &[u8]) -> AlreadyFoundByteSeqCount {
     let buf_len = buf.len();
     let first_byte_seq = byte_seq[0];

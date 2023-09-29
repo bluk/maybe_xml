@@ -121,7 +121,7 @@ impl<'a> Lexer<'a> {
     /// Creates a new instance with the input.
     #[inline]
     #[must_use]
-    pub fn from_slice(input: &'a [u8]) -> Self {
+    pub const fn from_slice(input: &'a [u8]) -> Self {
         Self { input }
     }
 
@@ -269,6 +269,7 @@ impl<'a> IntoIterator for Lexer<'a> {
 
     type IntoIter = IntoIter<'a>;
 
+    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         IntoIter::new(self, 0)
     }
@@ -315,7 +316,7 @@ pub struct IntoIter<'a> {
 impl<'a> IntoIter<'a> {
     #[inline]
     #[must_use]
-    pub fn new(inner: Lexer<'a>, pos: usize) -> Self {
+    pub const fn new(inner: Lexer<'a>, pos: usize) -> Self {
         Self { inner, pos }
     }
 }
@@ -323,6 +324,7 @@ impl<'a> IntoIter<'a> {
 impl<'a> Iterator for IntoIter<'a> {
     type Item = Token<'a>;
 
+    #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         self.inner.tokenize(&mut self.pos)
     }

@@ -131,6 +131,7 @@ impl<'a> IntoIterator for Attributes<'a> {
     type Item = Attribute<'a>;
     type IntoIter = AttributeIntoIter<'a>;
 
+    #[inline]
     fn into_iter(self) -> Self::IntoIter {
         AttributeIntoIter {
             bytes: self.0,
@@ -141,6 +142,7 @@ impl<'a> IntoIterator for Attributes<'a> {
 
 converters!(Attributes);
 
+#[must_use]
 fn iter_attr(mut index: usize, bytes: &[u8]) -> (usize, Option<Attribute<'_>>) {
     if index == bytes.len() {
         return (index, None);

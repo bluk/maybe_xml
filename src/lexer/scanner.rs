@@ -10,6 +10,7 @@ use crate::{
 
 /// Find the next `>` while being aware of quoted text.
 #[inline]
+#[must_use]
 fn find_close_tag_char_with_quotes(input: &[u8]) -> Option<usize> {
     let mut quote_state = QuoteState::None;
     for (pos, byte) in input.iter().enumerate() {
@@ -47,6 +48,7 @@ fn find_close_tag_char_with_quotes(input: &[u8]) -> Option<usize> {
 
 /// Find the next `>` while being aware of quoted text and the number of bracket delimiters used.
 #[inline]
+#[must_use]
 fn find_close_tag_char_with_brackets_and_quotes(input: &[u8]) -> Option<usize> {
     let mut bracket_cnt = 0;
     let mut quote_state = QuoteState::None;
@@ -101,6 +103,7 @@ fn find_close_tag_char_with_brackets_and_quotes(input: &[u8]) -> Option<usize> {
 }
 
 #[inline]
+#[must_use]
 fn scan_text_content(input: &[u8]) -> Ty<'_> {
     debug_assert_ne!(0, input.len());
     debug_assert_ne!(input[0], b'<');
@@ -110,6 +113,7 @@ fn scan_text_content(input: &[u8]) -> Ty<'_> {
 }
 
 #[inline]
+#[must_use]
 fn scan_markup(input: &[u8]) -> Option<Ty<'_>> {
     debug_assert_ne!(0, input.len());
     debug_assert_eq!(input[0], b'<');
@@ -128,6 +132,7 @@ fn scan_markup(input: &[u8]) -> Option<Ty<'_>> {
 }
 
 #[inline]
+#[must_use]
 fn scan_start_or_empty_element_tag(input: &[u8]) -> Option<Ty<'_>> {
     // Skip the head '<'
     const OFFSET: usize = 1;
@@ -151,6 +156,7 @@ fn scan_start_or_empty_element_tag(input: &[u8]) -> Option<Ty<'_>> {
 }
 
 #[inline]
+#[must_use]
 fn scan_end_tag(input: &[u8]) -> Option<Ty<'_>> {
     // Skip the head '</'
     const OFFSET: usize = 2;
@@ -164,6 +170,7 @@ fn scan_end_tag(input: &[u8]) -> Option<Ty<'_>> {
 }
 
 #[inline]
+#[must_use]
 fn scan_processing_instruction(input: &[u8]) -> Option<Ty<'_>> {
     // Skip the head '<?'
     const OFFSET: usize = 2;
@@ -190,6 +197,7 @@ fn scan_processing_instruction(input: &[u8]) -> Option<Ty<'_>> {
 }
 
 #[inline]
+#[must_use]
 fn scan_declaration_comment_or_cdata(input: &[u8]) -> Option<Ty<'_>> {
     // Skip the head '<!'
     const OFFSET: usize = 2;
@@ -227,6 +235,7 @@ fn scan_declaration_comment_or_cdata(input: &[u8]) -> Option<Ty<'_>> {
 }
 
 #[inline]
+#[must_use]
 fn scan_declaration(input: &[u8]) -> Option<Ty<'_>> {
     // Skip the head '<!'
     const OFFSET: usize = 2;
@@ -240,6 +249,7 @@ fn scan_declaration(input: &[u8]) -> Option<Ty<'_>> {
 }
 
 #[inline]
+#[must_use]
 fn scan_comment(input: &[u8]) -> Option<Ty<'_>> {
     // Skip the head '<!--'
     const OFFSET: usize = 4;
@@ -268,6 +278,7 @@ fn scan_comment(input: &[u8]) -> Option<Ty<'_>> {
 }
 
 #[inline]
+#[must_use]
 fn scan_cdata(input: &[u8]) -> Option<Ty<'_>> {
     // Skip the head '<![CDATA['
     const OFFSET: usize = 9;

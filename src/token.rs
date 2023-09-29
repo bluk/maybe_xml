@@ -23,7 +23,8 @@ pub mod owned;
 pub mod prop;
 
 #[inline]
-fn is_space(byte: u8) -> bool {
+#[must_use]
+const fn is_space(byte: u8) -> bool {
     matches!(byte, 32 | 9 | 13 | 10)
 }
 
@@ -43,21 +44,21 @@ impl<'a> Token<'a> {
     /// the token starts in the original input.
     #[inline]
     #[must_use]
-    pub fn new(ty: Ty<'a>, offset: usize) -> Self {
+    pub const fn new(ty: Ty<'a>, offset: usize) -> Self {
         Self { ty, offset }
     }
 
     /// Returns the token type.
     #[inline]
     #[must_use]
-    pub fn ty(&self) -> Ty<'a> {
+    pub const fn ty(&self) -> Ty<'a> {
         self.ty
     }
 
     /// Returns the byte offset in the original input where the token starts.
     #[inline]
     #[must_use]
-    pub fn offset(&self) -> usize {
+    pub const fn offset(&self) -> usize {
         self.offset
     }
 
@@ -65,7 +66,7 @@ impl<'a> Token<'a> {
     #[allow(clippy::len_without_is_empty)]
     #[inline]
     #[must_use]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.ty.len()
     }
 }
@@ -106,18 +107,21 @@ macro_rules! converters {
         }
 
         impl<'a> AsRef<[u8]> for $name<'a> {
+            #[inline]
             fn as_ref(&self) -> &'a [u8] {
                 self.0
             }
         }
 
         impl<'a> From<&'a [u8]> for $name<'a> {
+            #[inline]
             fn from(value: &'a [u8]) -> Self {
                 Self(value)
             }
         }
 
         impl<'a> From<&'a str> for $name<'a> {
+            #[inline]
             fn from(value: &'a str) -> Self {
                 Self(value.as_bytes())
             }
@@ -150,7 +154,7 @@ pub enum Ty<'a> {
 impl<'a> Ty<'a> {
     /// Returns the slice of bytes identified as part of the token.
     #[must_use]
-    pub fn as_bytes(&self) -> &'a [u8] {
+    pub const fn as_bytes(&self) -> &'a [u8] {
         match self {
             Ty::StartTag(v) => v.as_bytes(),
             Ty::EmptyElementTag(v) => v.as_bytes(),
@@ -165,8 +169,9 @@ impl<'a> Ty<'a> {
 
     /// Returns the length of the token in bytes.
     #[allow(clippy::len_without_is_empty)]
+    #[inline]
     #[must_use]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.as_bytes().len()
     }
 }
@@ -254,9 +259,10 @@ pub struct Characters<'a>(&'a [u8]);
 
 impl<'a> Characters<'a> {
     /// The text content of the characters.
+    #[inline]
     #[must_use]
-    pub fn content(&self) -> Content<'a> {
-        Content::from(self.0)
+    pub const fn content(&self) -> Content<'a> {
+        Content::new(self.0)
     }
 }
 
@@ -308,9 +314,10 @@ pub struct Cdata<'a>(&'a [u8]);
 
 impl<'a> Cdata<'a> {
     /// The text content of the characters.
+    #[inline]
     #[must_use]
     pub fn content(&self) -> Content<'a> {
-        Content::from(&self.0[9..self.0.len() - 3])
+        Content::new(&self.0[9..self.0.len() - 3])
     }
 }
 

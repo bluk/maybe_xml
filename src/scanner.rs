@@ -131,6 +131,7 @@ pub struct Scanner {
 
 impl Scanner {
     /// Instantiates a new scanner for a new byte stream.
+    #[inline]
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -139,6 +140,7 @@ impl Scanner {
     }
 
     #[inline]
+    #[must_use]
     fn scan_markup(&mut self, bytes: &[u8]) -> Option<State> {
         if let Some(next) = bytes::peek2(bytes) {
             match next {
@@ -157,6 +159,7 @@ impl Scanner {
     }
 
     #[inline]
+    #[must_use]
     fn scan_markup2(&mut self, bytes: &[u8]) -> Option<State> {
         if let Some(next) = bytes::peek(bytes) {
             match next {
@@ -173,6 +176,7 @@ impl Scanner {
         }
     }
 
+    #[must_use]
     fn scan_start_or_empty_element_tag(
         &mut self,
         bytes: &[u8],
@@ -212,6 +216,7 @@ impl Scanner {
         }
     }
 
+    #[must_use]
     fn scan_end_tag(
         &mut self,
         bytes: &[u8],
@@ -236,6 +241,7 @@ impl Scanner {
         }
     }
 
+    #[must_use]
     fn scan_processing_instruction(
         &mut self,
         bytes: &[u8],
@@ -274,6 +280,7 @@ impl Scanner {
         }
     }
 
+    #[must_use]
     fn scan_declaration_comment_or_cdata(
         &mut self,
         bytes: &[u8],
@@ -375,6 +382,7 @@ impl Scanner {
         }
     }
 
+    #[must_use]
     fn scan_declaration(
         &mut self,
         bytes: &[u8],
@@ -414,6 +422,7 @@ impl Scanner {
         }
     }
 
+    #[must_use]
     fn scan_comment(
         &mut self,
         bytes: &[u8],
@@ -475,6 +484,7 @@ impl Scanner {
         }
     }
 
+    #[must_use]
     fn scan_cdata(
         &mut self,
         bytes: &[u8],
@@ -535,6 +545,7 @@ impl Scanner {
         }
     }
 
+    #[must_use]
     fn scan_text_content(&mut self, bytes: &[u8]) -> State {
         if bytes.is_empty() {
             self.state = InternalState::Eof;
@@ -642,6 +653,7 @@ impl Scanner {
     /// # Ok(())
     /// # }
     /// ```
+    #[must_use]
     pub fn scan(&mut self, bytes: &[u8]) -> Option<State> {
         match self.state {
             InternalState::Reset => match bytes::peek(bytes) {
@@ -688,6 +700,7 @@ impl Scanner {
 }
 
 impl Default for Scanner {
+    #[inline]
     fn default() -> Self {
         Self::new()
     }
