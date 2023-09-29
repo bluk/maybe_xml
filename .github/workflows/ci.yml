@@ -19,7 +19,7 @@ jobs:
           - windows-latest
         rust:
           - stable
-          - 1.70.0
+          - 1.60.0
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout sources
@@ -39,7 +39,7 @@ jobs:
       - name: Run cargo build (--features alloc)
         run: cargo build --no-default-features --release --features alloc
       - name: Run cargo build (--features std)
-        run: cargo test --no-default-features --release --features std
+        run: cargo build --no-default-features --release --features std
   test:
     name: Test
     strategy:

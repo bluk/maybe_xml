@@ -13,11 +13,12 @@ readme = "README.md"
 include = [
   "src/**/*.rs",
   "Cargo.toml",
+  "CHANGELOG.md",
   "README.md",
   "LICENSE-APACHE",
   "LICENSE-MIT",
 ]
-rust-version = "1.70.0"
+rust-version = "1.60.0"
 
 [features]
 default = ["std"]
