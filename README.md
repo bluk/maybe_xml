@@ -31,7 +31,7 @@ By default, the `std` feature is enabled.
 
 ```toml
 [dependencies]
-maybe_xml = "0.5.0"
+maybe_xml = "0.6.0"
 ```
 
 Currently, all functionality is available even with `no alloc` and `no std`. The
@@ -44,7 +44,7 @@ If the host environment has an allocator but does not have access to the Rust `s
 
 ```toml
 [dependencies]
-maybe_xml = { version = "0.5.0", default-features = false, features = ["alloc"]}
+maybe_xml = { version = "0.6.0", default-features = false, features = ["alloc"]}
 ```
 
 ### No allocator / core only
@@ -53,7 +53,7 @@ If the host environment does not have an allocator:
 
 ```toml
 [dependencies]
-maybe_xml = { version = "0.5.0", default-features = false }
+maybe_xml = { version = "0.6.0", default-features = false }
 ```
 
 ## Examples

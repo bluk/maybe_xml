@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## [0.6.0] - 2023-10-17
+
+### Changed
+
+- Change the minimum Rust supported version to `1.56.0` by moving benchmark code
+  to own crate.
+
+### Removed
+
+- Removed deprecated functionality.
+
 ## [0.5.0] - 2023-09-28
 
 ### Added
@@ -80,7 +91,8 @@
 
 * Initial implementation.
 
-[Unreleased]: https://github.com/bluk/maybe_xml/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/bluk/maybe_xml/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/bluk/maybe_xml/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/bluk/maybe_xml/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/bluk/maybe_xml/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/bluk/maybe_xml/compare/v0.2.0...v0.3.0
