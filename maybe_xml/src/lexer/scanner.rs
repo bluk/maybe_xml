@@ -521,9 +521,9 @@ mod tests {
     fn pi_with_single_quotes_attribute() {
         assert_eq!(
             Some(Ty::ProcessingInstruction(ProcessingInstruction::new(
-                r#"<?goodbye a='val>'?>"#.as_bytes()
+                "<?goodbye a='val>'?>".as_bytes()
             ))),
-            scan(r#"<?goodbye a='val>'?>Content"#.as_bytes())
+            scan("<?goodbye a='val>'?>Content".as_bytes())
         );
     }
 
@@ -540,13 +540,13 @@ mod tests {
     #[test]
     fn pi_not_reuse_question_mark() {
         // The '>' byte here is treated as part of the tag's content because a "?>" is expected
-        let bytes = r#"<?>"#.as_bytes();
+        let bytes = "<?>".as_bytes();
         assert_eq!(None, scan(bytes));
     }
 
     #[test]
     fn declaration_in_one_pass() {
-        let bytes = r#"<!DOCTYPE test [<!ELEMENT test (#PCDATA)>]>"#.as_bytes();
+        let bytes = "<!DOCTYPE test [<!ELEMENT test (#PCDATA)>]>".as_bytes();
         assert_eq!(Some(Ty::Declaration(Declaration::new(bytes))), scan(bytes));
     }
 
@@ -554,9 +554,9 @@ mod tests {
     fn declaration_with_single_quotes_attribute() {
         assert_eq!(
             Some(Ty::Declaration(Declaration::new(
-                r#"<!goodbye a='val>'>"#.as_bytes()
+                "<!goodbye a='val>'>".as_bytes()
             ))),
-            scan(r#"<!goodbye a='val>'>Content"#.as_bytes())
+            scan("<!goodbye a='val>'>Content".as_bytes())
         );
     }
 
@@ -572,17 +572,15 @@ mod tests {
 
     #[test]
     fn declaration_with_closed_brackets() {
-        let bytes = r#"<![%test;[<!ELEMENT test (something*)>]]>"#.as_bytes();
+        let bytes = "<![%test;[<!ELEMENT test (something*)>]]>".as_bytes();
         assert_eq!(Some(Ty::Declaration(Declaration::new(bytes))), scan(bytes));
     }
 
     #[test]
     fn declaration_with_unclosed_single_bracket() {
         assert_eq!(
-            Some(Ty::Declaration(Declaration::new(
-                r#"<![test>>] >"#.as_bytes()
-            ))),
-            scan(r#"<![test>>] >Content"#.as_bytes())
+            Some(Ty::Declaration(Declaration::new("<![test>>] >".as_bytes()))),
+            scan("<![test>>] >Content".as_bytes())
         );
     }
 
@@ -590,23 +588,23 @@ mod tests {
     fn declaration_with_unclosed_double_bracket() {
         assert_eq!(
             Some(Ty::Declaration(Declaration::new(
-                r#"<![test>[more>>] >Content>>] >"#.as_bytes()
+                "<![test>[more>>] >Content>>] >".as_bytes()
             ))),
-            scan(r#"<![test>[more>>] >Content>>] >Content"#.as_bytes())
+            scan("<![test>[more>>] >Content>>] >Content".as_bytes())
         );
     }
 
     #[test]
     fn comment_in_one_pass() {
-        let bytes = r#"<!-- Comment -->"#.as_bytes();
+        let bytes = "<!-- Comment -->".as_bytes();
         assert_eq!(Some(Ty::Comment(Comment::new(bytes))), scan(bytes));
     }
 
     #[test]
     fn comment_with_trailing_data() {
         assert_eq!(
-            Some(Ty::Comment(Comment::new(r#"<!-- Comment -->"#.as_bytes()))),
-            scan(r#"<!-- Comment -->Content"#.as_bytes())
+            Some(Ty::Comment(Comment::new("<!-- Comment -->".as_bytes()))),
+            scan("<!-- Comment -->Content".as_bytes())
         );
     }
 
@@ -614,9 +612,9 @@ mod tests {
     fn comment_with_single_quotes_attribute() {
         assert_eq!(
             Some(Ty::Comment(Comment::new(
-                r#"<!-- goodbye a='val-->"#.as_bytes()
+                "<!-- goodbye a='val-->".as_bytes()
             ))),
-            scan(r#"<!-- goodbye a='val-->'-->Content"#.as_bytes())
+            scan("<!-- goodbye a='val-->'-->Content".as_bytes())
         );
     }
 
@@ -675,25 +673,25 @@ mod tests {
 
     #[test]
     fn comment_not_reused_dashes() {
-        let bytes = r#"<!-->-->"#.as_bytes();
+        let bytes = "<!-->-->".as_bytes();
         assert_eq!(Some(Ty::Comment(Comment::new(bytes))), scan(bytes));
     }
 
     #[test]
     fn comment_not_reused_dashes_missing_close() {
-        let bytes = r#"<!-->"#.as_bytes();
+        let bytes = "<!-->".as_bytes();
         assert_eq!(None, scan(bytes));
     }
 
     #[test]
     fn cdata() {
-        let bytes = r#"<![CDATA[ Content ]]>"#.as_bytes();
+        let bytes = "<![CDATA[ Content ]]>".as_bytes();
         assert_eq!(Some(Ty::Cdata(Cdata::new(bytes))), scan(bytes));
     }
 
     #[test]
     fn declaration_with_uneven_brackets() {
-        let bytes = r#"<![&random[ Declaration ]]]>"#.as_bytes();
+        let bytes = "<![&random[ Declaration ]]]>".as_bytes();
         assert_eq!(Some(Ty::Declaration(Declaration::new(bytes))), scan(bytes));
     }
 
@@ -717,10 +715,8 @@ mod tests {
     fn cdata_with_single_quotes() {
         // The single quote does not escape here
         assert_eq!(
-            Some(Ty::Cdata(Cdata::new(
-                r#"<![CDATA[ Content ']]>"#.as_bytes()
-            ))),
-            scan(r#"<![CDATA[ Content ']]>']]>Unused Content"#.as_bytes())
+            Some(Ty::Cdata(Cdata::new("<![CDATA[ Content ']]>".as_bytes()))),
+            scan("<![CDATA[ Content ']]>']]>Unused Content".as_bytes())
         );
     }
 

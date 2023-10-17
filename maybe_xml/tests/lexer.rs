@@ -44,9 +44,9 @@ fn tokenize_simple_1_xml() {
             Ty::Characters(Characters::from("\n".as_bytes())),
             #[cfg(target_os = "windows")]
             Ty::Characters(Characters::from("\r\n".as_bytes())),
-            Ty::StartTag(StartTag::from(r#"<document>"#.as_bytes())),
-            Ty::Characters(Characters::from(r#"Hello world!"#.as_bytes())),
-            Ty::EndTag(EndTag::from(r#"</document>"#.as_bytes())),
+            Ty::StartTag(StartTag::from("<document>".as_bytes())),
+            Ty::Characters(Characters::from("Hello world!".as_bytes())),
+            Ty::EndTag(EndTag::from("</document>".as_bytes())),
         ],
     );
 }
@@ -63,9 +63,9 @@ fn tokenize_iter_simple_1_xml() {
             Ty::Characters(Characters::from("\n".as_bytes())),
             #[cfg(target_os = "windows")]
             Ty::Characters(Characters::from("\r\n".as_bytes())),
-            Ty::StartTag(StartTag::from(r#"<document>"#.as_bytes())),
-            Ty::Characters(Characters::from(r#"Hello world!"#.as_bytes())),
-            Ty::EndTag(EndTag::from(r#"</document>"#.as_bytes())),
+            Ty::StartTag(StartTag::from("<document>".as_bytes())),
+            Ty::Characters(Characters::from("Hello world!".as_bytes())),
+            Ty::EndTag(EndTag::from("</document>".as_bytes())),
         ],
     );
 }

@@ -293,7 +293,7 @@ mod tests {
 
     #[test]
     fn quote_aware_advanced_including_empty() {
-        let bytes = r#""#.as_bytes();
+        let bytes = "".as_bytes();
         let found = quote_context_aware_find(bytes, QuoteState::None);
         assert_eq!(
             found,
@@ -303,14 +303,14 @@ mod tests {
 
     #[test]
     fn quote_aware_advanced_including_found_with_no_quotes() {
-        let bytes = r#"<?hello ?>"#.as_bytes();
+        let bytes = "<?hello ?>".as_bytes();
         let found = quote_context_aware_find(bytes, QuoteState::None);
         assert_eq!(found, QuoteContextAwareFoundState::Found(10));
     }
 
     #[test]
     fn quote_aware_advanced_including_not_found_with_no_quotes() {
-        let bytes = r#"<?hello "#.as_bytes();
+        let bytes = "<?hello ".as_bytes();
         let found = quote_context_aware_find(bytes, QuoteState::None);
         assert_eq!(
             found,
