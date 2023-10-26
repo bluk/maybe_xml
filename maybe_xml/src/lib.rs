@@ -23,9 +23,9 @@
 //! ```
 //! use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Token, Ty}};
 //!
-//! let input = b"<id>Example</id>";
+//! let input = "<id>Example</id>";
 //!
-//! let lexer = Lexer::from_slice(input);
+//! let lexer = Lexer::from_str(input);
 //!
 //! let mut iter = lexer.into_iter().map(|token| token.ty());
 //!
@@ -52,7 +52,7 @@
 //! // Note the missing closing tag character `>` in the end tag.
 //! buf.extend(b"<id>123</id");
 //!
-//! let lexer = Lexer::from_slice(&buf);
+//! let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
 //! let mut pos = 0;
 //!
 //! let token = lexer.tokenize(&mut pos).unwrap();
@@ -80,12 +80,6 @@
 //! // socket), then append the new data when it becomes available and call
 //! // tokenize again.
 //! ```
-//!
-//! # Encoding
-//!
-//! It is assumed that the data is UTF-8 encoded. There is no validation on the
-//! actual data being tokenized (e.g. there could be control characters or other
-//! data which may not be expected). Data validation is done by the library caller.
 //!
 //! # Well-formed vs. Malformed document processing
 //!

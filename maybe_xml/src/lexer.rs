@@ -25,10 +25,9 @@ pub use scanner::scan;
 /// ```
 /// use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Ty}};
 ///
-/// let mut buf = Vec::new();
-/// buf.extend(b"<id>123</id><name>Jane Doe</name>");
+/// let input = "<id>123</id><name>Jane Doe</name>";
 ///
-/// let lexer = Lexer::from_slice(&buf);
+/// let lexer = Lexer::from_str(input);
 /// let mut iter = lexer.into_iter().filter_map(|token| {
 ///     match token.ty() {
 ///         Ty::StartTag(tag) => Some(tag.name().to_str()),
@@ -52,7 +51,7 @@ pub use scanner::scan;
 /// // Note the missing closing tag character `>` in the end tag.
 /// buf.extend(b"<id>123</id");
 ///
-/// let lexer = Lexer::from_slice(&buf);
+/// let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
 /// let mut pos = 0;
 ///
 /// let token = lexer.tokenize(&mut pos).unwrap();
@@ -81,7 +80,7 @@ pub use scanner::scan;
 /// buf.extend(b">");
 ///
 /// // Start tokenizing again with the input
-/// let lexer = Lexer::from_slice(&buf);
+/// let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
 ///
 /// let token = lexer.tokenize(&mut pos).unwrap();
 /// assert_eq!(0, token.offset());
@@ -110,11 +109,34 @@ pub struct Lexer<'a> {
 }
 
 impl<'a> Lexer<'a> {
-    /// Creates a new instance with the input.
+    /// Creates a new instance from a byte slice.
+    ///
+    /// # Safety
+    ///
+    /// The bytes are assumed to represent a valid UTF-8 string. If the bytes
+    /// are not UTF-8, then any methods called on this type are undefined.
     #[inline]
     #[must_use]
-    pub const fn from_slice(input: &'a [u8]) -> Self {
+    pub const unsafe fn from_slice_unchecked(input: &'a [u8]) -> Self {
         Self { input }
+    }
+
+    /// Creates a new instance with the given UTF-8 string input.
+    #[inline]
+    #[must_use]
+    pub const fn from_str(input: &'a str) -> Self {
+        Self {
+            input: input.as_bytes(),
+        }
+    }
+
+    /// Creates a new instance with the given UTF-8 string input.
+    #[inline]
+    #[must_use]
+    pub const fn new(input: &'a str) -> Self {
+        Self {
+            input: input.as_bytes(),
+        }
     }
 
     /// Tokenizes the input starting at the given position.
@@ -126,10 +148,9 @@ impl<'a> Lexer<'a> {
     /// ```
     /// use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Ty}};
     ///
-    /// let mut buf = Vec::new();
-    /// buf.extend(b"<id>123</id>");
+    /// let input = "<id>123</id>";
     ///
-    /// let lexer = Lexer::from_slice(&buf);
+    /// let lexer = Lexer::from_str(input);
     /// let mut pos = 0;
     ///
     /// let token = lexer.tokenize(&mut pos).unwrap();
@@ -159,10 +180,9 @@ impl<'a> Lexer<'a> {
     /// ```
     /// use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Ty}};
     ///
-    /// let mut buf = Vec::new();
-    /// buf.extend(b"<id>123</id><name>Jane Doe</name>");
+    /// let input = "<id>123</id><name>Jane Doe</name>";
     ///
-    /// let lexer = Lexer::from_slice(&buf);
+    /// let lexer = Lexer::from_str(input);
     /// let mut iter = lexer.iter(0).filter_map(|token| {
     ///     match token.ty() {
     ///         Ty::StartTag(tag) => Some(tag.name().to_str()),
@@ -186,7 +206,7 @@ impl<'a> Lexer<'a> {
     /// // Note the missing closing tag character `>` in the end tag.
     /// buf.extend(b"Test<id>123</id");
     ///
-    /// let lexer = Lexer::from_slice(&buf);
+    /// let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
     ///
     /// // Start after the initial text content
     /// let pos = 4;
@@ -220,7 +240,7 @@ impl<'a> Lexer<'a> {
     /// buf.extend(b">");
     ///
     /// // Start tokenizing again with the input
-    /// let lexer = Lexer::from_slice(&buf);
+    /// let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
     ///
     /// let mut iter = lexer.iter(pos);
     ///
@@ -275,9 +295,8 @@ impl<'a> IntoIterator for Lexer<'a> {
 /// use maybe_xml::{Lexer, token::{EndTag, StartTag, Ty}};
 /// use std::io::{BufRead, BufReader};
 ///
-/// let mut input = BufReader::new(r#"<ID>Example</id><name>Jane Doe</name>"#.as_bytes());
-/// let buffer = input.fill_buf()?;
-/// let lexer = Lexer::from_slice(buffer);
+/// let input = "<ID>Example</id><name>Jane Doe</name>";
+/// let lexer = Lexer::new(input);
 ///
 /// let mut iter = lexer.into_iter()
 ///     .filter_map(|token| {
@@ -336,7 +355,7 @@ mod tests {
 
     #[test]
     fn none_on_empty() {
-        let lexer = Lexer::from_slice(&[]);
+        let lexer = Lexer::from_str("");
         let mut pos = 0;
         assert_eq!(None, lexer.tokenize(&mut pos));
     }
@@ -344,7 +363,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "start index 1 out of range")]
     fn panic_on_pos_greater_than_slice_len() {
-        let lexer = Lexer::from_slice(&[]);
+        let lexer = Lexer::from_str("");
         let mut pos = 1;
         let _ = lexer.tokenize(&mut pos);
     }
@@ -352,7 +371,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "out of range")]
     fn panic_on_pos_greater_than_slice_len_2() {
-        let lexer = Lexer::from_slice("hello".as_bytes());
+        let lexer = Lexer::from_str("hello");
         let mut pos = "hello".len() + 1;
         let _ = lexer.tokenize(&mut pos);
     }
@@ -365,7 +384,7 @@ mod tests {
         let mut buf = Vec::new();
         let mut pos = 0;
         buf.extend("Hello".as_bytes());
-        let lexer = Lexer::from_slice(&buf);
+        let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
         assert_eq!(
             Some(Token::new(
                 Ty::Characters(Characters::from("Hello".as_bytes())),
@@ -376,7 +395,7 @@ mod tests {
         assert_eq!(buf.len(), pos);
 
         buf.extend("wo".as_bytes());
-        let lexer = Lexer::from_slice(&buf);
+        let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
         assert_eq!(
             Some(Token::new(
                 Ty::Characters(Characters::from("wo".as_bytes())),
@@ -387,7 +406,7 @@ mod tests {
         assert_eq!(buf.len(), pos);
 
         buf.extend("rld!<".as_bytes());
-        let lexer = Lexer::from_slice(&buf);
+        let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
         assert_eq!(
             Some(Token::new(
                 Ty::Characters(Characters::from("rld!".as_bytes())),

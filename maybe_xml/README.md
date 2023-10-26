@@ -63,9 +63,9 @@ maybe_xml = { version = "0.6.0", default-features = false }
 ```rust
 use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Token, Ty}};
 
-let input = b"<id>Example</id>";
+let input = "<id>Example</id>";
 
-let lexer = Lexer::from_slice(input);
+let lexer = Lexer::from_str(input);
 
 let mut iter = lexer.into_iter().map(|token| token.ty());
 
@@ -92,7 +92,7 @@ let mut buf = Vec::new();
 // Note the missing closing tag character `>` in the end tag.
 buf.extend(b"<id>123</id");
 
-let lexer = Lexer::from_slice(&buf);
+let lexer = unsafe { Lexer::from_slice_unchecked(&buf) } ;
 let mut pos = 0;
 
 let token = lexer.tokenize(&mut pos).unwrap();

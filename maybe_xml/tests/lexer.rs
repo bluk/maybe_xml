@@ -5,11 +5,11 @@ use maybe_xml::{
     Lexer,
 };
 
-const SIMPLE_1_XML_BYTES: &[u8] = include_bytes!("../tests/resources/simple-1.xml");
-const SVG_1_XML_BYTES: &[u8] = include_bytes!("../tests/resources/svg-1.xml");
+const SIMPLE_1_XML: &str = include_str!("../tests/resources/simple-1.xml");
+const SVG_1_XML: &str = include_str!("../tests/resources/svg-1.xml");
 
-fn tokenize_via_iterator(bytes: &[u8], expected_tokens: &[Ty<'_>]) {
-    let lexer = Lexer::from_slice(bytes);
+fn tokenize_via_iterator(input: &str, expected_tokens: &[Ty<'_>]) {
+    let lexer = Lexer::from_str(input);
 
     for (expected_token, token) in expected_tokens.iter().zip(lexer.iter(0)) {
         assert_eq!(*expected_token, token.ty());
@@ -18,8 +18,8 @@ fn tokenize_via_iterator(bytes: &[u8], expected_tokens: &[Ty<'_>]) {
     assert_eq!(lexer.into_iter().count(), expected_tokens.len());
 }
 
-fn tokenize(bytes: &[u8], expected_tokens: &[Ty<'_>]) {
-    let lexer = Lexer::from_slice(bytes);
+fn tokenize(input: &str, expected_tokens: &[Ty<'_>]) {
+    let lexer = Lexer::from_str(input);
     let mut pos = 0;
 
     let mut expected_iter = expected_tokens.iter().copied();
@@ -28,14 +28,14 @@ fn tokenize(bytes: &[u8], expected_tokens: &[Ty<'_>]) {
         assert_eq!(Some(token.ty()), expected_iter.next());
     }
 
-    assert_eq!(pos, bytes.len());
+    assert_eq!(pos, input.len());
     assert_eq!(None, expected_iter.next());
 }
 
 #[test]
 fn tokenize_simple_1_xml() {
     tokenize(
-        SIMPLE_1_XML_BYTES,
+        SIMPLE_1_XML,
         &[
             Ty::ProcessingInstruction(ProcessingInstruction::from(
                 r#"<?xml version="1.0"?>"#.as_bytes(),
@@ -54,7 +54,7 @@ fn tokenize_simple_1_xml() {
 #[test]
 fn tokenize_iter_simple_1_xml() {
     tokenize_via_iterator(
-        SIMPLE_1_XML_BYTES,
+        SIMPLE_1_XML,
         &[
             Ty::ProcessingInstruction(ProcessingInstruction::from(
                 r#"<?xml version="1.0"?>"#.as_bytes(),
@@ -73,7 +73,7 @@ fn tokenize_iter_simple_1_xml() {
 #[test]
 fn tokenize_svg_1_xml() {
     tokenize(
-        SVG_1_XML_BYTES,
+        SVG_1_XML,
         #[cfg(not(target_os = "windows"))]
         &[
             Ty::ProcessingInstruction(ProcessingInstruction::from(
@@ -108,7 +108,7 @@ fn tokenize_svg_1_xml() {
 #[test]
 fn tokenize_iter_svg_1_xml() {
     tokenize_via_iterator(
-        SVG_1_XML_BYTES,
+        SVG_1_XML,
         #[cfg(not(target_os = "windows"))]
         &[
             Ty::ProcessingInstruction(ProcessingInstruction::from(
