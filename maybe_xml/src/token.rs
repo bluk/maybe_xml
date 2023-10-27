@@ -163,6 +163,59 @@ impl<'a> Ty<'a> {
     pub const fn len(&self) -> usize {
         self.as_bytes().len()
     }
+
+    /// The token represented as a str.
+    ///
+    /// # Errors
+    ///
+    /// If the bytes are not a UTF-8 string.
+    pub fn to_str(&self) -> Result<&'a str, core::str::Utf8Error> {
+        match self {
+            Ty::StartTag(v) => v.to_str(),
+            Ty::EmptyElementTag(v) => v.to_str(),
+            Ty::EndTag(v) => v.to_str(),
+            Ty::Characters(v) => v.to_str(),
+            Ty::ProcessingInstruction(v) => v.to_str(),
+            Ty::Declaration(v) => v.to_str(),
+            Ty::Comment(v) => v.to_str(),
+            Ty::Cdata(v) => v.to_str(),
+        }
+    }
+
+    /// The token represented as a str.
+    ///
+    /// # Safety
+    ///
+    /// The underlying bytes are assumed to be UTF-8. If the bytes are
+    /// not valid UTF-8, then the behavior is undefined.
+    #[must_use]
+    pub const unsafe fn as_str_unchecked(&self) -> &'a str {
+        match self {
+            Ty::StartTag(v) => v.as_str_unchecked(),
+            Ty::EmptyElementTag(v) => v.as_str_unchecked(),
+            Ty::EndTag(v) => v.as_str_unchecked(),
+            Ty::Characters(v) => v.as_str_unchecked(),
+            Ty::ProcessingInstruction(v) => v.as_str_unchecked(),
+            Ty::Declaration(v) => v.as_str_unchecked(),
+            Ty::Comment(v) => v.as_str_unchecked(),
+            Ty::Cdata(v) => v.as_str_unchecked(),
+        }
+    }
+
+    /// Returns the underlying slice.
+    #[must_use]
+    pub const fn into_inner(self) -> &'a [u8] {
+        match self {
+            Ty::StartTag(v) => v.into_inner(),
+            Ty::EmptyElementTag(v) => v.into_inner(),
+            Ty::EndTag(v) => v.into_inner(),
+            Ty::Characters(v) => v.into_inner(),
+            Ty::ProcessingInstruction(v) => v.into_inner(),
+            Ty::Declaration(v) => v.into_inner(),
+            Ty::Comment(v) => v.into_inner(),
+            Ty::Cdata(v) => v.into_inner(),
+        }
+    }
 }
 
 /// A start tag for an element.
