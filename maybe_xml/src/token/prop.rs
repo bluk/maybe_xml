@@ -31,7 +31,20 @@ macro_rules! converters {
             /// If the bytes are not a UTF-8 string.
             #[inline]
             pub fn to_str(&self) -> Result<&'a str, str::Utf8Error> {
+                // Cannot be const until MSRV is at least 1.63.0
                 str::from_utf8(&self.0)
+            }
+
+            /// The token property represented as a str.
+            ///
+            /// # Safety
+            ///
+            /// The underlying bytes are assumed to be UTF-8. If the bytes are
+            /// not valid UTF-8, then the behavior is undefined.
+            #[inline]
+            #[must_use]
+            pub const unsafe fn as_str_unchecked(&self) -> &'a str {
+                core::str::from_utf8_unchecked(&self.0)
             }
 
             /// Returns the underlying slice.
