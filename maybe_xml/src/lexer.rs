@@ -165,7 +165,7 @@ impl<'a> Lexer<'a> {
         let bytes = &self.input[*pos..];
         let ty = scan(bytes)?;
         let token = Token::new(ty, *pos);
-        *pos += token.len();
+        *pos += token.ty().len();
         Some(token)
     }
 
@@ -217,13 +217,13 @@ impl<'a> Lexer<'a> {
     /// assert_eq!(4, token.offset());
     /// assert_eq!(Ty::StartTag(StartTag::from("<id>".as_bytes())), token.ty());
     ///
-    /// let pos = token.offset() + token.len();
+    /// let pos = token.offset() + token.ty().len();
     ///
     /// let token = iter.next().unwrap();
     /// assert_eq!(8, token.offset());
     /// assert_eq!(Ty::Characters(Characters::from("123".as_bytes())), token.ty());
     ///
-    /// let pos = token.offset() + token.len();
+    /// let pos = token.offset() + token.ty().len();
     ///
     /// let token = iter.next();
     /// // The last token is incomplete because it is missing the `>`
@@ -248,7 +248,7 @@ impl<'a> Lexer<'a> {
     /// assert_eq!(0, token.offset());
     /// assert_eq!(Ty::EndTag(EndTag::from("</id>".as_bytes())), token.ty());
     ///
-    /// let pos = token.offset() + token.len();
+    /// let pos = token.offset() + token.ty().len();
     ///
     /// // Position was assigned to the index after the end of the token
     /// assert_eq!(5, pos);

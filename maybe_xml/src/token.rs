@@ -45,14 +45,6 @@ impl<'a> Token<'a> {
     pub const fn offset(&self) -> usize {
         self.offset
     }
-
-    /// Returns the length of the token in bytes.
-    #[allow(clippy::len_without_is_empty)]
-    #[inline]
-    #[must_use]
-    pub const fn len(&self) -> usize {
-        self.ty.len()
-    }
 }
 
 macro_rules! converters {
