@@ -35,11 +35,13 @@ pub use scanner::scan;
 ///     }
 /// });
 ///
-/// let name = iter.next().unwrap();
-/// assert_eq!(Ok("id"), name);
+/// let name = iter.next();
+/// assert_eq!(Some(Ok("id")), name);
 ///
-/// let name = iter.next().unwrap();
-/// assert_eq!(Ok("name"), name);
+/// let name = iter.next();
+/// assert_eq!(Some(Ok("name")), name);
+///
+/// assert_eq!(None, iter.next());
 /// ```
 ///
 /// ## Using [`Lexer::tokenize()`][Lexer::tokenize()] directly
@@ -54,16 +56,14 @@ pub use scanner::scan;
 /// let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
 /// let mut pos = 0;
 ///
-/// let token = lexer.tokenize(&mut pos).unwrap();
-/// assert_eq!(0, token.offset());
-/// assert_eq!(Ty::StartTag(StartTag::from("<id>".as_bytes())), token.ty());
+/// let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
+/// assert_eq!(Some(Ty::StartTag(StartTag::from("<id>".as_bytes()))), ty);
 ///
 /// // Position was assigned to the index after the end of the token
 /// assert_eq!(4, pos);
 ///
-/// let token = lexer.tokenize(&mut pos).unwrap();
-/// assert_eq!(4, token.offset());
-/// assert_eq!(Ty::Characters(Characters::from("123".as_bytes())), token.ty());
+/// let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
+/// assert_eq!(Some(Ty::Characters(Characters::from("123".as_bytes()))), ty);
 ///
 /// // Position was assigned to the index after the end of the token
 /// assert_eq!(7, pos);
@@ -82,9 +82,8 @@ pub use scanner::scan;
 /// // Start tokenizing again with the input
 /// let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
 ///
-/// let token = lexer.tokenize(&mut pos).unwrap();
-/// assert_eq!(0, token.offset());
-/// assert_eq!(Ty::EndTag(EndTag::from("</id>".as_bytes())), token.ty());
+/// let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
+/// assert_eq!(Some(Ty::EndTag(EndTag::from("</id>".as_bytes()))), ty);
 ///
 /// // Position was assigned to the index after the end of the token
 /// assert_eq!(5, pos);
@@ -153,9 +152,8 @@ impl<'a> Lexer<'a> {
     /// let lexer = Lexer::from_str(input);
     /// let mut pos = 0;
     ///
-    /// let token = lexer.tokenize(&mut pos).unwrap();
-    /// assert_eq!(0, token.offset());
-    /// assert_eq!(Ty::StartTag(StartTag::from("<id>".as_bytes())), token.ty());
+    /// let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
+    /// assert_eq!(Some(Ty::StartTag(StartTag::from("<id>".as_bytes()))), ty);
     ///
     /// // Position was assigned to the index after the end of the token
     /// assert_eq!(4, pos);
@@ -164,7 +162,7 @@ impl<'a> Lexer<'a> {
     pub fn tokenize(&self, pos: &mut usize) -> Option<Token<'a>> {
         let bytes = &self.input[*pos..];
         let ty = scan(bytes)?;
-        let token = Token::new(ty, *pos);
+        let token = Token::new(ty);
         *pos += token.ty().len();
         Some(token)
     }
@@ -190,11 +188,13 @@ impl<'a> Lexer<'a> {
     ///     }
     /// });
     ///
-    /// let name = iter.next().unwrap();
-    /// assert_eq!(Ok("id"), name);
+    /// let name = iter.next();
+    /// assert_eq!(Some(Ok("id")), name);
     ///
-    /// let name = iter.next().unwrap();
-    /// assert_eq!(Ok("name"), name);
+    /// let name = iter.next();
+    /// assert_eq!(Some(Ok("name")), name);
+    ///
+    /// assert_eq!(None, iter.next());
     /// ```
     ///
     /// ## Considerations during iteration
@@ -213,17 +213,15 @@ impl<'a> Lexer<'a> {
     ///
     /// let mut iter = lexer.iter(pos);
     ///
-    /// let token = iter.next().unwrap();
-    /// assert_eq!(4, token.offset());
-    /// assert_eq!(Ty::StartTag(StartTag::from("<id>".as_bytes())), token.ty());
+    /// let ty = iter.next().map(|token| token.ty());
+    /// assert_eq!(Some(Ty::StartTag(StartTag::from("<id>".as_bytes()))), ty);
     ///
-    /// let pos = token.offset() + token.ty().len();
+    /// let pos = pos + ty.map(|ty| ty.len()).unwrap_or_default();
     ///
-    /// let token = iter.next().unwrap();
-    /// assert_eq!(8, token.offset());
-    /// assert_eq!(Ty::Characters(Characters::from("123".as_bytes())), token.ty());
+    /// let ty = iter.next().map(|token| token.ty());
+    /// assert_eq!(Some(Ty::Characters(Characters::from("123".as_bytes()))), ty);
     ///
-    /// let pos = token.offset() + token.ty().len();
+    /// let pos = pos + ty.map(|ty| ty.len()).unwrap_or_default();
     ///
     /// let token = iter.next();
     /// // The last token is incomplete because it is missing the `>`
@@ -244,11 +242,10 @@ impl<'a> Lexer<'a> {
     ///
     /// let mut iter = lexer.iter(pos);
     ///
-    /// let token = iter.next().unwrap();
-    /// assert_eq!(0, token.offset());
-    /// assert_eq!(Ty::EndTag(EndTag::from("</id>".as_bytes())), token.ty());
+    /// let ty = iter.next().map(|token| token.ty());
+    /// assert_eq!(Some(Ty::EndTag(EndTag::from("</id>".as_bytes()))), ty);
     ///
-    /// let pos = token.offset() + token.ty().len();
+    /// let pos = pos + ty.map(|ty| ty.len()).unwrap_or_default();
     ///
     /// // Position was assigned to the index after the end of the token
     /// assert_eq!(5, pos);
@@ -386,10 +383,9 @@ mod tests {
         buf.extend("Hello".as_bytes());
         let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
         assert_eq!(
-            Some(Token::new(
-                Ty::Characters(Characters::from("Hello".as_bytes())),
-                0
-            )),
+            Some(Token::new(Ty::Characters(Characters::from(
+                "Hello".as_bytes()
+            )),)),
             lexer.tokenize(&mut pos)
         );
         assert_eq!(buf.len(), pos);
@@ -397,10 +393,9 @@ mod tests {
         buf.extend("wo".as_bytes());
         let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
         assert_eq!(
-            Some(Token::new(
-                Ty::Characters(Characters::from("wo".as_bytes())),
-                5,
-            )),
+            Some(Token::new(Ty::Characters(Characters::from(
+                "wo".as_bytes()
+            )),)),
             lexer.tokenize(&mut pos)
         );
         assert_eq!(buf.len(), pos);
@@ -408,10 +403,9 @@ mod tests {
         buf.extend("rld!<".as_bytes());
         let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
         assert_eq!(
-            Some(Token::new(
-                Ty::Characters(Characters::from("rld!".as_bytes())),
-                7,
-            )),
+            Some(Token::new(Ty::Characters(Characters::from(
+                "rld!".as_bytes()
+            )),)),
             lexer.tokenize(&mut pos)
         );
         assert_eq!(buf.len() - 1, pos);

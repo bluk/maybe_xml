@@ -20,16 +20,14 @@ use prop::{Attributes, Content, Instructions, TagName, Target};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Token<'a> {
     ty: Ty<'a>,
-    offset: usize,
 }
 
 impl<'a> Token<'a> {
-    /// Instantiates a new instance with the token type and the position where
-    /// the token starts in the original input.
+    /// Instantiates a new instance with the token type.
     #[inline]
     #[must_use]
-    pub const fn new(ty: Ty<'a>, offset: usize) -> Self {
-        Self { ty, offset }
+    pub const fn new(ty: Ty<'a>) -> Self {
+        Self { ty }
     }
 
     /// Returns the token type.
@@ -37,13 +35,6 @@ impl<'a> Token<'a> {
     #[must_use]
     pub const fn ty(&self) -> Ty<'a> {
         self.ty
-    }
-
-    /// Returns the byte offset in the original input where the token starts.
-    #[inline]
-    #[must_use]
-    pub const fn offset(&self) -> usize {
-        self.offset
     }
 }
 

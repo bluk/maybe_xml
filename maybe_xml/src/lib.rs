@@ -21,7 +21,7 @@
 //! ## Using [`Iterator`] functionality
 //!
 //! ```
-//! use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Token, Ty}};
+//! use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Ty}};
 //!
 //! let input = "<id>Example</id>";
 //!
@@ -55,22 +55,23 @@
 //! let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
 //! let mut pos = 0;
 //!
-//! let token = lexer.tokenize(&mut pos).unwrap();
-//! assert_eq!(0, token.offset());
-//! assert_eq!(Ty::StartTag(StartTag::from("<id>".as_bytes())), token.ty());
+//! let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
+//! assert_eq!(Some(Ty::StartTag(StartTag::from("<id>".as_bytes()))), ty);
 //!
-//! let token = lexer.tokenize(&mut pos).unwrap();
-//! assert_eq!(4, token.offset());
-//! assert_eq!(Ty::Characters(Characters::from("123".as_bytes())), token.ty());
+//! // Position was assigned to the index after the end of the token
+//! assert_eq!(4, pos);
+//!
+//! let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
+//! assert_eq!(Some(Ty::Characters(Characters::from("123".as_bytes()))), ty);
+//!
+//! // Position was assigned to the index after the end of the token
+//! assert_eq!(7, pos);
 //!
 //! let token = lexer.tokenize(&mut pos);
 //! // The last token is incomplete because it is missing the `>`
 //! assert_eq!(None, token);
 //!
-//! // The position was updated as tokenize() was called
-//! assert_eq!(7, pos);
-//!
-//! // Remove the tokenized data and reset the position
+//! // Discard the tokenized input
 //! buf.drain(..pos);
 //! pos = 0;
 //!
