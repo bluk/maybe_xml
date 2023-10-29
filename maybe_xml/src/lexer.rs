@@ -162,7 +162,7 @@ impl<'a> Lexer<'a> {
     pub fn tokenize(&self, pos: &mut usize) -> Option<Token<'a>> {
         let bytes = &self.input[*pos..];
         let ty = scan(bytes)?;
-        let token = Token::new(ty);
+        let token = Token::new(ty.as_bytes());
         *pos += token.ty().len();
         Some(token)
     }
@@ -347,9 +347,6 @@ mod tests {
     #[cfg(feature = "std")]
     use std::vec::Vec;
 
-    #[cfg(any(feature = "std", feature = "alloc"))]
-    use crate::token::Ty;
-
     #[test]
     fn none_on_empty() {
         let lexer = Lexer::from_str("");
@@ -376,36 +373,25 @@ mod tests {
     #[cfg(any(feature = "std", feature = "alloc"))]
     #[test]
     fn text_content() {
-        use crate::token::Characters;
-
         let mut buf = Vec::new();
         let mut pos = 0;
         buf.extend("Hello".as_bytes());
         let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
         assert_eq!(
-            Some(Token::new(Ty::Characters(Characters::from(
-                "Hello".as_bytes()
-            )),)),
+            Some(Token::new("Hello".as_bytes())),
             lexer.tokenize(&mut pos)
         );
         assert_eq!(buf.len(), pos);
 
         buf.extend("wo".as_bytes());
         let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
-        assert_eq!(
-            Some(Token::new(Ty::Characters(Characters::from(
-                "wo".as_bytes()
-            )),)),
-            lexer.tokenize(&mut pos)
-        );
+        assert_eq!(Some(Token::new("wo".as_bytes())), lexer.tokenize(&mut pos));
         assert_eq!(buf.len(), pos);
 
         buf.extend("rld!<".as_bytes());
         let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
         assert_eq!(
-            Some(Token::new(Ty::Characters(Characters::from(
-                "rld!".as_bytes()
-            )),)),
+            Some(Token::new("rld!".as_bytes())),
             lexer.tokenize(&mut pos)
         );
         assert_eq!(buf.len() - 1, pos);

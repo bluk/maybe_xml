@@ -19,22 +19,58 @@ use prop::{Attributes, Content, Instructions, TagName, Target};
 /// A slice of bytes which is identified as a specific token type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Token<'a> {
-    ty: Ty<'a>,
+    bytes: &'a [u8],
 }
 
 impl<'a> Token<'a> {
     /// Instantiates a new instance with the token type.
     #[inline]
     #[must_use]
-    pub const fn new(ty: Ty<'a>) -> Self {
-        Self { ty }
+    pub const fn new(bytes: &'a [u8]) -> Self {
+        Self { bytes }
     }
 
     /// Returns the token type.
     #[inline]
     #[must_use]
     pub const fn ty(&self) -> Ty<'a> {
-        self.ty
+        if self.bytes[0] != b'<' {
+            return Ty::Characters(Characters(self.bytes));
+        }
+
+        match self.bytes[1] {
+            b'/' => return Ty::EndTag(EndTag(self.bytes)),
+            b'?' => return Ty::ProcessingInstruction(ProcessingInstruction(self.bytes)),
+            b'!' => {
+                match self.bytes[2] {
+                    b'-' => {
+                        if self.bytes[3] == b'-' {
+                            return Ty::Comment(Comment(self.bytes));
+                        }
+                    }
+                    b'[' => {
+                        if self.bytes.len() > b"<![CDATA[".len()
+                            && self.bytes[3] == b'C'
+                            && self.bytes[4] == b'D'
+                            && self.bytes[5] == b'A'
+                            && self.bytes[6] == b'T'
+                            && self.bytes[7] == b'A'
+                            && self.bytes[8] == b'['
+                        {
+                            return Ty::Cdata(Cdata(self.bytes));
+                        }
+                    }
+                    _ => {}
+                }
+                return Ty::Declaration(Declaration(self.bytes));
+            }
+            _ => {
+                if self.bytes[self.bytes.len() - 2] == b'/' {
+                    return Ty::EmptyElementTag(EmptyElementTag(self.bytes));
+                }
+                return Ty::StartTag(StartTag(self.bytes));
+            }
+        }
     }
 }
 
