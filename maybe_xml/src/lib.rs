@@ -121,4 +121,4 @@ mod lexer;
 pub mod scanner;
 pub mod token;
 
-pub use lexer::{scan, Lexer};
+pub use lexer::Lexer;

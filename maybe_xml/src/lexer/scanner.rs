@@ -326,58 +326,9 @@ fn scan_cdata(input: &[u8]) -> Option<Ty<'_>> {
 /// usually indicates an error has occurred.
 ///
 /// The function does not carry any state.
-///
-/// # Examples
-///
-/// ```
-/// use maybe_xml::token::{Characters, StartTag, Token, Ty};
-///
-/// let mut buffer = Vec::new();
-/// buffer.extend(b"<h");
-///
-/// // The scan cannot find a completed token so `None` is returned.
-/// // If there is additional data, append it to the buffer and scan again.
-/// assert_eq!(None, maybe_xml::scan(&buffer));
-///
-/// // In an I/O loop (for example), additional data may arrive, so append it to
-/// // the existing unprocessed slice of data.
-/// buffer.extend(b"ello>Text Content");
-///
-/// let token = maybe_xml::scan(&buffer);
-/// assert_eq!(
-///     Some(Ty::StartTag(StartTag::from("<hello>"))),
-///     token
-/// );
-///
-/// let token = token.unwrap();
-/// let bytes = &buffer[..token.len()];
-/// assert_eq!(b"<hello>", bytes);
-/// assert_eq!(
-///     Ok("hello"),
-///     StartTag::from(bytes).name().to_str()
-/// );
-///
-/// // Discard the processed data
-/// buffer.drain(..token.len());
-///
-/// // Scan the remaining data
-/// let token = maybe_xml::scan(&buffer);
-/// assert_eq!(
-///     Some(Ty::Characters(Characters::from("Text Content"))),
-///     token
-/// );
-///
-/// let token = token.unwrap();
-/// buffer.drain(..token.len());
-/// assert!(buffer.is_empty());
-///
-/// // If there is no additional data (e.g. end of file is reached), then check
-/// // that the buffer is empty. If it is not empty, then there is unprocessed
-/// // data which cannot be scanned into a complete token. The left over data
-/// // usually indicates an error has occurred.
 /// ```
 #[must_use]
-pub fn scan(input: &[u8]) -> Option<Ty<'_>> {
+pub(super) fn scan(input: &[u8]) -> Option<Ty<'_>> {
     match bytes::peek(input) {
         None => None,
         Some(b'<') => scan_markup(input),

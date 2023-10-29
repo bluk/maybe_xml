@@ -6,7 +6,7 @@ use crate::token::Token;
 
 mod scanner;
 
-pub use scanner::scan;
+use scanner::scan;
 
 /// Tokenizes XML input into a [`Token`].
 ///
