@@ -5,45 +5,6 @@ const SVG_1: &str = include_str!("../../maybe_xml/tests/resources/svg-1.xml");
 const RSS_1: &str = include_str!("../../maybe_xml/tests/resources/rss-1.xml");
 const LARGE_1: &str = include_str!("../../maybe_xml/tests/resources/large-1.xml");
 
-fn scanner_scan(input: &str) -> usize {
-    use maybe_xml::scanner::{Scanner, State};
-
-    let mut count = 0;
-
-    let mut bytes = input.as_bytes();
-    let mut scanner = Scanner::new();
-    while let Some(state) = scanner.scan(bytes) {
-        match state {
-            State::ScanningMarkup
-            | State::ScanningStartOrEmptyElementTag
-            | State::ScanningCharacters
-            | State::ScanningEndTag
-            | State::ScanningProcessingInstruction
-            | State::ScanningDeclarationCommentOrCdata
-            | State::ScanningDeclaration
-            | State::ScanningComment
-            | State::ScanningCdata => {
-                bytes = &bytes[bytes.len()..];
-            }
-            State::ScannedEmptyElementTag(read)
-            | State::ScannedEndTag(read)
-            | State::ScannedProcessingInstruction(read)
-            | State::ScannedCharacters(read)
-            | State::ScannedDeclaration(read)
-            | State::ScannedComment(read)
-            | State::ScannedCdata(read) => {
-                bytes = &bytes[read..];
-            }
-            State::ScannedStartTag(read) => {
-                bytes = &bytes[read..];
-                count += 1;
-            }
-        }
-    }
-
-    count
-}
-
 fn lexer_into_iter(input: &str) -> u64 {
     use maybe_xml::{token::Ty, Lexer};
 
@@ -68,31 +29,6 @@ fn lexer_into_iter(input: &str) -> u64 {
 
 #[allow(clippy::too_many_lines)]
 fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function("parser_parse_simple_xml_1", |b| {
-        b.iter(|| {
-            let count = scanner_scan(SIMPLE_1);
-            assert_eq!(1, count);
-        });
-    });
-    c.bench_function("parser_parse_svg_1", |b| {
-        b.iter(|| {
-            let count = scanner_scan(SVG_1);
-            assert_eq!(1, count);
-        });
-    });
-    c.bench_function("parser_parse_rss_1", |b| {
-        b.iter(|| {
-            let count = scanner_scan(RSS_1);
-            assert_eq!(36, count);
-        });
-    });
-    c.bench_function("scanner_scan_large_1", |b| {
-        b.iter(|| {
-            let count = scanner_scan(LARGE_1);
-            assert_eq!(9885, count);
-        });
-    });
-
     c.bench_function("lexer_into_iter_simple_xml_1", |b| {
         b.iter(|| {
             let count = lexer_into_iter(SIMPLE_1);
