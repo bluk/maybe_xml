@@ -161,8 +161,8 @@ impl<'a> Lexer<'a> {
     #[must_use]
     pub fn tokenize(&self, pos: &mut usize) -> Option<Token<'a>> {
         let bytes = &self.input[*pos..];
-        let ty = scan(bytes)?;
-        let token = Token::new(ty.as_bytes());
+        let bytes = scan(bytes)?;
+        let token = Token::new(bytes);
         *pos += token.ty().len();
         Some(token)
     }
@@ -340,6 +340,11 @@ impl<'a> Iterator for IntoIter<'a> {
 
 #[cfg(test)]
 mod tests {
+    use crate::token::{
+        Cdata, Characters, Comment, Declaration, EmptyElementTag, EndTag, ProcessingInstruction,
+        StartTag, Ty,
+    };
+
     use super::*;
 
     #[cfg(all(feature = "alloc", not(feature = "std")))]
@@ -352,6 +357,7 @@ mod tests {
         let lexer = Lexer::from_str("");
         let mut pos = 0;
         assert_eq!(None, lexer.tokenize(&mut pos));
+        assert_eq!(0, pos);
     }
 
     #[test]
@@ -395,5 +401,466 @@ mod tests {
             lexer.tokenize(&mut pos)
         );
         assert_eq!(buf.len() - 1, pos);
+    }
+
+    fn verify_tokenize_all(input: &str, expected: &[Ty<'_>]) {
+        verify_tokenize(input, 0, expected, input.len());
+    }
+
+    fn verify_tokenize(input: &str, mut pos: usize, expected: &[Ty<'_>], end: usize) {
+        let lexer = Lexer::from_str(input);
+
+        for e in expected.iter().copied() {
+            assert_eq!(Some(e), lexer.tokenize(&mut pos).map(|token| token.ty()));
+        }
+
+        assert_eq!(None, lexer.tokenize(&mut pos));
+        assert_eq!(pos, end);
+    }
+
+    #[test]
+    fn characters() {
+        verify_tokenize_all("Hello", &[Ty::Characters(Characters::new(b"Hello"))]);
+        verify_tokenize_all(" wo", &[Ty::Characters(Characters::new(b" wo"))]);
+        verify_tokenize("rld!<", 0, &[Ty::Characters(Characters::new(b"rld!"))], 4);
+    }
+
+    #[test]
+    fn incomplete_start_of_markup() {
+        verify_tokenize("<", 0, &[], 0);
+    }
+
+    #[test]
+    fn start_tag() {
+        let input = "<hello>";
+        verify_tokenize_all(input, &[Ty::StartTag(StartTag::new(input.as_bytes()))]);
+    }
+
+    #[test]
+    fn start_tag_with_more_at_end() {
+        let input = "<hello>Content";
+        verify_tokenize_all(
+            input,
+            &[
+                Ty::StartTag(StartTag::new(b"<hello>")),
+                Ty::Characters(Characters::new(b"Content")),
+            ],
+        );
+    }
+
+    #[test]
+    fn start_tag_with_single_quotes_attribute() {
+        let input = "<hello a='val>'>Content";
+        verify_tokenize_all(
+            input,
+            &[
+                Ty::StartTag(StartTag::new(b"<hello a='val>'>")),
+                Ty::Characters(Characters::new(b"Content")),
+            ],
+        );
+    }
+
+    #[test]
+    fn start_tag_with_double_quotes_attribute() {
+        let input = r#"<hello a="val>">"#;
+        verify_tokenize_all(input, &[Ty::StartTag(StartTag::new(input.as_bytes()))]);
+    }
+
+    #[test]
+    fn empty_element_tag() {
+        let input = "<hello/>";
+        verify_tokenize_all(
+            input,
+            &[Ty::EmptyElementTag(EmptyElementTag::new(input.as_bytes()))],
+        );
+    }
+
+    #[test]
+    fn empty_element_tag_space_after_slash_means_start_tag() {
+        let input = "<hello / >";
+        verify_tokenize_all(input, &[Ty::StartTag(StartTag::new(input.as_bytes()))]);
+    }
+
+    #[test]
+    fn empty_element_tag_with_double_quotes_attribute() {
+        let input = r#"<hello a="val/>"/>"#;
+        verify_tokenize_all(
+            input,
+            &[Ty::EmptyElementTag(EmptyElementTag::new(input.as_bytes()))],
+        );
+    }
+
+    #[test]
+    fn empty_element_tag_with_last_slash_means_start_tag() {
+        let input = "<hello/ invalid>";
+        verify_tokenize_all(input, &[Ty::StartTag(StartTag::new(input.as_bytes()))]);
+    }
+
+    #[test]
+    fn end_tag() {
+        let input = "</goodbye>";
+        verify_tokenize_all(input, &[Ty::EndTag(EndTag::new(input.as_bytes()))]);
+    }
+
+    #[test]
+    fn end_tag_with_single_quotes_attribute() {
+        let input = "</goodbye a='val>'>Content";
+        verify_tokenize_all(
+            input,
+            &[
+                Ty::EndTag(EndTag::new(b"</goodbye a='val>'>")),
+                Ty::Characters(Characters::new(b"Content")),
+            ],
+        );
+    }
+
+    #[test]
+    fn end_tag_with_double_quotes_attribute() {
+        let input = r#"</goodbye a="val>">Content"#;
+        verify_tokenize_all(
+            input,
+            &[
+                Ty::EndTag(EndTag::new(b"</goodbye a=\"val>\">")),
+                Ty::Characters(Characters::new(b"Content")),
+            ],
+        );
+    }
+
+    #[test]
+    fn processing_instruction() {
+        let input = r#"<?test a="b" ?>"#;
+        verify_tokenize_all(
+            input,
+            &[Ty::ProcessingInstruction(ProcessingInstruction::new(
+                input.as_bytes(),
+            ))],
+        );
+    }
+
+    #[test]
+    fn processing_instruction_with_broken_delimiter() {
+        let input = r#"<?test? > a="v"?>"#;
+        verify_tokenize_all(
+            input,
+            &[Ty::ProcessingInstruction(ProcessingInstruction::new(
+                input.as_bytes(),
+            ))],
+        );
+    }
+
+    #[test]
+    fn pi_with_single_quotes_attribute() {
+        let input = "<?goodbye a='val>'?>Content";
+        verify_tokenize_all(
+            input,
+            &[
+                Ty::ProcessingInstruction(ProcessingInstruction::new(b"<?goodbye a='val>'?>")),
+                Ty::Characters(Characters::new(b"Content")),
+            ],
+        );
+    }
+
+    #[test]
+    fn pi_with_double_quotes_attribute() {
+        let input = r#"<?goodbye a="val>"?>Content"#;
+        verify_tokenize_all(
+            input,
+            &[
+                Ty::ProcessingInstruction(ProcessingInstruction::new(b"<?goodbye a=\"val>\"?>")),
+                Ty::Characters(Characters::new(b"Content")),
+            ],
+        );
+    }
+
+    #[test]
+    fn pi_not_reuse_question_mark() {
+        // The '>' byte here is treated as part of the tag's content because a "?>" is expected
+        let input = "<?>";
+        verify_tokenize(input, 0, &[], 0);
+    }
+
+    #[test]
+    fn declaration_in_one_pass() {
+        let input = "<!DOCTYPE test [<!ELEMENT test (#PCDATA)>]>";
+        verify_tokenize_all(
+            input,
+            &[Ty::Declaration(Declaration::new(input.as_bytes()))],
+        );
+    }
+
+    #[test]
+    fn declaration_with_single_quotes_attribute() {
+        let input = "<!goodbye a='val>'>Content";
+        verify_tokenize_all(
+            input,
+            &[
+                Ty::Declaration(Declaration::new(b"<!goodbye a='val>'>")),
+                Ty::Characters(Characters::new(b"Content")),
+            ],
+        );
+    }
+
+    #[test]
+    fn declaration_with_double_quotes_attribute() {
+        let input = r#"<!goodbye a="val>">Content"#;
+        verify_tokenize_all(
+            input,
+            &[
+                Ty::Declaration(Declaration::new(b"<!goodbye a=\"val>\">")),
+                Ty::Characters(Characters::new(b"Content")),
+            ],
+        );
+    }
+
+    #[test]
+    fn declaration_with_closed_brackets() {
+        let input = "<![%test;[<!ELEMENT test (something*)>]]>";
+        verify_tokenize_all(
+            input,
+            &[Ty::Declaration(Declaration::new(
+                b"<![%test;[<!ELEMENT test (something*)>]]>",
+            ))],
+        );
+    }
+
+    #[test]
+    fn declaration_with_unclosed_single_bracket() {
+        let input = "<![test>>] >Content";
+        verify_tokenize_all(
+            input,
+            &[
+                Ty::Declaration(Declaration::new(b"<![test>>] >")),
+                Ty::Characters(Characters::new(b"Content")),
+            ],
+        );
+    }
+
+    #[test]
+    fn declaration_with_unclosed_double_bracket() {
+        let input = "<![test>[more>>] >Content>>] >Content";
+        verify_tokenize_all(
+            input,
+            &[
+                Ty::Declaration(Declaration::new(b"<![test>[more>>] >Content>>] >")),
+                Ty::Characters(Characters::new(b"Content")),
+            ],
+        );
+    }
+
+    #[test]
+    fn comment_in_one_pass() {
+        let input = "<!-- Comment -->";
+        verify_tokenize_all(input, &[Ty::Comment(Comment::new(b"<!-- Comment -->"))]);
+    }
+
+    #[test]
+    fn comment_with_trailing_data() {
+        let input = "<!-- Comment -->Content";
+        verify_tokenize_all(
+            input,
+            &[
+                Ty::Comment(Comment::new(b"<!-- Comment -->")),
+                Ty::Characters(Characters::new(b"Content")),
+            ],
+        );
+    }
+
+    #[test]
+    fn comment_with_single_quotes_attribute() {
+        let input = "<!-- goodbye a='val-->Content";
+        verify_tokenize_all(
+            input,
+            &[
+                Ty::Comment(Comment::new(b"<!-- goodbye a='val-->")),
+                Ty::Characters(Characters::new(b"Content")),
+            ],
+        );
+    }
+
+    #[test]
+    fn comment_with_double_quotes_attribute() {
+        let input = r#"<!-- goodbye a="val-->Content"#;
+        verify_tokenize_all(
+            input,
+            &[
+                Ty::Comment(Comment::new(b"<!-- goodbye a=\"val-->")),
+                Ty::Characters(Characters::new(b"Content")),
+            ],
+        );
+    }
+
+    #[test]
+    fn comment_with_invalid_start_means_declaration() {
+        let input = r#"<!-goodbye a="-->val-->">Content"#;
+        verify_tokenize_all(
+            input,
+            &[
+                Ty::Declaration(Declaration::new(b"<!-goodbye a=\"-->val-->\">")),
+                Ty::Characters(Characters::new(b"Content")),
+            ],
+        );
+    }
+
+    #[test]
+    fn comment_with_double_dash_inside() {
+        let input = r#"<!--goodbye a="--"#;
+        verify_tokenize(input, 0, &[], 0);
+
+        let input = r#"<!--goodbye a="--val-->"-- test -->Content"#;
+        verify_tokenize_all(
+            input,
+            &[
+                Ty::Comment(Comment::new(b"<!--goodbye a=\"--val-->")),
+                Ty::Characters(Characters::new(b"\"-- test -->Content")),
+            ],
+        );
+    }
+
+    #[test]
+    fn comment_with_single_dash() {
+        let input = r#"<!--goodbye a="--"#;
+        verify_tokenize(input, 0, &[], 0);
+
+        let input = r#"<!--goodbye a="--val--" test ->Content"#;
+        verify_tokenize(input, 0, &[], 0);
+
+        let input = r#"<!--goodbye a="--val--" test ->ContentMore -->Real Content"#;
+        verify_tokenize_all(
+            input,
+            &[
+                Ty::Comment(Comment::new(
+                    r#"<!--goodbye a="--val--" test ->ContentMore -->"#.as_bytes(),
+                )),
+                Ty::Characters(Characters::new(b"Real Content")),
+            ],
+        );
+    }
+
+    #[test]
+    fn comment_not_reused_dashes() {
+        let input = "<!-->-->";
+        verify_tokenize_all(input, &[Ty::Comment(Comment::new(input.as_bytes()))]);
+    }
+
+    #[test]
+    fn comment_not_reused_dashes_missing_close() {
+        let input = "<!-->";
+        verify_tokenize(input, 0, &[], 0);
+    }
+
+    #[test]
+    fn cdata() {
+        let input = "<![CDATA[ Content ]]>";
+        verify_tokenize_all(input, &[Ty::Cdata(Cdata::new(input.as_bytes()))]);
+    }
+
+    #[test]
+    fn declaration_with_uneven_brackets() {
+        let input = "<![&random[ Declaration ]]]>";
+        verify_tokenize_all(
+            input,
+            &[Ty::Declaration(Declaration::new(input.as_bytes()))],
+        );
+    }
+
+    #[test]
+    fn cdata_with_trailing_data() {
+        let input = "<![CDATA[ Content ]]> Unused Content";
+        verify_tokenize_all(
+            input,
+            &[
+                Ty::Cdata(Cdata::new("<![CDATA[ Content ]]>".as_bytes())),
+                Ty::Characters(Characters::new(b" Unused Content")),
+            ],
+        );
+    }
+
+    #[test]
+    fn cdata_with_no_space_trailing_data() {
+        let input = "<![CDATA[ Content ]]>Content";
+        verify_tokenize_all(
+            input,
+            &[
+                Ty::Cdata(Cdata::new("<![CDATA[ Content ]]>".as_bytes())),
+                Ty::Characters(Characters::new(b"Content")),
+            ],
+        );
+    }
+
+    #[test]
+    fn cdata_with_single_quotes() {
+        // The single quote does not escape here
+        let input = "<![CDATA[ Content ']]>']]>Unused Content";
+        verify_tokenize_all(
+            input,
+            &[
+                Ty::Cdata(Cdata::new("<![CDATA[ Content ']]>".as_bytes())),
+                Ty::Characters(Characters::new(b"']]>Unused Content")),
+            ],
+        );
+    }
+
+    #[test]
+    fn cdata_with_double_quotes() {
+        let input = r#"<![CDATA[ goodbye a="]]>"]]>Content"#;
+        verify_tokenize_all(
+            input,
+            &[
+                Ty::Cdata(Cdata::new(r#"<![CDATA[ goodbye a="]]>"#.as_bytes())),
+                Ty::Characters(Characters::new(b"\"]]>Content")),
+            ],
+        );
+    }
+
+    #[test]
+    fn cdata_with_invalid_start_means_declaration() {
+        // missing "["
+        let input = r#"<![CDATA Content a="]]>"#;
+        verify_tokenize(input, 0, &[], 0);
+
+        let input = r#"<![CDATA Content a="]]>]]>"]]>Content"#;
+        verify_tokenize_all(
+            input,
+            &[
+                Ty::Declaration(Declaration::new(
+                    r#"<![CDATA Content a="]]>]]>"]]>"#.as_bytes(),
+                )),
+                Ty::Characters(Characters::new(b"Content")),
+            ],
+        );
+    }
+
+    #[test]
+    fn cdata_with_double_right_bracket_inside() {
+        let input = r#"<![CDATA[ Content a="]>"#;
+        verify_tokenize(input, 0, &[], 0);
+
+        let input = r#"<![CDATA[ Content a="]>other ]]"]] test ]]>Content"#;
+        verify_tokenize_all(
+            input,
+            &[
+                Ty::Cdata(Cdata::new(
+                    r#"<![CDATA[ Content a="]>other ]]"]] test ]]>"#.as_bytes(),
+                )),
+                Ty::Characters(Characters::new(b"Content")),
+            ],
+        );
+    }
+
+    #[test]
+    fn cdata_with_single_closing_bracket() {
+        let input = r#"<![CDATA[ Content a="]>]>" test ]>Content"#;
+        verify_tokenize(input, 0, &[], 0);
+
+        let input = r#"<![CDATA[ Content a="]>]>" test ]>ContentMore ]]>Real Content"#;
+        verify_tokenize_all(
+            input,
+            &[
+                Ty::Cdata(Cdata::new(
+                    r#"<![CDATA[ Content a="]>]>" test ]>ContentMore ]]>"#.as_bytes(),
+                )),
+                Ty::Characters(Characters::new(b"Real Content")),
+            ],
+        );
     }
 }
