@@ -37,6 +37,7 @@ impl<'a> Token<'a> {
     }
 
     /// Returns the slice of bytes identified as part of the token.
+    #[inline]
     #[must_use]
     pub const fn as_bytes(&self) -> &'a [u8] {
         self.bytes
@@ -55,6 +56,7 @@ impl<'a> Token<'a> {
     /// # Errors
     ///
     /// If the bytes are not a UTF-8 string.
+    #[inline]
     pub fn to_str(&self) -> Result<&'a str, core::str::Utf8Error> {
         core::str::from_utf8(self.bytes)
     }
@@ -65,12 +67,14 @@ impl<'a> Token<'a> {
     ///
     /// The underlying bytes are assumed to be UTF-8. If the bytes are
     /// not valid UTF-8, then the behavior is undefined.
+    #[inline]
     #[must_use]
     pub const unsafe fn as_str_unchecked(&self) -> &'a str {
         core::str::from_utf8_unchecked(self.bytes)
     }
 
     /// Returns the underlying slice.
+    #[inline]
     #[must_use]
     pub const fn into_inner(self) -> &'a [u8] {
         self.bytes
@@ -79,7 +83,11 @@ impl<'a> Token<'a> {
     /// Returns the token type.
     #[inline]
     #[must_use]
-    pub const fn ty(&self) -> Ty<'a> {
+    pub fn ty(&self) -> Ty<'a> {
+        // The method could be `const` but the implementation could also be
+        // changed to use the unsafe `get_unchecked` method (which is not const).
+        // There is a slight gain between 3 to 6% in some micro-benchmark tests.
+
         if self.bytes[0] != b'<' {
             return Ty::Characters(Characters(self.bytes));
         }
