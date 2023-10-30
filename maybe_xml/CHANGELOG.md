@@ -1,5 +1,30 @@
 # CHANGELOG
 
+## [0.7.0] - 2023-10-30
+
+### Changed
+
+- Add `Lexer::from_str` as the safe instantiation method.
+- Refactor `Lexer::from_slice` to unsafe `Lexer::from_slice_unchecked`. It is
+  assumed the byte slice is UTF-8 characters, and if they are not a valid slice
+  of UTF-8 bytes, then the behavior is undefined.
+- Dynamically determine `Token` type instead of storing the `Ty`. This reduces the
+  `Token` size to 2 words (16 octets on a 64-bit machine).
+
+### Removed
+
+- Remove `offset` field from `Token`. If required, the offset should be
+  calculated when tokens are consumed.
+- Remove `scan` and `Scanner` from the public API.
+- Remove `const` from `Token::ty()` method for possible future optimizations.
+- Remove public `new` methods from `Token` and related types.
+
+### Added
+
+- Add unsafe `as_str_unchecked` to various types in cases where the bytes are
+  guaranteed to be valid UTF-8.
+- Add `as_bytes`, `to_str`, `as_str_unchecked`, and `into_inner` to `Token`.
+
 ## [0.6.0] - 2023-10-17
 
 ### Changed
@@ -91,7 +116,8 @@
 
 * Initial implementation.
 
-[Unreleased]: https://github.com/bluk/maybe_xml/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/bluk/maybe_xml/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/bluk/maybe_xml/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/bluk/maybe_xml/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/bluk/maybe_xml/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/bluk/maybe_xml/compare/v0.3.0...v0.4.0
