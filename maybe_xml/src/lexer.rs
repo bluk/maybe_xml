@@ -324,7 +324,7 @@ pub struct IntoIter<'a> {
 impl<'a> IntoIter<'a> {
     #[inline]
     #[must_use]
-    pub const fn new(inner: Lexer<'a>, pos: usize) -> Self {
+    const fn new(inner: Lexer<'a>, pos: usize) -> Self {
         Self { inner, pos }
     }
 }

@@ -26,7 +26,7 @@ impl<'a> Token<'a> {
     /// Instantiates a new instance with the token type.
     #[inline]
     #[must_use]
-    pub const fn new(bytes: &'a [u8]) -> Self {
+    pub(crate) const fn new(bytes: &'a [u8]) -> Self {
         Self { bytes }
     }
 
@@ -80,7 +80,8 @@ macro_rules! converters {
             /// Instantiates a new view with the given bytes.
             #[inline]
             #[must_use]
-            pub const fn new(bytes: &'a [u8]) -> Self {
+            #[cfg(test)]
+            pub(crate) const fn new(bytes: &'a [u8]) -> Self {
                 Self(bytes)
             }
 

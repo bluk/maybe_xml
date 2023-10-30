@@ -10,13 +10,6 @@ use core::str;
 macro_rules! converters {
     ($name:ident) => {
         impl<'a> $name<'a> {
-            /// Instantiates a new view with the given bytes.
-            #[inline]
-            #[must_use]
-            pub const fn new(bytes: &'a [u8]) -> Self {
-                Self(bytes)
-            }
-
             /// All of the bytes representing the token property.
             #[inline]
             #[must_use]
@@ -366,6 +359,15 @@ converters!(AttributeValue);
 pub struct Content<'a>(&'a [u8]);
 
 converters!(Content);
+
+impl<'a> Content<'a> {
+    /// Instantiates a new view with the given bytes.
+    #[inline]
+    #[must_use]
+    pub(super) const fn new(bytes: &'a [u8]) -> Self {
+        Self(bytes)
+    }
+}
 
 /// The target of the processing instruction (e.g. `xml` in `<?xml ?>`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
