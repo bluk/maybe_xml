@@ -22,12 +22,58 @@ pub struct Token<'a> {
     bytes: &'a [u8],
 }
 
+impl<'a> AsRef<[u8]> for Token<'a> {
+    fn as_ref(&self) -> &[u8] {
+        self.bytes
+    }
+}
+
 impl<'a> Token<'a> {
     /// Instantiates a new instance with the token type.
     #[inline]
     #[must_use]
     pub(crate) const fn new(bytes: &'a [u8]) -> Self {
         Self { bytes }
+    }
+
+    /// Returns the slice of bytes identified as part of the token.
+    #[must_use]
+    pub const fn as_bytes(&self) -> &'a [u8] {
+        self.bytes
+    }
+
+    /// Returns the length of the token in bytes.
+    #[allow(clippy::len_without_is_empty)]
+    #[inline]
+    #[must_use]
+    pub const fn len(&self) -> usize {
+        self.bytes.len()
+    }
+
+    /// The token represented as a str.
+    ///
+    /// # Errors
+    ///
+    /// If the bytes are not a UTF-8 string.
+    pub fn to_str(&self) -> Result<&'a str, core::str::Utf8Error> {
+        core::str::from_utf8(self.bytes)
+    }
+
+    /// The token represented as a str.
+    ///
+    /// # Safety
+    ///
+    /// The underlying bytes are assumed to be UTF-8. If the bytes are
+    /// not valid UTF-8, then the behavior is undefined.
+    #[must_use]
+    pub const unsafe fn as_str_unchecked(&self) -> &'a str {
+        core::str::from_utf8_unchecked(self.bytes)
+    }
+
+    /// Returns the underlying slice.
+    #[must_use]
+    pub const fn into_inner(self) -> &'a [u8] {
+        self.bytes
     }
 
     /// Returns the token type.
@@ -166,84 +212,6 @@ pub enum Ty<'a> {
     Comment(Comment<'a>),
     /// Character data like `<![CDATA[ Example ]]>`.
     Cdata(Cdata<'a>),
-}
-
-impl<'a> Ty<'a> {
-    /// Returns the slice of bytes identified as part of the token.
-    #[must_use]
-    pub const fn as_bytes(&self) -> &'a [u8] {
-        match self {
-            Ty::StartTag(v) => v.as_bytes(),
-            Ty::EmptyElementTag(v) => v.as_bytes(),
-            Ty::EndTag(v) => v.as_bytes(),
-            Ty::Characters(v) => v.as_bytes(),
-            Ty::ProcessingInstruction(v) => v.as_bytes(),
-            Ty::Declaration(v) => v.as_bytes(),
-            Ty::Comment(v) => v.as_bytes(),
-            Ty::Cdata(v) => v.as_bytes(),
-        }
-    }
-
-    /// Returns the length of the token in bytes.
-    #[allow(clippy::len_without_is_empty)]
-    #[inline]
-    #[must_use]
-    pub const fn len(&self) -> usize {
-        self.as_bytes().len()
-    }
-
-    /// The token represented as a str.
-    ///
-    /// # Errors
-    ///
-    /// If the bytes are not a UTF-8 string.
-    pub fn to_str(&self) -> Result<&'a str, core::str::Utf8Error> {
-        match self {
-            Ty::StartTag(v) => v.to_str(),
-            Ty::EmptyElementTag(v) => v.to_str(),
-            Ty::EndTag(v) => v.to_str(),
-            Ty::Characters(v) => v.to_str(),
-            Ty::ProcessingInstruction(v) => v.to_str(),
-            Ty::Declaration(v) => v.to_str(),
-            Ty::Comment(v) => v.to_str(),
-            Ty::Cdata(v) => v.to_str(),
-        }
-    }
-
-    /// The token represented as a str.
-    ///
-    /// # Safety
-    ///
-    /// The underlying bytes are assumed to be UTF-8. If the bytes are
-    /// not valid UTF-8, then the behavior is undefined.
-    #[must_use]
-    pub const unsafe fn as_str_unchecked(&self) -> &'a str {
-        match self {
-            Ty::StartTag(v) => v.as_str_unchecked(),
-            Ty::EmptyElementTag(v) => v.as_str_unchecked(),
-            Ty::EndTag(v) => v.as_str_unchecked(),
-            Ty::Characters(v) => v.as_str_unchecked(),
-            Ty::ProcessingInstruction(v) => v.as_str_unchecked(),
-            Ty::Declaration(v) => v.as_str_unchecked(),
-            Ty::Comment(v) => v.as_str_unchecked(),
-            Ty::Cdata(v) => v.as_str_unchecked(),
-        }
-    }
-
-    /// Returns the underlying slice.
-    #[must_use]
-    pub const fn into_inner(self) -> &'a [u8] {
-        match self {
-            Ty::StartTag(v) => v.into_inner(),
-            Ty::EmptyElementTag(v) => v.into_inner(),
-            Ty::EndTag(v) => v.into_inner(),
-            Ty::Characters(v) => v.into_inner(),
-            Ty::ProcessingInstruction(v) => v.into_inner(),
-            Ty::Declaration(v) => v.into_inner(),
-            Ty::Comment(v) => v.into_inner(),
-            Ty::Cdata(v) => v.into_inner(),
-        }
-    }
 }
 
 /// A start tag for an element.

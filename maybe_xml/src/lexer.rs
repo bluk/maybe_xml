@@ -163,7 +163,7 @@ impl<'a> Lexer<'a> {
         let bytes = &self.input[*pos..];
         let bytes = scan(bytes)?;
         let token = Token::new(bytes);
-        *pos += token.ty().len();
+        *pos += token.len();
         Some(token)
     }
 
@@ -213,15 +213,15 @@ impl<'a> Lexer<'a> {
     ///
     /// let mut iter = lexer.iter(pos);
     ///
-    /// let ty = iter.next().map(|token| token.ty());
-    /// assert_eq!(Some(Ty::StartTag(StartTag::from("<id>".as_bytes()))), ty);
+    /// let token = iter.next();
+    /// assert_eq!(Some(Ty::StartTag(StartTag::from("<id>".as_bytes()))), token.map(|t| t.ty()));
     ///
-    /// let pos = pos + ty.map(|ty| ty.len()).unwrap_or_default();
+    /// let pos = pos + token.map(|t| t.len()).unwrap_or_default();
     ///
-    /// let ty = iter.next().map(|token| token.ty());
-    /// assert_eq!(Some(Ty::Characters(Characters::from("123".as_bytes()))), ty);
+    /// let token = iter.next();
+    /// assert_eq!(Some(Ty::Characters(Characters::from("123".as_bytes()))), token.map(|t| t.ty()));
     ///
-    /// let pos = pos + ty.map(|ty| ty.len()).unwrap_or_default();
+    /// let pos = pos + token.map(|t| t.len()).unwrap_or_default();
     ///
     /// let token = iter.next();
     /// // The last token is incomplete because it is missing the `>`
@@ -242,10 +242,10 @@ impl<'a> Lexer<'a> {
     ///
     /// let mut iter = lexer.iter(pos);
     ///
-    /// let ty = iter.next().map(|token| token.ty());
-    /// assert_eq!(Some(Ty::EndTag(EndTag::from("</id>".as_bytes()))), ty);
+    /// let token = iter.next();
+    /// assert_eq!(Some(Ty::EndTag(EndTag::from("</id>".as_bytes()))), token.map(|t| t.ty()));
     ///
-    /// let pos = pos + ty.map(|ty| ty.len()).unwrap_or_default();
+    /// let pos = pos + token.map(|t| t.len()).unwrap_or_default();
     ///
     /// // Position was assigned to the index after the end of the token
     /// assert_eq!(5, pos);
