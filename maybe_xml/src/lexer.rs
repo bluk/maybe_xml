@@ -1,7 +1,5 @@
 //! Lexer for byte slice.
 
-use core::iter;
-
 use crate::token::Token;
 
 mod scanner;
@@ -268,8 +266,9 @@ impl<'a> Lexer<'a> {
     /// assert!(buf.is_empty());
     /// ```
     #[inline]
-    pub fn iter(&self, mut pos: usize) -> impl Iterator<Item = Token<'a>> + '_ {
-        iter::from_fn(move || self.tokenize(&mut pos))
+    #[must_use]
+    pub const fn iter(&self, pos: usize) -> Iter<'a> {
+        Iter::new(*self, pos)
     }
 }
 
@@ -281,6 +280,59 @@ impl<'a> IntoIterator for Lexer<'a> {
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
         IntoIter::new(self, 0)
+    }
+}
+
+/// The returned iterator type for [`Lexer::iter()`].
+///
+/// # Example
+///
+/// ```
+/// use maybe_xml::{Lexer, token::{EndTag, StartTag, Ty}};
+/// use std::io::{BufRead, BufReader};
+///
+/// let input = "<ID>Example</id><name>Jane Doe</name>";
+/// let lexer = Lexer::new(input);
+///
+/// let mut iter = lexer.iter(4)
+///     .filter_map(|token| {
+///         match token.ty() {
+///             Ty::StartTag(start_tag) => {
+///                 Some(start_tag.name().to_str())
+///             }
+///             Ty::EndTag(end_tag) => {
+///                 Some(end_tag.name().to_str())
+///             }
+///             _ => None,
+///         }
+///     });
+///
+/// assert_eq!(Some(Ok("id")), iter.next());
+/// assert_eq!(Some(Ok("name")), iter.next());
+/// assert_eq!(Some(Ok("name")), iter.next());
+/// assert_eq!(None, iter.next());
+/// # Ok::<(), std::io::Error>(())
+/// ```
+#[derive(Debug)]
+pub struct Iter<'a> {
+    inner: Lexer<'a>,
+    pos: usize,
+}
+
+impl<'a> Iter<'a> {
+    #[inline]
+    #[must_use]
+    const fn new(inner: Lexer<'a>, pos: usize) -> Self {
+        Self { inner, pos }
+    }
+}
+
+impl<'a> Iterator for Iter<'a> {
+    type Item = Token<'a>;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.tokenize(&mut self.pos)
     }
 }
 

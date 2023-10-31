@@ -120,4 +120,4 @@ pub(crate) mod bytes;
 mod lexer;
 pub mod token;
 
-pub use lexer::{IntoIter, Lexer};
+pub use lexer::{IntoIter, Iter, Lexer};
