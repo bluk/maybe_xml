@@ -27,33 +27,26 @@ office suite documents, RSS/Atom feeds, config files, SVG, and web service messa
 
 ## Installation
 
-By default, the `std` feature is enabled.
-
-```toml
-[dependencies]
-maybe_xml = "0.7.0"
+```sh
+cargo add maybe_xml
 ```
 
-Currently, all functionality is available even with `no alloc` and `no std`. The
-library does not allocate or use features available only in the `alloc` or `std` libraries.
-Future functionality may require `alloc` or `std`, so please set the appropriate feature set.
+By default, the `std` feature is enabled.
 
 ### Alloc only
 
 If the host environment has an allocator but does not have access to the Rust `std` library:
 
-```toml
-[dependencies]
-maybe_xml = { version = "0.7.0", default-features = false, features = ["alloc"] }
+```sh
+cargo add --no-default-features --features alloc maybe_xml
 ```
 
 ### No allocator / core only
 
 If the host environment does not have an allocator:
 
-```toml
-[dependencies]
-maybe_xml = { version = "0.7.0", default-features = false }
+```sh
+cargo add --no-default-features maybe_xml
 ```
 
 ## Examples

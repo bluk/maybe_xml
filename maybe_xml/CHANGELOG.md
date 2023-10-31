@@ -1,5 +1,11 @@
 # CHANGELOG
 
+## [0.7.1] - 2023-10-31
+
+### Changed
+
+- Modify `IntoIter` to be public.
+
 ## [0.7.0] - 2023-10-30
 
 ### Changed
