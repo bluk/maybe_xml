@@ -270,6 +270,13 @@ impl<'a> Lexer<'a> {
     pub const fn iter(&self, pos: usize) -> Iter<'a> {
         Iter::new(*self, pos)
     }
+
+    /// Return the underlying bytes being tokenized.
+    #[inline]
+    #[must_use]
+    pub const fn into_inner(self) -> &'a [u8] {
+        self.input
+    }
 }
 
 impl<'a> IntoIterator for Lexer<'a> {
