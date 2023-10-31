@@ -100,7 +100,7 @@ use scanner::scan;
 /// // an error has occurred.
 /// assert!(buf.is_empty());
 /// ```
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Lexer<'a> {
     input: &'a [u8],
 }
@@ -320,7 +320,7 @@ impl<'a> IntoIterator for Lexer<'a> {
 /// assert_eq!(None, iter.next());
 /// # Ok::<(), std::io::Error>(())
 /// ```
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct Iter<'a> {
     inner: Lexer<'a>,
     pos: usize,
@@ -374,7 +374,7 @@ impl<'a> Iterator for Iter<'a> {
 /// assert_eq!(None, iter.next());
 /// # Ok::<(), std::io::Error>(())
 /// ```
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct IntoIter<'a> {
     inner: Lexer<'a>,
     pos: usize,
