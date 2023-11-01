@@ -224,7 +224,7 @@ pub enum Ty<'a> {
 
 /// A start tag for an element.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct StartTag<'a>(&'a [u8]);
+pub struct StartTag<'a>(pub(crate) &'a [u8]);
 
 impl<'a> StartTag<'a> {
     /// The name of the tag.
@@ -235,7 +235,7 @@ impl<'a> StartTag<'a> {
             .iter()
             .position(|b| is_space(*b))
             .unwrap_or(self.0.len() - 1);
-        TagName::from(&self.0[1..index])
+        TagName(&self.0[1..index])
     }
 
     /// The attributes of the tag.
@@ -244,7 +244,7 @@ impl<'a> StartTag<'a> {
         self.0
             .iter()
             .position(|b| is_space(*b))
-            .map(|index| Attributes::from(&self.0[index + 1..self.0.len() - 1]))
+            .map(|index| Attributes(&self.0[index + 1..self.0.len() - 1]))
     }
 }
 
@@ -254,7 +254,7 @@ converters!(StartTag);
 ///
 /// A tag like `<br/>` would be an empty element tag.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct EmptyElementTag<'a>(&'a [u8]);
+pub struct EmptyElementTag<'a>(pub(crate) &'a [u8]);
 
 impl<'a> EmptyElementTag<'a> {
     /// The name of the tag.
@@ -265,7 +265,7 @@ impl<'a> EmptyElementTag<'a> {
             .iter()
             .position(|b| is_space(*b))
             .unwrap_or(self.0.len() - 2);
-        TagName::from(&self.0[1..index])
+        TagName(&self.0[1..index])
     }
 
     /// The attributes of the tag.
@@ -274,7 +274,7 @@ impl<'a> EmptyElementTag<'a> {
         self.0
             .iter()
             .position(|b| is_space(*b))
-            .map(|index| Attributes::from(&self.0[index + 1..self.0.len() - 2]))
+            .map(|index| Attributes(&self.0[index + 1..self.0.len() - 2]))
     }
 }
 
@@ -293,7 +293,7 @@ impl<'a> EndTag<'a> {
             .iter()
             .position(|b| is_space(*b))
             .unwrap_or(self.0.len() - 1);
-        TagName::from(&self.0[2..index])
+        TagName(&self.0[2..index])
     }
 }
 
@@ -301,14 +301,14 @@ converters!(EndTag);
 
 /// Content between markup.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Characters<'a>(&'a [u8]);
+pub struct Characters<'a>(pub(crate) &'a [u8]);
 
 impl<'a> Characters<'a> {
     /// The text content of the characters.
     #[inline]
     #[must_use]
     pub const fn content(&self) -> Content<'a> {
-        Content::new(self.0)
+        Content(self.0)
     }
 }
 
@@ -316,7 +316,7 @@ converters!(Characters);
 
 /// A document processing instruction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ProcessingInstruction<'a>(&'a [u8]);
+pub struct ProcessingInstruction<'a>(pub(crate) &'a [u8]);
 
 converters!(ProcessingInstruction);
 
@@ -329,7 +329,7 @@ impl<'a> ProcessingInstruction<'a> {
             .iter()
             .position(|b| is_space(*b))
             .unwrap_or(self.0.len() - 2);
-        Target::from(&self.0[2..index])
+        Target(&self.0[2..index])
     }
 
     /// The instructions of the tag.
@@ -338,7 +338,7 @@ impl<'a> ProcessingInstruction<'a> {
         self.0
             .iter()
             .position(|b| is_space(*b))
-            .map(|index| Instructions::from(&self.0[index + 1..self.0.len() - 2]))
+            .map(|index| Instructions(&self.0[index + 1..self.0.len() - 2]))
     }
 }
 
@@ -363,7 +363,7 @@ impl<'a> Cdata<'a> {
     #[inline]
     #[must_use]
     pub fn content(&self) -> Content<'a> {
-        Content::new(&self.0[9..self.0.len() - 3])
+        Content(&self.0[9..self.0.len() - 3])
     }
 }
 
@@ -377,23 +377,21 @@ mod tests {
 
     #[test]
     fn start_tag_as_ref() {
-        let start_tag = StartTag::from(b"<abc>".as_ref());
+        let start_tag = StartTag(b"<abc>");
         assert_eq!(start_tag.as_ref(), "<abc>".as_bytes());
         assert_eq!(start_tag.as_bytes(), "<abc>".as_bytes());
     }
 
     #[test]
     fn start_tag_from() -> Result<()> {
-        use core::convert::From;
-
-        let start_tag = StartTag::from(b"<abc>".as_ref());
+        let start_tag = StartTag(b"<abc>");
         assert_eq!(start_tag.to_str()?, "<abc>");
 
-        let start_tag = StartTag::from(b"<abc>".as_ref());
+        let start_tag = StartTag(b"<abc>");
         assert_eq!(start_tag.to_str()?, "<abc>");
 
         let expected = "<abc>";
-        let start_tag = StartTag::from(expected.as_bytes());
+        let start_tag = StartTag(expected.as_bytes());
         assert_eq!(start_tag.to_str()?, "<abc>");
 
         Ok(())
@@ -401,7 +399,7 @@ mod tests {
 
     #[test]
     fn start_tag_partial_eq() -> Result<()> {
-        let start_tag = StartTag::from(b"<abc>".as_ref());
+        let start_tag = StartTag(b"<abc>");
         assert_eq!(start_tag.to_str()?, "<abc>");
         assert_eq!(start_tag.as_ref(), &b"<abc>"[..]);
         assert_eq!(start_tag.as_bytes(), "<abc>".as_bytes());
@@ -410,7 +408,7 @@ mod tests {
 
     #[test]
     fn empty_start_tag_name() -> Result<()> {
-        let start_tag = StartTag::from(b"<>".as_ref());
+        let start_tag = StartTag(b"<>");
         assert_eq!(start_tag.name().as_bytes(), b"");
         assert_eq!(start_tag.name().to_str()?, "");
         Ok(())
@@ -418,19 +416,19 @@ mod tests {
 
     #[test]
     fn start_tag_attributes() {
-        let start_tag = StartTag::from(b"<abc attr=\"1\">".as_ref());
-        assert_eq!(start_tag.attributes(), Some(Attributes::from("attr=\"1\"")));
+        let start_tag = StartTag(b"<abc attr=\"1\">");
+        assert_eq!(start_tag.attributes(), Some(Attributes(b"attr=\"1\"")));
 
-        let start_tag = StartTag::from(b"<abc attr=\"1\" id=\"#example\">".as_ref());
+        let start_tag = StartTag(b"<abc attr=\"1\" id=\"#example\">");
         assert_eq!(
             start_tag.attributes(),
-            Some(Attributes::from("attr=\"1\" id=\"#example\""))
+            Some(Attributes(b"attr=\"1\" id=\"#example\""))
         );
     }
 
     #[test]
     fn empty_empty_element_tag_name() -> Result<()> {
-        let empty_element_tag = EmptyElementTag::from(b"</>".as_ref());
+        let empty_element_tag = EmptyElementTag(b"</>");
         assert_eq!(empty_element_tag.name().as_bytes(), b"");
         assert_eq!(empty_element_tag.name().to_str()?, "");
         Ok(())
@@ -438,23 +436,22 @@ mod tests {
 
     #[test]
     fn empty_element_tag_attributes() {
-        let empty_element_tag = EmptyElementTag::from(b"<abc attr=\"1\"/>".as_ref());
+        let empty_element_tag = EmptyElementTag(b"<abc attr=\"1\"/>");
         assert_eq!(
             empty_element_tag.attributes(),
-            Some(Attributes::from("attr=\"1\""))
+            Some(Attributes(b"attr=\"1\""))
         );
 
-        let empty_element_tag =
-            EmptyElementTag::from(b"<abc attr=\"1\" id=\"#example\"/>".as_ref());
+        let empty_element_tag = EmptyElementTag(b"<abc attr=\"1\" id=\"#example\"/>");
         assert_eq!(
             empty_element_tag.attributes(),
-            Some(Attributes::from("attr=\"1\" id=\"#example\""))
+            Some(Attributes(b"attr=\"1\" id=\"#example\""))
         );
     }
 
     #[test]
     fn empty_end_tag_name() -> Result<()> {
-        let end_tag = EndTag::from(b"</>".as_ref());
+        let end_tag = EndTag(b"</>");
         assert_eq!(end_tag.name().as_bytes(), b"");
         assert_eq!(end_tag.name().to_str()?, "");
         Ok(())
