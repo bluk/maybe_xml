@@ -7,12 +7,6 @@ pub(crate) enum QuoteState {
     Double,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
-pub(crate) struct BracketCount(pub(crate) u64);
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
-pub(crate) struct AlreadyFoundByteSeqCount(pub(crate) usize);
-
 #[inline]
 #[must_use]
 pub(crate) fn peek(bytes: &[u8]) -> Option<u8> {
