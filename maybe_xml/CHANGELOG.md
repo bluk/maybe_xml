@@ -1,5 +1,16 @@
 # CHANGELOG
 
+## [0.7.2] - 2023-11-01
+
+### Changed
+
+- Make `Iterator` from `Lexer::iter()` into an explicit type named `Iter`.
+
+### Added
+
+- Add `Lexer::into_inner()` to get the underlying bytes passed to the `Lexer`.
+- Derive `PartialEq`, `Eq`, and `Hash` for `Lexer` and iterators.
+
 ## [0.7.1] - 2023-10-31
 
 ### Changed
@@ -122,7 +133,9 @@
 
 * Initial implementation.
 
-[Unreleased]: https://github.com/bluk/maybe_xml/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/bluk/maybe_xml/compare/v0.7.2...HEAD
+[0.7.2]: https://github.com/bluk/maybe_xml/compare/v0.7.1...v0.7.2
+[0.7.1]: https://github.com/bluk/maybe_xml/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/bluk/maybe_xml/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/bluk/maybe_xml/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/bluk/maybe_xml/compare/v0.4.0...v0.5.0
