@@ -407,6 +407,9 @@ mod tests {
     use super::*;
 
     #[cfg(all(feature = "alloc", not(feature = "std")))]
+    extern crate alloc;
+
+    #[cfg(all(feature = "alloc", not(feature = "std")))]
     use alloc::vec::Vec;
     #[cfg(feature = "std")]
     use std::vec::Vec;

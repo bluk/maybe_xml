@@ -113,9 +113,6 @@
     unused_qualifications
 )]
 
-#[cfg(all(feature = "alloc", not(feature = "std")))]
-extern crate alloc;
-
 pub(crate) mod bytes;
 mod lexer;
 pub mod token;
