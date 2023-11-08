@@ -22,12 +22,6 @@ pub struct Token<'a> {
     bytes: &'a [u8],
 }
 
-impl<'a> AsRef<[u8]> for Token<'a> {
-    fn as_ref(&self) -> &[u8] {
-        self.bytes
-    }
-}
-
 impl<'a> Token<'a> {
     /// Instantiates a new instance from an unsafe slice of bytes.
     ///
@@ -199,20 +193,6 @@ macro_rules! converters {
             #[must_use]
             pub const fn into_inner(self) -> &'a [u8] {
                 self.0
-            }
-        }
-
-        impl<'a> AsRef<[u8]> for $name<'a> {
-            #[inline]
-            fn as_ref(&self) -> &'a [u8] {
-                self.0
-            }
-        }
-
-        impl<'a> From<&'a [u8]> for $name<'a> {
-            #[inline]
-            fn from(value: &'a [u8]) -> Self {
-                Self(value)
             }
         }
 

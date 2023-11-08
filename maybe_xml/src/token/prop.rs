@@ -67,18 +67,6 @@ macro_rules! converters {
             }
         }
 
-        impl<'a> AsRef<[u8]> for $name<'a> {
-            fn as_ref(&self) -> &'a [u8] {
-                self.0
-            }
-        }
-
-        impl<'a> From<&'a [u8]> for $name<'a> {
-            fn from(value: &'a [u8]) -> Self {
-                Self(value)
-            }
-        }
-
         impl<'a> From<&'a str> for $name<'a> {
             fn from(value: &'a str) -> Self {
                 Self(value.as_bytes())
