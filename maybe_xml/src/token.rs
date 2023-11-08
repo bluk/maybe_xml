@@ -78,7 +78,7 @@ impl<'a> Token<'a> {
     /// not valid UTF-8, then the behavior is undefined.
     #[inline]
     #[must_use]
-    pub const unsafe fn as_str_unchecked(&self) -> &'a str {
+    pub const unsafe fn to_str_unchecked(&self) -> &'a str {
         core::str::from_utf8_unchecked(self.bytes)
     }
 
@@ -194,7 +194,7 @@ macro_rules! converters {
             /// not valid UTF-8, then the behavior is undefined.
             #[inline]
             #[must_use]
-            pub const unsafe fn as_str_unchecked(&self) -> &'a str {
+            pub const unsafe fn to_str_unchecked(&self) -> &'a str {
                 core::str::from_utf8_unchecked(&self.0)
             }
 
