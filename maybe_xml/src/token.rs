@@ -66,6 +66,7 @@ impl<'a> Token<'a> {
     /// If the bytes are not a UTF-8 string.
     #[inline]
     pub fn to_str(&self) -> Result<&'a str, core::str::Utf8Error> {
+        // Cannot be const until MSRV is at least 1.63.0
         core::str::from_utf8(self.bytes)
     }
 
@@ -132,6 +133,15 @@ impl<'a> Token<'a> {
                 }
                 return Ty::StartTag(StartTag(self.bytes));
             }
+        }
+    }
+}
+
+impl<'a> From<&'a str> for Token<'a> {
+    #[inline]
+    fn from(value: &'a str) -> Self {
+        Self {
+            bytes: value.as_bytes(),
         }
     }
 }
