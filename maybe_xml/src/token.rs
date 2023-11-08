@@ -29,11 +29,25 @@ impl<'a> AsRef<[u8]> for Token<'a> {
 }
 
 impl<'a> Token<'a> {
-    /// Instantiates a new instance with the token type.
+    /// Instantiates a new instance from an unsafe slice of bytes.
+    ///
+    /// # Safety
+    ///
+    /// The bytes are assumed to be a valid UTF-8 string. If the bytes
+    /// are not a UTF-8 string, behavior is undefined.
     #[inline]
     #[must_use]
-    pub(crate) const fn new(bytes: &'a [u8]) -> Self {
+    pub const unsafe fn from_slice(bytes: &'a [u8]) -> Self {
         Self { bytes }
+    }
+
+    /// Instantiates a new instance with a string.
+    #[inline]
+    #[must_use]
+    pub const fn from_str(input: &'a str) -> Self {
+        Self {
+            bytes: input.as_bytes(),
+        }
     }
 
     /// Returns the slice of bytes identified as part of the token.
@@ -132,11 +146,22 @@ macro_rules! converters {
     ($name:ident) => {
         impl<'a> $name<'a> {
             /// Instantiates a new view with the given bytes.
+            ///
+            /// # Safety
+            ///
+            /// The bytes are assumed to be a valid UTF-8 string. If the bytes
+            /// are not a UTF-8 string, behavior is undefined.
             #[inline]
             #[must_use]
-            #[cfg(test)]
-            pub(crate) const fn new(bytes: &'a [u8]) -> Self {
+            pub const unsafe fn from_slice(bytes: &'a [u8]) -> Self {
                 Self(bytes)
+            }
+
+            /// Instantiates a new view with the given string.
+            #[inline]
+            #[must_use]
+            pub const fn from_str(input: &'a str) -> Self {
+                Self(input.as_bytes())
             }
 
             /// All of the bytes representing the token.
@@ -224,7 +249,7 @@ pub enum Ty<'a> {
 
 /// A start tag for an element.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct StartTag<'a>(pub(crate) &'a [u8]);
+pub struct StartTag<'a>(&'a [u8]);
 
 impl<'a> StartTag<'a> {
     /// The name of the tag.
@@ -235,7 +260,7 @@ impl<'a> StartTag<'a> {
             .iter()
             .position(|b| is_space(*b))
             .unwrap_or(self.0.len() - 1);
-        TagName(&self.0[1..index])
+        unsafe { TagName::from_slice(&self.0[1..index]) }
     }
 
     /// The attributes of the tag.
@@ -244,7 +269,7 @@ impl<'a> StartTag<'a> {
         self.0
             .iter()
             .position(|b| is_space(*b))
-            .map(|index| Attributes(&self.0[index + 1..self.0.len() - 1]))
+            .map(|index| unsafe { Attributes::from_slice(&self.0[index + 1..self.0.len() - 1]) })
     }
 }
 
@@ -254,7 +279,7 @@ converters!(StartTag);
 ///
 /// A tag like `<br/>` would be an empty element tag.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct EmptyElementTag<'a>(pub(crate) &'a [u8]);
+pub struct EmptyElementTag<'a>(&'a [u8]);
 
 impl<'a> EmptyElementTag<'a> {
     /// The name of the tag.
@@ -265,7 +290,7 @@ impl<'a> EmptyElementTag<'a> {
             .iter()
             .position(|b| is_space(*b))
             .unwrap_or(self.0.len() - 2);
-        TagName(&self.0[1..index])
+        unsafe { TagName::from_slice(&self.0[1..index]) }
     }
 
     /// The attributes of the tag.
@@ -274,7 +299,7 @@ impl<'a> EmptyElementTag<'a> {
         self.0
             .iter()
             .position(|b| is_space(*b))
-            .map(|index| Attributes(&self.0[index + 1..self.0.len() - 2]))
+            .map(|index| unsafe { Attributes::from_slice(&self.0[index + 1..self.0.len() - 2]) })
     }
 }
 
@@ -293,7 +318,7 @@ impl<'a> EndTag<'a> {
             .iter()
             .position(|b| is_space(*b))
             .unwrap_or(self.0.len() - 1);
-        TagName(&self.0[2..index])
+        unsafe { TagName::from_slice(&self.0[2..index]) }
     }
 }
 
@@ -301,14 +326,14 @@ converters!(EndTag);
 
 /// Content between markup.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Characters<'a>(pub(crate) &'a [u8]);
+pub struct Characters<'a>(&'a [u8]);
 
 impl<'a> Characters<'a> {
     /// The text content of the characters.
     #[inline]
     #[must_use]
     pub const fn content(&self) -> Content<'a> {
-        Content(self.0)
+        unsafe { Content::from_slice(self.0) }
     }
 }
 
@@ -316,7 +341,7 @@ converters!(Characters);
 
 /// A document processing instruction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct ProcessingInstruction<'a>(pub(crate) &'a [u8]);
+pub struct ProcessingInstruction<'a>(&'a [u8]);
 
 converters!(ProcessingInstruction);
 
@@ -329,7 +354,7 @@ impl<'a> ProcessingInstruction<'a> {
             .iter()
             .position(|b| is_space(*b))
             .unwrap_or(self.0.len() - 2);
-        Target(&self.0[2..index])
+        unsafe { Target::from_slice(&self.0[2..index]) }
     }
 
     /// The instructions of the tag.
@@ -338,7 +363,7 @@ impl<'a> ProcessingInstruction<'a> {
         self.0
             .iter()
             .position(|b| is_space(*b))
-            .map(|index| Instructions(&self.0[index + 1..self.0.len() - 2]))
+            .map(|index| unsafe { Instructions::from_slice(&self.0[index + 1..self.0.len() - 2]) })
     }
 }
 
@@ -363,7 +388,7 @@ impl<'a> Cdata<'a> {
     #[inline]
     #[must_use]
     pub fn content(&self) -> Content<'a> {
-        Content(&self.0[9..self.0.len() - 3])
+        unsafe { Content::from_slice(&self.0[9..self.0.len() - 3]) }
     }
 }
 
@@ -378,7 +403,6 @@ mod tests {
     #[test]
     fn start_tag_as_ref() {
         let start_tag = StartTag(b"<abc>");
-        assert_eq!(start_tag.as_ref(), "<abc>".as_bytes());
         assert_eq!(start_tag.as_bytes(), "<abc>".as_bytes());
     }
 
@@ -401,7 +425,6 @@ mod tests {
     fn start_tag_partial_eq() -> Result<()> {
         let start_tag = StartTag(b"<abc>");
         assert_eq!(start_tag.to_str()?, "<abc>");
-        assert_eq!(start_tag.as_ref(), &b"<abc>"[..]);
         assert_eq!(start_tag.as_bytes(), "<abc>".as_bytes());
         Ok(())
     }
@@ -417,12 +440,15 @@ mod tests {
     #[test]
     fn start_tag_attributes() {
         let start_tag = StartTag(b"<abc attr=\"1\">");
-        assert_eq!(start_tag.attributes(), Some(Attributes(b"attr=\"1\"")));
+        assert_eq!(
+            start_tag.attributes(),
+            Some(Attributes::from_str("attr=\"1\""))
+        );
 
         let start_tag = StartTag(b"<abc attr=\"1\" id=\"#example\">");
         assert_eq!(
             start_tag.attributes(),
-            Some(Attributes(b"attr=\"1\" id=\"#example\""))
+            Some(Attributes::from_str("attr=\"1\" id=\"#example\""))
         );
     }
 
@@ -439,13 +465,13 @@ mod tests {
         let empty_element_tag = EmptyElementTag(b"<abc attr=\"1\"/>");
         assert_eq!(
             empty_element_tag.attributes(),
-            Some(Attributes(b"attr=\"1\""))
+            Some(Attributes::from_str("attr=\"1\""))
         );
 
         let empty_element_tag = EmptyElementTag(b"<abc attr=\"1\" id=\"#example\"/>");
         assert_eq!(
             empty_element_tag.attributes(),
-            Some(Attributes(b"attr=\"1\" id=\"#example\""))
+            Some(Attributes::from("attr=\"1\" id=\"#example\""))
         );
     }
 

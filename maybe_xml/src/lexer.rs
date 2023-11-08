@@ -55,13 +55,13 @@ use scanner::scan;
 /// let mut pos = 0;
 ///
 /// let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
-/// assert_eq!(Some(Ty::StartTag(StartTag::from("<id>".as_bytes()))), ty);
+/// assert_eq!(Some(Ty::StartTag(StartTag::from("<id>"))), ty);
 ///
 /// // Position was assigned to the index after the end of the token
 /// assert_eq!(4, pos);
 ///
 /// let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
-/// assert_eq!(Some(Ty::Characters(Characters::from("123".as_bytes()))), ty);
+/// assert_eq!(Some(Ty::Characters(Characters::from("123"))), ty);
 ///
 /// // Position was assigned to the index after the end of the token
 /// assert_eq!(7, pos);
@@ -81,7 +81,7 @@ use scanner::scan;
 /// let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
 ///
 /// let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
-/// assert_eq!(Some(Ty::EndTag(EndTag::from("</id>".as_bytes()))), ty);
+/// assert_eq!(Some(Ty::EndTag(EndTag::from("</id>"))), ty);
 ///
 /// // Position was assigned to the index after the end of the token
 /// assert_eq!(5, pos);
@@ -151,7 +151,7 @@ impl<'a> Lexer<'a> {
     /// let mut pos = 0;
     ///
     /// let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
-    /// assert_eq!(Some(Ty::StartTag(StartTag::from("<id>".as_bytes()))), ty);
+    /// assert_eq!(Some(Ty::StartTag(StartTag::from("<id>"))), ty);
     ///
     /// // Position was assigned to the index after the end of the token
     /// assert_eq!(4, pos);
@@ -160,7 +160,7 @@ impl<'a> Lexer<'a> {
     pub fn tokenize(&self, pos: &mut usize) -> Option<Token<'a>> {
         let bytes = &self.input[*pos..];
         let bytes = scan(bytes)?;
-        let token = Token::new(bytes);
+        let token = unsafe { Token::from_slice(bytes) };
         *pos += token.len();
         Some(token)
     }
@@ -212,12 +212,12 @@ impl<'a> Lexer<'a> {
     /// let mut iter = lexer.iter(pos);
     ///
     /// let token = iter.next();
-    /// assert_eq!(Some(Ty::StartTag(StartTag::from("<id>".as_bytes()))), token.map(|t| t.ty()));
+    /// assert_eq!(Some(Ty::StartTag(StartTag::from("<id>"))), token.map(|t| t.ty()));
     ///
     /// let pos = pos + token.map(|t| t.len()).unwrap_or_default();
     ///
     /// let token = iter.next();
-    /// assert_eq!(Some(Ty::Characters(Characters::from("123".as_bytes()))), token.map(|t| t.ty()));
+    /// assert_eq!(Some(Ty::Characters(Characters::from("123"))), token.map(|t| t.ty()));
     ///
     /// let pos = pos + token.map(|t| t.len()).unwrap_or_default();
     ///
@@ -241,7 +241,7 @@ impl<'a> Lexer<'a> {
     /// let mut iter = lexer.iter(pos);
     ///
     /// let token = iter.next();
-    /// assert_eq!(Some(Ty::EndTag(EndTag::from("</id>".as_bytes()))), token.map(|t| t.ty()));
+    /// assert_eq!(Some(Ty::EndTag(EndTag::from("</id>"))), token.map(|t| t.ty()));
     ///
     /// let pos = pos + token.map(|t| t.len()).unwrap_or_default();
     ///
@@ -445,23 +445,17 @@ mod tests {
         let mut pos = 0;
         buf.extend("Hello".as_bytes());
         let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
-        assert_eq!(
-            Some(Token::new("Hello".as_bytes())),
-            lexer.tokenize(&mut pos)
-        );
+        assert_eq!(Some(Token::from_str("Hello")), lexer.tokenize(&mut pos));
         assert_eq!(buf.len(), pos);
 
         buf.extend("wo".as_bytes());
         let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
-        assert_eq!(Some(Token::new("wo".as_bytes())), lexer.tokenize(&mut pos));
+        assert_eq!(Some(Token::from_str("wo")), lexer.tokenize(&mut pos));
         assert_eq!(buf.len(), pos);
 
         buf.extend("rld!<".as_bytes());
         let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
-        assert_eq!(
-            Some(Token::new("rld!".as_bytes())),
-            lexer.tokenize(&mut pos)
-        );
+        assert_eq!(Some(Token::from_str("rld!")), lexer.tokenize(&mut pos));
         assert_eq!(buf.len() - 1, pos);
     }
 
@@ -482,9 +476,14 @@ mod tests {
 
     #[test]
     fn characters() {
-        verify_tokenize_all("Hello", &[Ty::Characters(Characters::new(b"Hello"))]);
-        verify_tokenize_all(" wo", &[Ty::Characters(Characters::new(b" wo"))]);
-        verify_tokenize("rld!<", 0, &[Ty::Characters(Characters::new(b"rld!"))], 4);
+        verify_tokenize_all("Hello", &[Ty::Characters(Characters::from_str("Hello"))]);
+        verify_tokenize_all(" wo", &[Ty::Characters(Characters::from_str(" wo"))]);
+        verify_tokenize(
+            "rld!<",
+            0,
+            &[Ty::Characters(Characters::from_str("rld!"))],
+            4,
+        );
     }
 
     #[test]
@@ -495,7 +494,7 @@ mod tests {
     #[test]
     fn start_tag() {
         let input = "<hello>";
-        verify_tokenize_all(input, &[Ty::StartTag(StartTag::new(input.as_bytes()))]);
+        verify_tokenize_all(input, &[Ty::StartTag(StartTag::from_str(input))]);
     }
 
     #[test]
@@ -504,8 +503,8 @@ mod tests {
         verify_tokenize_all(
             input,
             &[
-                Ty::StartTag(StartTag::new(b"<hello>")),
-                Ty::Characters(Characters::new(b"Content")),
+                Ty::StartTag(StartTag::from_str("<hello>")),
+                Ty::Characters(Characters::from_str("Content")),
             ],
         );
     }
@@ -516,8 +515,8 @@ mod tests {
         verify_tokenize_all(
             input,
             &[
-                Ty::StartTag(StartTag::new(b"<hello a='val>'>")),
-                Ty::Characters(Characters::new(b"Content")),
+                Ty::StartTag(StartTag::from_str("<hello a='val>'>")),
+                Ty::Characters(Characters::from_str("Content")),
             ],
         );
     }
@@ -525,7 +524,7 @@ mod tests {
     #[test]
     fn start_tag_with_double_quotes_attribute() {
         let input = r#"<hello a="val>">"#;
-        verify_tokenize_all(input, &[Ty::StartTag(StartTag::new(input.as_bytes()))]);
+        verify_tokenize_all(input, &[Ty::StartTag(StartTag::from_str(input))]);
     }
 
     #[test]
@@ -533,14 +532,14 @@ mod tests {
         let input = "<hello/>";
         verify_tokenize_all(
             input,
-            &[Ty::EmptyElementTag(EmptyElementTag::new(input.as_bytes()))],
+            &[Ty::EmptyElementTag(EmptyElementTag::from_str(input))],
         );
     }
 
     #[test]
     fn empty_element_tag_space_after_slash_means_start_tag() {
         let input = "<hello / >";
-        verify_tokenize_all(input, &[Ty::StartTag(StartTag::new(input.as_bytes()))]);
+        verify_tokenize_all(input, &[Ty::StartTag(StartTag::from_str(input))]);
     }
 
     #[test]
@@ -548,20 +547,20 @@ mod tests {
         let input = r#"<hello a="val/>"/>"#;
         verify_tokenize_all(
             input,
-            &[Ty::EmptyElementTag(EmptyElementTag::new(input.as_bytes()))],
+            &[Ty::EmptyElementTag(EmptyElementTag::from_str(input))],
         );
     }
 
     #[test]
     fn empty_element_tag_with_last_slash_means_start_tag() {
         let input = "<hello/ invalid>";
-        verify_tokenize_all(input, &[Ty::StartTag(StartTag::new(input.as_bytes()))]);
+        verify_tokenize_all(input, &[Ty::StartTag(StartTag::from_str(input))]);
     }
 
     #[test]
     fn end_tag() {
         let input = "</goodbye>";
-        verify_tokenize_all(input, &[Ty::EndTag(EndTag::new(input.as_bytes()))]);
+        verify_tokenize_all(input, &[Ty::EndTag(EndTag::from_str(input))]);
     }
 
     #[test]
@@ -570,8 +569,8 @@ mod tests {
         verify_tokenize_all(
             input,
             &[
-                Ty::EndTag(EndTag::new(b"</goodbye a='val>'>")),
-                Ty::Characters(Characters::new(b"Content")),
+                Ty::EndTag(EndTag::from_str("</goodbye a='val>'>")),
+                Ty::Characters(Characters::from_str("Content")),
             ],
         );
     }
@@ -582,8 +581,8 @@ mod tests {
         verify_tokenize_all(
             input,
             &[
-                Ty::EndTag(EndTag::new(b"</goodbye a=\"val>\">")),
-                Ty::Characters(Characters::new(b"Content")),
+                Ty::EndTag(EndTag::from_str("</goodbye a=\"val>\">")),
+                Ty::Characters(Characters::from_str("Content")),
             ],
         );
     }
@@ -593,8 +592,8 @@ mod tests {
         let input = r#"<?test a="b" ?>"#;
         verify_tokenize_all(
             input,
-            &[Ty::ProcessingInstruction(ProcessingInstruction::new(
-                input.as_bytes(),
+            &[Ty::ProcessingInstruction(ProcessingInstruction::from_str(
+                input,
             ))],
         );
     }
@@ -604,8 +603,8 @@ mod tests {
         let input = r#"<?test? > a="v"?>"#;
         verify_tokenize_all(
             input,
-            &[Ty::ProcessingInstruction(ProcessingInstruction::new(
-                input.as_bytes(),
+            &[Ty::ProcessingInstruction(ProcessingInstruction::from_str(
+                input,
             ))],
         );
     }
@@ -616,8 +615,8 @@ mod tests {
         verify_tokenize_all(
             input,
             &[
-                Ty::ProcessingInstruction(ProcessingInstruction::new(b"<?goodbye a='val>'?>")),
-                Ty::Characters(Characters::new(b"Content")),
+                Ty::ProcessingInstruction(ProcessingInstruction::from_str("<?goodbye a='val>'?>")),
+                Ty::Characters(Characters::from_str("Content")),
             ],
         );
     }
@@ -628,8 +627,10 @@ mod tests {
         verify_tokenize_all(
             input,
             &[
-                Ty::ProcessingInstruction(ProcessingInstruction::new(b"<?goodbye a=\"val>\"?>")),
-                Ty::Characters(Characters::new(b"Content")),
+                Ty::ProcessingInstruction(ProcessingInstruction::from_str(
+                    "<?goodbye a=\"val>\"?>",
+                )),
+                Ty::Characters(Characters::from_str("Content")),
             ],
         );
     }
@@ -644,10 +645,7 @@ mod tests {
     #[test]
     fn declaration_in_one_pass() {
         let input = "<!DOCTYPE test [<!ELEMENT test (#PCDATA)>]>";
-        verify_tokenize_all(
-            input,
-            &[Ty::Declaration(Declaration::new(input.as_bytes()))],
-        );
+        verify_tokenize_all(input, &[Ty::Declaration(Declaration::from_str(input))]);
     }
 
     #[test]
@@ -656,8 +654,8 @@ mod tests {
         verify_tokenize_all(
             input,
             &[
-                Ty::Declaration(Declaration::new(b"<!goodbye a='val>'>")),
-                Ty::Characters(Characters::new(b"Content")),
+                Ty::Declaration(Declaration::from_str("<!goodbye a='val>'>")),
+                Ty::Characters(Characters::from_str("Content")),
             ],
         );
     }
@@ -668,8 +666,8 @@ mod tests {
         verify_tokenize_all(
             input,
             &[
-                Ty::Declaration(Declaration::new(b"<!goodbye a=\"val>\">")),
-                Ty::Characters(Characters::new(b"Content")),
+                Ty::Declaration(Declaration::from_str("<!goodbye a=\"val>\">")),
+                Ty::Characters(Characters::from_str("Content")),
             ],
         );
     }
@@ -679,8 +677,8 @@ mod tests {
         let input = "<![%test;[<!ELEMENT test (something*)>]]>";
         verify_tokenize_all(
             input,
-            &[Ty::Declaration(Declaration::new(
-                b"<![%test;[<!ELEMENT test (something*)>]]>",
+            &[Ty::Declaration(Declaration::from_str(
+                "<![%test;[<!ELEMENT test (something*)>]]>",
             ))],
         );
     }
@@ -691,8 +689,8 @@ mod tests {
         verify_tokenize_all(
             input,
             &[
-                Ty::Declaration(Declaration::new(b"<![test>>] >")),
-                Ty::Characters(Characters::new(b"Content")),
+                Ty::Declaration(Declaration::from_str("<![test>>] >")),
+                Ty::Characters(Characters::from_str("Content")),
             ],
         );
     }
@@ -703,8 +701,8 @@ mod tests {
         verify_tokenize_all(
             input,
             &[
-                Ty::Declaration(Declaration::new(b"<![test>[more>>] >Content>>] >")),
-                Ty::Characters(Characters::new(b"Content")),
+                Ty::Declaration(Declaration::from_str("<![test>[more>>] >Content>>] >")),
+                Ty::Characters(Characters::from_str("Content")),
             ],
         );
     }
@@ -712,7 +710,7 @@ mod tests {
     #[test]
     fn comment_in_one_pass() {
         let input = "<!-- Comment -->";
-        verify_tokenize_all(input, &[Ty::Comment(Comment::new(b"<!-- Comment -->"))]);
+        verify_tokenize_all(input, &[Ty::Comment(Comment::from_str("<!-- Comment -->"))]);
     }
 
     #[test]
@@ -721,8 +719,8 @@ mod tests {
         verify_tokenize_all(
             input,
             &[
-                Ty::Comment(Comment::new(b"<!-- Comment -->")),
-                Ty::Characters(Characters::new(b"Content")),
+                Ty::Comment(Comment::from_str("<!-- Comment -->")),
+                Ty::Characters(Characters::from_str("Content")),
             ],
         );
     }
@@ -733,8 +731,8 @@ mod tests {
         verify_tokenize_all(
             input,
             &[
-                Ty::Comment(Comment::new(b"<!-- goodbye a='val-->")),
-                Ty::Characters(Characters::new(b"Content")),
+                Ty::Comment(Comment::from_str("<!-- goodbye a='val-->")),
+                Ty::Characters(Characters::from_str("Content")),
             ],
         );
     }
@@ -745,8 +743,8 @@ mod tests {
         verify_tokenize_all(
             input,
             &[
-                Ty::Comment(Comment::new(b"<!-- goodbye a=\"val-->")),
-                Ty::Characters(Characters::new(b"Content")),
+                Ty::Comment(Comment::from_str("<!-- goodbye a=\"val-->")),
+                Ty::Characters(Characters::from_str("Content")),
             ],
         );
     }
@@ -757,8 +755,8 @@ mod tests {
         verify_tokenize_all(
             input,
             &[
-                Ty::Declaration(Declaration::new(b"<!-goodbye a=\"-->val-->\">")),
-                Ty::Characters(Characters::new(b"Content")),
+                Ty::Declaration(Declaration::from_str("<!-goodbye a=\"-->val-->\">")),
+                Ty::Characters(Characters::from_str("Content")),
             ],
         );
     }
@@ -772,8 +770,8 @@ mod tests {
         verify_tokenize_all(
             input,
             &[
-                Ty::Comment(Comment::new(b"<!--goodbye a=\"--val-->")),
-                Ty::Characters(Characters::new(b"\"-- test -->Content")),
+                Ty::Comment(Comment::from_str("<!--goodbye a=\"--val-->")),
+                Ty::Characters(Characters::from_str("\"-- test -->Content")),
             ],
         );
     }
@@ -790,10 +788,10 @@ mod tests {
         verify_tokenize_all(
             input,
             &[
-                Ty::Comment(Comment::new(
-                    r#"<!--goodbye a="--val--" test ->ContentMore -->"#.as_bytes(),
+                Ty::Comment(Comment::from_str(
+                    r#"<!--goodbye a="--val--" test ->ContentMore -->"#,
                 )),
-                Ty::Characters(Characters::new(b"Real Content")),
+                Ty::Characters(Characters::from_str("Real Content")),
             ],
         );
     }
@@ -801,7 +799,7 @@ mod tests {
     #[test]
     fn comment_not_reused_dashes() {
         let input = "<!-->-->";
-        verify_tokenize_all(input, &[Ty::Comment(Comment::new(input.as_bytes()))]);
+        verify_tokenize_all(input, &[Ty::Comment(Comment::from_str(input))]);
     }
 
     #[test]
@@ -813,16 +811,13 @@ mod tests {
     #[test]
     fn cdata() {
         let input = "<![CDATA[ Content ]]>";
-        verify_tokenize_all(input, &[Ty::Cdata(Cdata::new(input.as_bytes()))]);
+        verify_tokenize_all(input, &[Ty::Cdata(Cdata::from_str(input))]);
     }
 
     #[test]
     fn declaration_with_uneven_brackets() {
         let input = "<![&random[ Declaration ]]]>";
-        verify_tokenize_all(
-            input,
-            &[Ty::Declaration(Declaration::new(input.as_bytes()))],
-        );
+        verify_tokenize_all(input, &[Ty::Declaration(Declaration::from_str(input))]);
     }
 
     #[test]
@@ -831,8 +826,8 @@ mod tests {
         verify_tokenize_all(
             input,
             &[
-                Ty::Cdata(Cdata::new("<![CDATA[ Content ]]>".as_bytes())),
-                Ty::Characters(Characters::new(b" Unused Content")),
+                Ty::Cdata(Cdata::from_str("<![CDATA[ Content ]]>")),
+                Ty::Characters(Characters::from_str(" Unused Content")),
             ],
         );
     }
@@ -843,8 +838,8 @@ mod tests {
         verify_tokenize_all(
             input,
             &[
-                Ty::Cdata(Cdata::new("<![CDATA[ Content ]]>".as_bytes())),
-                Ty::Characters(Characters::new(b"Content")),
+                Ty::Cdata(Cdata::from_str("<![CDATA[ Content ]]>")),
+                Ty::Characters(Characters::from_str("Content")),
             ],
         );
     }
@@ -856,8 +851,8 @@ mod tests {
         verify_tokenize_all(
             input,
             &[
-                Ty::Cdata(Cdata::new("<![CDATA[ Content ']]>".as_bytes())),
-                Ty::Characters(Characters::new(b"']]>Unused Content")),
+                Ty::Cdata(Cdata::from_str("<![CDATA[ Content ']]>")),
+                Ty::Characters(Characters::from_str("']]>Unused Content")),
             ],
         );
     }
@@ -868,8 +863,8 @@ mod tests {
         verify_tokenize_all(
             input,
             &[
-                Ty::Cdata(Cdata::new(r#"<![CDATA[ goodbye a="]]>"#.as_bytes())),
-                Ty::Characters(Characters::new(b"\"]]>Content")),
+                Ty::Cdata(Cdata::from_str(r#"<![CDATA[ goodbye a="]]>"#)),
+                Ty::Characters(Characters::from_str("\"]]>Content")),
             ],
         );
     }
@@ -884,10 +879,8 @@ mod tests {
         verify_tokenize_all(
             input,
             &[
-                Ty::Declaration(Declaration::new(
-                    r#"<![CDATA Content a="]]>]]>"]]>"#.as_bytes(),
-                )),
-                Ty::Characters(Characters::new(b"Content")),
+                Ty::Declaration(Declaration::from_str(r#"<![CDATA Content a="]]>]]>"]]>"#)),
+                Ty::Characters(Characters::from_str("Content")),
             ],
         );
     }
@@ -901,10 +894,10 @@ mod tests {
         verify_tokenize_all(
             input,
             &[
-                Ty::Cdata(Cdata::new(
-                    r#"<![CDATA[ Content a="]>other ]]"]] test ]]>"#.as_bytes(),
+                Ty::Cdata(Cdata::from_str(
+                    r#"<![CDATA[ Content a="]>other ]]"]] test ]]>"#,
                 )),
-                Ty::Characters(Characters::new(b"Content")),
+                Ty::Characters(Characters::from_str("Content")),
             ],
         );
     }
@@ -918,10 +911,10 @@ mod tests {
         verify_tokenize_all(
             input,
             &[
-                Ty::Cdata(Cdata::new(
-                    r#"<![CDATA[ Content a="]>]>" test ]>ContentMore ]]>"#.as_bytes(),
+                Ty::Cdata(Cdata::from_str(
+                    r#"<![CDATA[ Content a="]>]>" test ]>ContentMore ]]>"#,
                 )),
-                Ty::Characters(Characters::new(b"Real Content")),
+                Ty::Characters(Characters::from_str("Real Content")),
             ],
         );
     }

@@ -89,13 +89,13 @@ let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
 let mut pos = 0;
 
 let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
-assert_eq!(Some(Ty::StartTag(StartTag::from("<id>".as_bytes()))), ty);
+assert_eq!(Some(Ty::StartTag(StartTag::from("<id>"))), ty);
 
 // Position was assigned to the index after the end of the token
 assert_eq!(4, pos);
 
 let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
-assert_eq!(Some(Ty::Characters(Characters::from("123".as_bytes()))), ty);
+assert_eq!(Some(Ty::Characters(Characters::from("123"))), ty);
 
 // Position was assigned to the index after the end of the token
 assert_eq!(7, pos);

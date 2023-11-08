@@ -10,6 +10,25 @@ use core::str;
 macro_rules! converters {
     ($name:ident) => {
         impl<'a> $name<'a> {
+            /// Instantiates a new instance from an unsafe slice of bytes.
+            ///
+            /// # Safety
+            ///
+            /// The bytes are assumed to be a valid UTF-8 string. If the bytes
+            /// are not a UTF-8 string, behavior is undefined.
+            #[inline]
+            #[must_use]
+            pub const unsafe fn from_slice(bytes: &'a [u8]) -> Self {
+                Self(bytes)
+            }
+
+            /// Instantiates a new instance with a string.
+            #[inline]
+            #[must_use]
+            pub const fn from_str(input: &'a str) -> Self {
+                Self(input.as_bytes())
+            }
+
             /// All of the bytes representing the token property.
             #[inline]
             #[must_use]
@@ -70,7 +89,7 @@ macro_rules! converters {
 
 /// The name of the tag (e.g. `name` in `<name>` or `</name>`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct TagName<'a>(pub(crate) &'a [u8]);
+pub struct TagName<'a>(&'a [u8]);
 
 impl<'a> TagName<'a> {
     /// The local part of the name.
@@ -123,7 +142,7 @@ converters!(NamespacePrefix);
 ///
 /// The bytes may include additional spacing in the raw byte form.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Attributes<'a>(pub(crate) &'a [u8]);
+pub struct Attributes<'a>(&'a [u8]);
 
 impl<'a> IntoIterator for Attributes<'a> {
     type Item = Attribute<'a>;
@@ -356,19 +375,19 @@ converters!(AttributeValue);
 
 /// The character content.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Content<'a>(pub(super) &'a [u8]);
+pub struct Content<'a>(&'a [u8]);
 
 converters!(Content);
 
 /// The target of the processing instruction (e.g. `xml` in `<?xml ?>`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Target<'a>(pub(super) &'a [u8]);
+pub struct Target<'a>(&'a [u8]);
 
 converters!(Target);
 
 /// The content of the processing instruction (e.g. `encoding="utf8"` in `<?xml encoding="utf-8"?>`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Instructions<'a>(pub(super) &'a [u8]);
+pub struct Instructions<'a>(&'a [u8]);
 
 converters!(Instructions);
 
