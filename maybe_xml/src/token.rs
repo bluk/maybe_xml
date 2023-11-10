@@ -12,6 +12,12 @@ const fn is_space(byte: u8) -> bool {
     matches!(byte, 32 | 9 | 13 | 10)
 }
 
+#[inline]
+#[must_use]
+const fn is_space_ch(ch: char) -> bool {
+    matches!(ch, ' ' | '\t' | '\r' | '\n')
+}
+
 use core::str;
 
 use prop::{Attributes, Content, Instructions, TagName, Target};
@@ -250,16 +256,17 @@ impl<'a> StartTag<'a> {
             .iter()
             .position(|b| is_space(*b))
             .unwrap_or(self.0.len() - 1);
-        unsafe { TagName::from_slice(&self.0[1..index]) }
+        TagName::from_str(unsafe { core::str::from_utf8_unchecked(&self.0[1..index]) })
     }
 
     /// The attributes of the tag.
     #[must_use]
     pub fn attributes(&self) -> Option<Attributes<'a>> {
-        self.0
-            .iter()
-            .position(|b| is_space(*b))
-            .map(|index| unsafe { Attributes::from_slice(&self.0[index + 1..self.0.len() - 1]) })
+        self.0.iter().position(|b| is_space(*b)).map(|index| {
+            Attributes::from_str(unsafe {
+                core::str::from_utf8_unchecked(&self.0[index + 1..self.0.len() - 1])
+            })
+        })
     }
 }
 
@@ -280,16 +287,17 @@ impl<'a> EmptyElementTag<'a> {
             .iter()
             .position(|b| is_space(*b))
             .unwrap_or(self.0.len() - 2);
-        unsafe { TagName::from_slice(&self.0[1..index]) }
+        TagName::from_str(unsafe { core::str::from_utf8_unchecked(&self.0[1..index]) })
     }
 
     /// The attributes of the tag.
     #[must_use]
     pub fn attributes(&self) -> Option<Attributes<'a>> {
-        self.0
-            .iter()
-            .position(|b| is_space(*b))
-            .map(|index| unsafe { Attributes::from_slice(&self.0[index + 1..self.0.len() - 2]) })
+        self.0.iter().position(|b| is_space(*b)).map(|index| {
+            Attributes::from_str(unsafe {
+                core::str::from_utf8_unchecked(&self.0[index + 1..self.0.len() - 2])
+            })
+        })
     }
 }
 
@@ -308,7 +316,7 @@ impl<'a> EndTag<'a> {
             .iter()
             .position(|b| is_space(*b))
             .unwrap_or(self.0.len() - 1);
-        unsafe { TagName::from_slice(&self.0[2..index]) }
+        TagName::from_str(unsafe { core::str::from_utf8_unchecked(&self.0[2..index]) })
     }
 }
 
@@ -323,7 +331,7 @@ impl<'a> Characters<'a> {
     #[inline]
     #[must_use]
     pub const fn content(&self) -> Content<'a> {
-        unsafe { Content::from_slice(self.0) }
+        Content::from_str(unsafe { core::str::from_utf8_unchecked(self.0) })
     }
 }
 
@@ -344,16 +352,17 @@ impl<'a> ProcessingInstruction<'a> {
             .iter()
             .position(|b| is_space(*b))
             .unwrap_or(self.0.len() - 2);
-        unsafe { Target::from_slice(&self.0[2..index]) }
+        Target::from_str(unsafe { core::str::from_utf8_unchecked(&self.0[2..index]) })
     }
 
     /// The instructions of the tag.
     #[must_use]
     pub fn instructions(&self) -> Option<Instructions<'a>> {
-        self.0
-            .iter()
-            .position(|b| is_space(*b))
-            .map(|index| unsafe { Instructions::from_slice(&self.0[index + 1..self.0.len() - 2]) })
+        self.0.iter().position(|b| is_space(*b)).map(|index| {
+            Instructions::from_str(unsafe {
+                core::str::from_utf8_unchecked(&self.0[index + 1..self.0.len() - 2])
+            })
+        })
     }
 }
 
@@ -378,7 +387,7 @@ impl<'a> Cdata<'a> {
     #[inline]
     #[must_use]
     pub fn content(&self) -> Content<'a> {
-        unsafe { Content::from_slice(&self.0[9..self.0.len() - 3]) }
+        Content::from_str(unsafe { core::str::from_utf8_unchecked(&self.0[9..self.0.len() - 3]) })
     }
 }
 
@@ -420,11 +429,10 @@ mod tests {
     }
 
     #[test]
-    fn empty_start_tag_name() -> Result<()> {
+    fn empty_start_tag_name() {
         let start_tag = StartTag(b"<>");
         assert_eq!(start_tag.name().as_bytes(), b"");
-        assert_eq!(start_tag.name().to_str()?, "");
-        Ok(())
+        assert_eq!(start_tag.name().as_str(), "");
     }
 
     #[test]
@@ -443,11 +451,10 @@ mod tests {
     }
 
     #[test]
-    fn empty_empty_element_tag_name() -> Result<()> {
+    fn empty_empty_element_tag_name() {
         let empty_element_tag = EmptyElementTag(b"</>");
         assert_eq!(empty_element_tag.name().as_bytes(), b"");
-        assert_eq!(empty_element_tag.name().to_str()?, "");
-        Ok(())
+        assert_eq!(empty_element_tag.name().as_str(), "");
     }
 
     #[test]
@@ -466,10 +473,9 @@ mod tests {
     }
 
     #[test]
-    fn empty_end_tag_name() -> Result<()> {
+    fn empty_end_tag_name() {
         let end_tag = EndTag(b"</>");
         assert_eq!(end_tag.name().as_bytes(), b"");
-        assert_eq!(end_tag.name().to_str()?, "");
-        Ok(())
+        assert_eq!(end_tag.name().as_str(), "");
     }
 }

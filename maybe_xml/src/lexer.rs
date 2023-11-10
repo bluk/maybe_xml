@@ -28,16 +28,16 @@ use scanner::scan;
 /// let lexer = Lexer::from_str(input);
 /// let mut iter = lexer.into_iter().filter_map(|token| {
 ///     match token.ty() {
-///         Ty::StartTag(tag) => Some(tag.name().to_str()),
+///         Ty::StartTag(tag) => Some(tag.name().as_str()),
 ///         _ => None,
 ///     }
 /// });
 ///
 /// let name = iter.next();
-/// assert_eq!(Some(Ok("id")), name);
+/// assert_eq!(Some("id"), name);
 ///
 /// let name = iter.next();
-/// assert_eq!(Some(Ok("name")), name);
+/// assert_eq!(Some("name"), name);
 ///
 /// assert_eq!(None, iter.next());
 /// ```
@@ -181,16 +181,16 @@ impl<'a> Lexer<'a> {
     /// let lexer = Lexer::from_str(input);
     /// let mut iter = lexer.iter(0).filter_map(|token| {
     ///     match token.ty() {
-    ///         Ty::StartTag(tag) => Some(tag.name().to_str()),
+    ///         Ty::StartTag(tag) => Some(tag.name().as_str()),
     ///         _ => None,
     ///     }
     /// });
     ///
     /// let name = iter.next();
-    /// assert_eq!(Some(Ok("id")), name);
+    /// assert_eq!(Some("id"), name);
     ///
     /// let name = iter.next();
-    /// assert_eq!(Some(Ok("name")), name);
+    /// assert_eq!(Some("name"), name);
     ///
     /// assert_eq!(None, iter.next());
     /// ```
@@ -305,18 +305,18 @@ impl<'a> IntoIterator for Lexer<'a> {
 ///     .filter_map(|token| {
 ///         match token.ty() {
 ///             Ty::StartTag(start_tag) => {
-///                 Some(start_tag.name().to_str())
+///                 Some(start_tag.name().as_str())
 ///             }
 ///             Ty::EndTag(end_tag) => {
-///                 Some(end_tag.name().to_str())
+///                 Some(end_tag.name().as_str())
 ///             }
 ///             _ => None,
 ///         }
 ///     });
 ///
-/// assert_eq!(Some(Ok("id")), iter.next());
-/// assert_eq!(Some(Ok("name")), iter.next());
-/// assert_eq!(Some(Ok("name")), iter.next());
+/// assert_eq!(Some("id"), iter.next());
+/// assert_eq!(Some("name"), iter.next());
+/// assert_eq!(Some("name"), iter.next());
 /// assert_eq!(None, iter.next());
 /// # Ok::<(), std::io::Error>(())
 /// ```
@@ -358,19 +358,19 @@ impl<'a> Iterator for Iter<'a> {
 ///     .filter_map(|token| {
 ///         match token.ty() {
 ///             Ty::StartTag(start_tag) => {
-///                 Some(start_tag.name().to_str())
+///                 Some(start_tag.name().as_str())
 ///             }
 ///             Ty::EndTag(end_tag) => {
-///                 Some(end_tag.name().to_str())
+///                 Some(end_tag.name().as_str())
 ///             }
 ///             _ => None,
 ///         }
 ///     });
 ///
-/// assert_eq!(Some(Ok("ID")), iter.next());
-/// assert_eq!(Some(Ok("id")), iter.next());
-/// assert_eq!(Some(Ok("name")), iter.next());
-/// assert_eq!(Some(Ok("name")), iter.next());
+/// assert_eq!(Some("ID"), iter.next());
+/// assert_eq!(Some("id"), iter.next());
+/// assert_eq!(Some("name"), iter.next());
+/// assert_eq!(Some("name"), iter.next());
 /// assert_eq!(None, iter.next());
 /// # Ok::<(), std::io::Error>(())
 /// ```

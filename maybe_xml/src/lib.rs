@@ -33,7 +33,7 @@
 //! assert_eq!(token_type, Some(Ty::StartTag(StartTag::from("<id>"))));
 //! match token_type {
 //!     Some(Ty::StartTag(start_tag)) => {
-//!         assert_eq!(start_tag.name().to_str()?, "id");
+//!         assert_eq!(start_tag.name().as_str(), "id");
 //!     }
 //!     _ => panic!("unexpected token"),
 //! }
