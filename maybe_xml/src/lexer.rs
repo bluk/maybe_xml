@@ -160,7 +160,7 @@ impl<'a> Lexer<'a> {
     pub fn tokenize(&self, pos: &mut usize) -> Option<Token<'a>> {
         let bytes = &self.input[*pos..];
         let bytes = scan(bytes)?;
-        let token = unsafe { Token::from_slice(bytes) };
+        let token = Token::from_str(unsafe { core::str::from_utf8_unchecked(bytes) });
         *pos += token.len();
         Some(token)
     }
