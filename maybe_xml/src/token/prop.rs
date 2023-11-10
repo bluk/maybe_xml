@@ -13,8 +13,8 @@ macro_rules! converters {
             /// Instantiates a new instance with a string.
             #[inline]
             #[must_use]
-            pub const fn from_str(input: &'a str) -> Self {
-                Self(input)
+            pub const fn from_str(value: &'a str) -> Self {
+                Self(value)
             }
 
             /// All of the bytes representing the token property.
@@ -107,7 +107,7 @@ impl<'a> IntoIterator for Attributes<'a> {
     #[inline]
     fn into_iter(self) -> Self::IntoIter {
         AttributeIntoIter {
-            bytes: self.0.as_bytes(),
+            value: self.0,
             index: 0,
         }
     }
@@ -116,62 +116,60 @@ impl<'a> IntoIterator for Attributes<'a> {
 converters!(Attributes);
 
 #[must_use]
-fn iter_attr(mut index: usize, bytes: &[u8]) -> (usize, Option<Attribute<'_>>) {
-    if index == bytes.len() {
+fn iter_attr(mut index: usize, value: &str) -> (usize, Option<Attribute<'_>>) {
+    if index == value.len() {
         return (index, None);
     }
 
-    if let Some(begin) = bytes[index..].iter().position(|b| !super::is_space(*b)) {
+    if let Some(begin) = value[index..]
+        .char_indices()
+        .find_map(|(pos, ch)| (!super::is_space_ch(ch)).then(|| pos))
+    {
         let mut saw_space_before_equals = false;
         let mut last_nonspace_index_before_equals = None;
         let mut saw_equals = false;
         let mut saw_characters_after_equals = false;
         let mut quote_state = QuoteState::None;
-        for (loop_index, &byte) in bytes[index + begin..].iter().enumerate() {
-            match byte {
-                b'"' => match quote_state {
+        for (loop_index, ch) in value[index + begin..].char_indices() {
+            match ch {
+                '"' => match quote_state {
                     QuoteState::None => quote_state = QuoteState::Double,
                     QuoteState::Single => {}
                     QuoteState::Double => {
                         if saw_equals {
-                            let attr = Attribute(unsafe {
-                                core::str::from_utf8_unchecked(
-                                    &bytes[(index + begin)..=(index + begin + loop_index)],
-                                )
-                            });
-                            index += begin + loop_index + 1;
+                            let attr = Attribute(
+                                &value[(index + begin)
+                                    ..(index + begin + loop_index + '"'.len_utf8())],
+                            );
+                            index += begin + loop_index + '"'.len_utf8();
                             return (index, Some(attr));
                         }
                     }
                 },
-                b'\'' => match quote_state {
+                '\'' => match quote_state {
                     QuoteState::None => quote_state = QuoteState::Single,
                     QuoteState::Single => {
                         if saw_equals {
-                            let attr = Attribute(unsafe {
-                                core::str::from_utf8_unchecked(
-                                    &bytes[(index + begin)..=(index + begin + loop_index)],
-                                )
-                            });
-                            index += begin + loop_index + 1;
+                            let attr = Attribute(
+                                &value[(index + begin)
+                                    ..(index + begin + loop_index + '\''.len_utf8())],
+                            );
+                            index += begin + loop_index + '\''.len_utf8();
                             return (index, Some(attr));
                         }
                     }
                     QuoteState::Double => {}
                 },
-                b'=' => saw_equals = true,
-                b if super::is_space(b) => {
+                '=' => saw_equals = true,
+                ch if super::is_space_ch(ch) => {
                     if !saw_equals {
                         saw_space_before_equals = true;
                     } else if saw_characters_after_equals {
                         match quote_state {
                             QuoteState::None => {
-                                let attr = Attribute(unsafe {
-                                    core::str::from_utf8_unchecked(
-                                        &bytes[index + begin..index + begin + loop_index],
-                                    )
-                                });
-                                index += begin + loop_index + 1;
+                                let attr =
+                                    Attribute(&value[index + begin..index + begin + loop_index]);
+                                index += begin + loop_index + ch.len_utf8();
                                 return (index, Some(attr));
                             }
                             QuoteState::Single | QuoteState::Double => {}
@@ -183,33 +181,27 @@ fn iter_attr(mut index: usize, bytes: &[u8]) -> (usize, Option<Attribute<'_>>) {
                         saw_characters_after_equals = true;
                     } else if saw_space_before_equals {
                         if let Some(last_seen_char) = last_nonspace_index_before_equals {
-                            let attr = Attribute(unsafe {
-                                core::str::from_utf8_unchecked(
-                                    &bytes[(index + begin)..=(index + begin + last_seen_char)],
-                                )
-                            });
+                            let attr = Attribute(
+                                &value[(index + begin)..(index + begin + last_seen_char)],
+                            );
                             index += begin + loop_index;
                             return (index, Some(attr));
                         }
 
-                        let attr = Attribute(unsafe {
-                            core::str::from_utf8_unchecked(
-                                &bytes[index + begin..index + begin + loop_index],
-                            )
-                        });
+                        let attr = Attribute(&value[index + begin..index + begin + loop_index]);
                         index += begin + loop_index;
                         return (index, Some(attr));
                     } else {
-                        last_nonspace_index_before_equals = Some(loop_index);
+                        last_nonspace_index_before_equals = Some(loop_index + ch.len_utf8());
                     }
                 }
             }
         }
-        let attr = Attribute(unsafe { core::str::from_utf8_unchecked(&bytes[index + begin..]) });
-        index = bytes.len();
+        let attr = Attribute(&value[index + begin..]);
+        index = value.len();
         (index, Some(attr))
     } else {
-        index = bytes.len();
+        index = value.len();
         (index, None)
     }
 }
@@ -217,7 +209,7 @@ fn iter_attr(mut index: usize, bytes: &[u8]) -> (usize, Option<Attribute<'_>>) {
 /// An iterator which returns an individual attribute on every `next()` call.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct AttributeIntoIter<'a> {
-    bytes: &'a [u8],
+    value: &'a str,
     index: usize,
 }
 
@@ -225,7 +217,7 @@ impl<'a> Iterator for AttributeIntoIter<'a> {
     type Item = Attribute<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (new_index, item) = iter_attr(self.index, self.bytes);
+        let (new_index, item) = iter_attr(self.index, self.value);
         self.index = new_index;
         item
     }
@@ -477,14 +469,6 @@ mod tests {
         let attributes = Attributes(
             "     attr=\"1\"  id='test' test = new   name= invalid standalone   name=\"example\" ",
         );
-        let mut attributes_iter = attributes.into_iter();
-        assert_eq!(attributes_iter.next(), Some(Attribute("attr=\"1\"")));
-        assert_eq!(attributes_iter.next(), Some(Attribute("id='test'")));
-        assert_eq!(attributes_iter.next(), Some(Attribute("test = new")));
-        assert_eq!(attributes_iter.next(), Some(Attribute("name= invalid")));
-        assert_eq!(attributes_iter.next(), Some(Attribute("standalone")));
-        assert_eq!(attributes_iter.next(), Some(Attribute("name=\"example\"")));
-        assert_eq!(attributes_iter.next(), None);
 
         let mut attributes_into_iter = attributes.into_iter();
         assert_eq!(attributes_into_iter.next(), Some(Attribute("attr=\"1\"")));
