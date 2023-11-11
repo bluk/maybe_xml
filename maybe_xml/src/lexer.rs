@@ -158,11 +158,32 @@ impl<'a> Lexer<'a> {
     ///```
     #[must_use]
     pub fn tokenize(&self, pos: &mut usize) -> Option<Token<'a>> {
-        let bytes = &self.input[*pos..];
-        let bytes = scan(bytes)?;
-        let token = Token::from_str(unsafe { core::str::from_utf8_unchecked(bytes) });
-        *pos += token.len();
-        Some(token)
+        // The &mut function parameter is blocking this function from being const
+        // See https://github.com/rust-lang/rust/issues/57349
+        // On some micro-benchmarks, there was a drop in performance when
+        // removing the assignment of pos and having the caller modify the
+        // position:
+        //
+        // ```
+        // let lexer = Lexer::from_str("<hello>");
+        // let mut pos = 0;
+        // let token = lexer.tokenize(pos)?;
+        // pos = 0 + token.len();
+        // ```
+        //
+        // A separate function could be made avaialble which is const if someone wants it.
+
+        if let Some(end) = scan(self.input, *pos) {
+            // This is a convoluted but *const* way of getting &self.input[*pos..end]
+            let (bytes, _) = self.input.split_at(end);
+            let (_, bytes) = bytes.split_at(*pos);
+            let token = Token::from_str(unsafe { core::str::from_utf8_unchecked(bytes) });
+
+            *pos = end;
+            Some(token)
+        } else {
+            None
+        }
     }
 
     /// Returns an iterator for tokens starting at the given position.
@@ -423,19 +444,19 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "start index 1 out of range")]
-    fn panic_on_pos_greater_than_slice_len() {
+    fn pos_greater_than_slice_len() {
         let lexer = Lexer::from_str("");
         let mut pos = 1;
-        let _ = lexer.tokenize(&mut pos);
+        assert_eq!(None, lexer.tokenize(&mut pos));
+        assert_eq!(pos, 1);
     }
 
     #[test]
-    #[should_panic(expected = "out of range")]
-    fn panic_on_pos_greater_than_slice_len_2() {
+    fn pos_greater_than_slice_len_2() {
         let lexer = Lexer::from_str("hello");
         let mut pos = "hello".len() + 1;
-        let _ = lexer.tokenize(&mut pos);
+        assert_eq!(None, lexer.tokenize(&mut pos));
+        assert_eq!(pos, "hello".len() + 1);
     }
 
     #[cfg(any(feature = "std", feature = "alloc"))]

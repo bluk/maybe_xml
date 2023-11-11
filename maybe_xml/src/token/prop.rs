@@ -4,7 +4,7 @@
 //! there may be interesting "properties" within the token such as the name of the
 //! tag or the contents of a Characters/CDATA token.
 
-use crate::bytes::QuoteState;
+use crate::QuoteState;
 use core::str;
 
 macro_rules! converters {

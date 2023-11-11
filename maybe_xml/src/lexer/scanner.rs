@@ -1,13 +1,18 @@
 //! Scans byte sequences for tokens.
 
-use crate::bytes::{self, QuoteState};
+use crate::QuoteState;
 
 /// Find the next `>` while being aware of quoted text.
 #[inline]
 #[must_use]
-fn find_close_tag_char_with_quotes(input: &[u8]) -> Option<usize> {
+const fn find_close_tag_char_with_quotes(input: &[u8], offset: usize) -> Option<usize> {
     let mut quote_state = QuoteState::None;
-    for (pos, byte) in input.iter().enumerate() {
+    let mut index = offset;
+    loop {
+        if input.len() <= index {
+            return None;
+        }
+        let byte = input[index];
         match byte {
             b'"' => match quote_state {
                 QuoteState::Double => {
@@ -29,25 +34,34 @@ fn find_close_tag_char_with_quotes(input: &[u8]) -> Option<usize> {
             },
             b'>' => match quote_state {
                 QuoteState::None => {
-                    return Some(pos + 1);
+                    return Some(index + 1);
                 }
                 QuoteState::Single | QuoteState::Double => {}
             },
             _ => {}
         }
+        index += 1;
     }
-
-    None
 }
 
 /// Find the next `>` while being aware of quoted text and the number of bracket delimiters used.
 #[inline]
 #[must_use]
-fn find_close_tag_char_with_brackets_and_quotes(input: &[u8]) -> Option<usize> {
+const fn find_close_tag_char_with_brackets_and_quotes(
+    input: &[u8],
+    offset: usize,
+) -> Option<usize> {
     let mut bracket_cnt = 0;
     let mut quote_state = QuoteState::None;
 
-    for (pos, byte) in input.iter().enumerate() {
+    let mut index = offset;
+    loop {
+        if input.len() <= index {
+            return None;
+        }
+
+        let byte = input[index];
+
         match byte {
             b'[' => match quote_state {
                 QuoteState::None => bracket_cnt += 1,
@@ -83,7 +97,7 @@ fn find_close_tag_char_with_brackets_and_quotes(input: &[u8]) -> Option<usize> {
                 if bracket_cnt == 0 {
                     match quote_state {
                         QuoteState::None => {
-                            return Some(pos + 1);
+                            return Some(index + 1);
                         }
                         QuoteState::Double | QuoteState::Single => {}
                     }
@@ -91,215 +105,227 @@ fn find_close_tag_char_with_brackets_and_quotes(input: &[u8]) -> Option<usize> {
             }
             _ => {}
         }
+
+        index += 1;
     }
-
-    None
 }
 
 #[inline]
 #[must_use]
-fn scan_text_content(input: &[u8]) -> &[u8] {
-    debug_assert_ne!(0, input.len());
-    debug_assert_ne!(input[0], b'<');
+const fn scan_text_content(input: &[u8], pos: usize) -> usize {
+    // debug_assert!(pos < input.len());
+    // debug_assert!(input[pos] != b'<');
 
-    let len = input.iter().position(|b| *b == b'<').unwrap_or(input.len());
-    &input[..len]
-}
-
-#[inline]
-#[must_use]
-fn scan_markup(input: &[u8]) -> Option<&[u8]> {
-    debug_assert_ne!(0, input.len());
-    debug_assert_eq!(input[0], b'<');
-
-    if let Some(next) = bytes::peek2(input) {
-        match next {
-            b'/' => scan_end_tag(input),
-            b'?' => scan_processing_instruction(input),
-            b'!' => scan_declaration_comment_or_cdata(input),
-            _ => scan_start_or_empty_element_tag(input),
+    let mut index = pos + 1;
+    loop {
+        if index == input.len() {
+            return index;
         }
-    } else {
-        debug_assert_eq!(1, input.len());
-        None
+
+        if input[index] == b'<' {
+            return index;
+        }
+
+        index += 1;
     }
 }
 
 #[inline]
 #[must_use]
-fn scan_start_or_empty_element_tag(input: &[u8]) -> Option<&[u8]> {
+const fn scan_markup(input: &[u8], pos: usize) -> Option<usize> {
+    // debug_assert!(pos < input.len());
+    // debug_assert!(input[pos] == b'<');
+
+    let peek = pos + 1;
+    if input.len() <= peek {
+        return None;
+    }
+
+    match input[peek] {
+        b'/' => scan_end_tag(input, pos),
+        b'?' => scan_processing_instruction(input, pos),
+        b'!' => scan_declaration_comment_or_cdata(input, pos),
+        _ => scan_start_or_empty_element_tag(input, pos),
+    }
+}
+
+#[inline]
+#[must_use]
+const fn scan_start_or_empty_element_tag(input: &[u8], pos: usize) -> Option<usize> {
     // Skip the head '<'
     const OFFSET: usize = 1;
 
     // Due to scan_mark(), peek2 is already checked
-    debug_assert!(input.len() >= 2);
-    debug_assert_eq!(input[0], b'<');
-    debug_assert_ne!(input[1], b'/');
-    debug_assert_ne!(input[1], b'?');
-    debug_assert_ne!(input[1], b'!');
+    // debug_assert!(pos + 1 < input.len());
+    // debug_assert!(input[pos] == b'<');
+    // debug_assert!(input[pos + 1] != b'/');
+    // debug_assert!(input[pos + 1] != b'?');
+    // debug_assert!(input[pos + 1] != b'!');
 
-    if let Some(pos) = find_close_tag_char_with_quotes(&input[OFFSET..]) {
-        // if pos > 1 && input[OFFSET + pos - 2] == b'/' {
-        //     Some(&input[..=pos])
-        // } else {
-        Some(&input[..=pos])
-        // }
-    } else {
-        None
-    }
+    find_close_tag_char_with_quotes(input, pos + OFFSET)
 }
 
-#[inline]
+#[inline(always)]
 #[must_use]
-fn scan_end_tag(input: &[u8]) -> Option<&[u8]> {
+const fn scan_end_tag(input: &[u8], pos: usize) -> Option<usize> {
     // Skip the head '</'
     const OFFSET: usize = 2;
 
-    debug_assert!(input.len() >= 2);
-    debug_assert_eq!(input[0], b'<');
-    debug_assert_eq!(input[1], b'/');
+    // debug_assert!(pos + 1 < input.len());
+    // debug_assert!(input[pos] == b'<');
+    // debug_assert!(input[pos + 1] == b'/');
 
-    find_close_tag_char_with_quotes(&input[OFFSET..]).map(|pos| &input[..OFFSET + pos])
+    find_close_tag_char_with_quotes(input, pos + OFFSET)
 }
 
 #[inline]
 #[must_use]
-fn scan_processing_instruction(input: &[u8]) -> Option<&[u8]> {
+const fn scan_processing_instruction(input: &[u8], pos: usize) -> Option<usize> {
     // Skip the head '<?'
     const OFFSET: usize = 2;
 
-    debug_assert!(input.len() >= 2);
-    debug_assert_eq!(input[0], b'<');
-    debug_assert_eq!(input[1], b'?');
+    // debug_assert!(pos + 1 < input.len());
+    // debug_assert!(input[pos] == b'<');
+    // debug_assert!(input[pos + 1] == b'?');
 
     // Skip OFFSET + 1 because at the minimum, it must be `<??>`.
     // It cannot be `<?>`.
 
-    input
-        .iter()
-        .enumerate()
-        .skip(OFFSET + 1)
-        .find_map(|(pos, b)| {
-            if *b == b'>' && input[pos - 1] == b'?' {
-                Some(pos)
-            } else {
-                None
-            }
-        })
-        .map(|pos| &input[..=pos])
-}
-
-#[inline]
-#[must_use]
-fn scan_declaration_comment_or_cdata(input: &[u8]) -> Option<&[u8]> {
-    // Skip the head '<!'
-    const OFFSET: usize = 2;
-
-    debug_assert!(input.len() >= 2);
-    debug_assert_eq!(input[0], b'<');
-    debug_assert_eq!(input[1], b'!');
-
-    let bytes = &input[OFFSET..];
-    if let Some(peek) = bytes::peek(bytes) {
-        match peek {
-            b'-' => {
-                if let Some(peek2) = bytes::peek2(bytes) {
-                    match peek2 {
-                        b'-' => scan_comment(input),
-                        _ => scan_declaration(input),
-                    }
-                } else {
-                    None
-                }
-            }
-            b'[' => {
-                const CDATA: &[u8] = b"[CDATA[";
-                if bytes.len() > CDATA.len() && &bytes[..CDATA.len()] == CDATA {
-                    scan_cdata(input)
-                } else {
-                    scan_declaration(input)
-                }
-            }
-            _ => scan_declaration(input),
+    let mut index = pos + OFFSET + 1;
+    loop {
+        if input.len() <= index {
+            return None;
         }
-    } else {
-        None
+
+        let byte = input[index];
+        if byte == b'>' && input[index - 1] == b'?' {
+            return Some(index + 1);
+        }
+
+        index += 1;
     }
 }
 
 #[inline]
 #[must_use]
-fn scan_declaration(input: &[u8]) -> Option<&[u8]> {
+const fn scan_declaration_comment_or_cdata(input: &[u8], pos: usize) -> Option<usize> {
     // Skip the head '<!'
     const OFFSET: usize = 2;
 
-    debug_assert!(input.len() >= 2);
-    debug_assert_eq!(input[0], b'<');
-    debug_assert_eq!(input[1], b'!');
+    // debug_assert!(pos + 1 < input.len());
+    // debug_assert!(input[pos] == b'<');
+    // debug_assert!(input[pos + 1] == b'!');
 
-    find_close_tag_char_with_brackets_and_quotes(&input[OFFSET..]).map(|pos| &input[..OFFSET + pos])
+    let peek = pos + 2;
+    if input.len() <= peek {
+        return None;
+    }
+
+    match input[peek] {
+        b'-' => {
+            let peek2 = pos + 3;
+            if input.len() < peek2 {
+                return None;
+            }
+            match input[peek2] {
+                b'-' => scan_comment(input, pos),
+                _ => scan_declaration(input, pos),
+            }
+        }
+        b'[' => {
+            const CDATA: &[u8] = b"[CDATA[";
+            if pos + OFFSET + CDATA.len() < input.len()
+                && input[pos + 3] == b'C'
+                && input[pos + 4] == b'D'
+                && input[pos + 5] == b'A'
+                && input[pos + 6] == b'T'
+                && input[pos + 7] == b'A'
+                && input[pos + 8] == b'['
+            {
+                scan_cdata(input)
+            } else {
+                scan_declaration(input, pos)
+            }
+        }
+        _ => scan_declaration(input, pos),
+    }
 }
 
 #[inline]
 #[must_use]
-fn scan_comment(input: &[u8]) -> Option<&[u8]> {
+const fn scan_declaration(input: &[u8], pos: usize) -> Option<usize> {
+    // Skip the head '<!'
+    const OFFSET: usize = 2;
+
+    // debug_assert!(pos + 1 < input.len());
+    // debug_assert!(input[pos] == b'<');
+    // debug_assert!(input[pos + 1] == b'!');
+
+    find_close_tag_char_with_brackets_and_quotes(input, pos + OFFSET)
+}
+
+#[inline]
+#[must_use]
+const fn scan_comment(input: &[u8], pos: usize) -> Option<usize> {
     // Skip the head '<!--'
     const OFFSET: usize = 4;
 
-    debug_assert!(input.len() >= 4);
-    debug_assert_eq!(input[0], b'<');
-    debug_assert_eq!(input[1], b'!');
-    debug_assert_eq!(input[2], b'-');
-    debug_assert_eq!(input[3], b'-');
+    // debug_assert!(pos + 3 < input.len());
+    // debug_assert!(input[pos] == b'<');
+    // debug_assert!(input[pos + 1] == b'!');
+    // debug_assert!(input[pos + 2] == b'-');
+    // debug_assert!(input[pos + 3] == b'-');
 
     // Skip OFFSET + 2 because at the minimum, it must be `<!---->`.
     // It cannot be `<!-->`.
 
-    input
-        .iter()
-        .enumerate()
-        .skip(OFFSET + 2)
-        .find_map(|(pos, b)| {
-            if *b == b'>' && &input[pos - 2..pos] == b"--" {
-                Some(pos)
-            } else {
-                None
-            }
-        })
-        .map(|pos| &input[..=pos])
+    let mut index = pos + OFFSET + 2;
+    loop {
+        if input.len() <= index {
+            return None;
+        }
+
+        let byte = input[index];
+        if byte == b'>' && input[index - 1] == b'-' && input[index - 2] == b'-' {
+            return Some(index + 1);
+        }
+
+        index += 1;
+    }
 }
 
 #[inline]
 #[must_use]
-fn scan_cdata(input: &[u8]) -> Option<&[u8]> {
+const fn scan_cdata(input: &[u8]) -> Option<usize> {
     // Skip the head '<![CDATA['
     const OFFSET: usize = 9;
 
-    debug_assert!(input.len() >= 9);
-    debug_assert_eq!(input[0], b'<');
-    debug_assert_eq!(input[1], b'!');
-    debug_assert_eq!(input[2], b'[');
-    debug_assert_eq!(input[3], b'C');
-    debug_assert_eq!(input[4], b'D');
-    debug_assert_eq!(input[5], b'A');
-    debug_assert_eq!(input[6], b'T');
-    debug_assert_eq!(input[7], b'A');
-    debug_assert_eq!(input[8], b'[');
+    // debug_assert!(input.len() >= 9);
+    // debug_assert!(input[0] == b'<');
+    // debug_assert!(input[1] == b'!');
+    // debug_assert!(input[2] == b'[');
+    // debug_assert!(input[3] == b'C');
+    // debug_assert!(input[4] == b'D');
+    // debug_assert!(input[5] == b'A');
+    // debug_assert!(input[6] == b'T');
+    // debug_assert!(input[7] == b'A');
+    // debug_assert!(input[8] == b'[');
 
     // Skip OFFSET + 2 because at the minimum, it must be `<![CDATA[]]>`.
 
-    input
-        .iter()
-        .enumerate()
-        .skip(OFFSET + 2)
-        .find_map(|(pos, b)| {
-            if *b == b'>' && &input[pos - 2..pos] == b"]]" {
-                Some(pos)
-            } else {
-                None
-            }
-        })
-        .map(|pos| &input[..=pos])
+    let mut index = OFFSET + 2;
+    loop {
+        if input.len() <= index {
+            return None;
+        }
+
+        let byte = input[index];
+        if byte == b'>' && input[index - 1] == b']' && input[index - 2] == b']' {
+            return Some(index + 1);
+        }
+
+        index += 1;
+    }
 }
 
 /// Scans a slice of bytes from the beginning and attempts to find a token.
@@ -319,11 +345,15 @@ fn scan_cdata(input: &[u8]) -> Option<&[u8]> {
 ///
 /// The function does not carry any state.
 /// ```
+#[inline]
 #[must_use]
-pub(super) fn scan(input: &[u8]) -> Option<&[u8]> {
-    match bytes::peek(input) {
-        None => None,
-        Some(b'<') => scan_markup(input),
-        Some(_) => Some(scan_text_content(input)),
+pub(super) const fn scan(input: &[u8], pos: usize) -> Option<usize> {
+    if input.len() <= pos {
+        return None;
+    }
+
+    match input[pos] {
+        b'<' => scan_markup(input, pos),
+        _ => Some(scan_text_content(input, pos)),
     }
 }

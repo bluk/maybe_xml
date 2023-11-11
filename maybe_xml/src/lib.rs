@@ -113,8 +113,14 @@
     unused_qualifications
 )]
 
-pub(crate) mod bytes;
 mod lexer;
 pub mod token;
 
 pub use lexer::{IntoIter, Iter, Lexer};
+
+#[derive(Clone, Copy, Debug)]
+enum QuoteState {
+    None,
+    Single,
+    Double,
+}
