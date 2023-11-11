@@ -121,27 +121,32 @@ fn iter_attr(mut index: usize, value: &str) -> (usize, Option<Attribute<'_>>) {
         return (index, None);
     }
 
-    if let Some(begin) = value[index..]
+    if let Some((begin, ch)) = value[index..]
         .char_indices()
-        .find_map(|(pos, ch)| (!super::is_space_ch(ch)).then(|| pos))
+        .find(|(_, ch)| !super::is_space_ch(*ch))
     {
+        let mut quote_state = match ch {
+            '"' => QuoteState::Double,
+            '\'' => QuoteState::Single,
+            _ => QuoteState::None,
+        };
+        let begin = index + begin;
+        let begin_plus_first_ch = begin + ch.len_utf8();
+
         let mut saw_space_before_equals = false;
-        let mut last_nonspace_index_before_equals = None;
-        let mut saw_equals = false;
+        let mut last_nonspace_index_before_equals = 0;
+        let mut saw_equals = ch == '=';
         let mut saw_characters_after_equals = false;
-        let mut quote_state = QuoteState::None;
-        for (loop_index, ch) in value[index + begin..].char_indices() {
+        for (ch_begin_index, ch) in value[begin_plus_first_ch..].char_indices() {
             match ch {
                 '"' => match quote_state {
                     QuoteState::None => quote_state = QuoteState::Double,
                     QuoteState::Single => {}
                     QuoteState::Double => {
                         if saw_equals {
-                            let attr = Attribute(
-                                &value[(index + begin)
-                                    ..(index + begin + loop_index + '"'.len_utf8())],
-                            );
-                            index += begin + loop_index + '"'.len_utf8();
+                            let end = begin_plus_first_ch + ch_begin_index + '"'.len_utf8();
+                            let attr = Attribute(&value[begin..end]);
+                            index = end;
                             return (index, Some(attr));
                         }
                     }
@@ -150,11 +155,9 @@ fn iter_attr(mut index: usize, value: &str) -> (usize, Option<Attribute<'_>>) {
                     QuoteState::None => quote_state = QuoteState::Single,
                     QuoteState::Single => {
                         if saw_equals {
-                            let attr = Attribute(
-                                &value[(index + begin)
-                                    ..(index + begin + loop_index + '\''.len_utf8())],
-                            );
-                            index += begin + loop_index + '\''.len_utf8();
+                            let end = begin_plus_first_ch + ch_begin_index + '\''.len_utf8();
+                            let attr = Attribute(&value[begin..end]);
+                            index = end;
                             return (index, Some(attr));
                         }
                     }
@@ -164,12 +167,16 @@ fn iter_attr(mut index: usize, value: &str) -> (usize, Option<Attribute<'_>>) {
                 ch if super::is_space_ch(ch) => {
                     if !saw_equals {
                         saw_space_before_equals = true;
+                        // For the case of `name = value`, the space is
+                        // acknowledged first only. If an `=` is seen after any
+                        // spaces, the space is ignored. If an `=` is not seen
+                        // after space, then return the name only (this is handled below).
                     } else if saw_characters_after_equals {
                         match quote_state {
                             QuoteState::None => {
-                                let attr =
-                                    Attribute(&value[index + begin..index + begin + loop_index]);
-                                index += begin + loop_index + ch.len_utf8();
+                                let end = begin_plus_first_ch + ch_begin_index;
+                                let attr = Attribute(&value[begin..end]);
+                                index = end;
                                 return (index, Some(attr));
                             }
                             QuoteState::Single | QuoteState::Double => {}
@@ -180,24 +187,17 @@ fn iter_attr(mut index: usize, value: &str) -> (usize, Option<Attribute<'_>>) {
                     if saw_equals {
                         saw_characters_after_equals = true;
                     } else if saw_space_before_equals {
-                        if let Some(last_seen_char) = last_nonspace_index_before_equals {
-                            let attr = Attribute(
-                                &value[(index + begin)..(index + begin + last_seen_char)],
-                            );
-                            index += begin + loop_index;
-                            return (index, Some(attr));
-                        }
-
-                        let attr = Attribute(&value[index + begin..index + begin + loop_index]);
-                        index += begin + loop_index;
+                        let end = begin_plus_first_ch + last_nonspace_index_before_equals;
+                        let attr = Attribute(&value[begin..end]);
+                        index = end;
                         return (index, Some(attr));
                     } else {
-                        last_nonspace_index_before_equals = Some(loop_index + ch.len_utf8());
+                        last_nonspace_index_before_equals = ch_begin_index + ch.len_utf8();
                     }
                 }
             }
         }
-        let attr = Attribute(&value[index + begin..]);
+        let attr = Attribute(&value[begin..]);
         index = value.len();
         (index, Some(attr))
     } else {
@@ -413,13 +413,6 @@ mod tests {
     #[test]
     fn attributes_single() {
         let attributes = Attributes::from_str("attr=\"1\"");
-        let mut attributes_iter = attributes.into_iter();
-        assert_eq!(
-            attributes_iter.next(),
-            Some(Attribute::from_str("attr=\"1\""))
-        );
-        assert_eq!(attributes_iter.next(), None);
-
         let mut attributes_into_iter = attributes.into_iter();
         assert_eq!(
             attributes_into_iter.next(),
@@ -431,13 +424,6 @@ mod tests {
     #[test]
     fn attributes_single_with_spaces() {
         let attributes = Attributes::from_str("   attr=\"1 example\" ");
-        let mut attributes_iter = attributes.into_iter();
-        assert_eq!(
-            attributes_iter.next(),
-            Some(Attribute::from_str("attr=\"1 example\""))
-        );
-        assert_eq!(attributes_iter.next(), None);
-
         let mut attributes_into_iter = attributes.into_iter();
         assert_eq!(
             attributes_into_iter.next(),
@@ -450,25 +436,6 @@ mod tests {
     fn attributes_multiple() {
         let attributes =
             Attributes::from_str("attr=\"1\" id='test' name=invalid name=\"multiple example\"");
-        let mut attributes_iter = attributes.into_iter();
-        assert_eq!(
-            attributes_iter.next(),
-            Some(Attribute::from_str("attr=\"1\""))
-        );
-        assert_eq!(
-            attributes_iter.next(),
-            Some(Attribute::from_str("id='test'"))
-        );
-        assert_eq!(
-            attributes_iter.next(),
-            Some(Attribute::from_str("name=invalid"))
-        );
-        assert_eq!(
-            attributes_iter.next(),
-            Some(Attribute::from_str("name=\"multiple example\""))
-        );
-        assert_eq!(attributes_iter.next(), None);
-
         let mut attributes_into_iter = attributes.into_iter();
         assert_eq!(
             attributes_into_iter.next(),
