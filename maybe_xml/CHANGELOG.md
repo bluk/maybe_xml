@@ -1,5 +1,34 @@
 # CHANGELOG
 
+## [0.8.0] - 2023-11-11
+
+### Added
+
+- Add `Token::as_str()` and `as_str()` to other token and property types.
+  `as_str()` replaces `to_str()` or `as_str_unchecked()` as the preferred method
+  to get the underlying value.
+- Add `Token::from_str()` and `from_str()` to other token and property types.
+  The method should be used for constructing values in tests.
+
+### Deprecated
+
+- Deprecated `as_str_unchecked()`, `to_str()` and `into_inner()` on `Token`.
+- Deprecated `as_str_unchecked()`, `to_str()` and `into_inner()` on token types.
+- Deprecated `as_str_unchecked()` and `to_str()` on property types.
+
+### Removed
+
+- Remove `From<&[u8]>` and `AsRef<[u8]>` implementations from token and property
+  types.
+
+### Changed
+
+- Changed the internal implementation of tokens to use `&str` instead of
+  `&[u8]`. Micro benchmark performance should be similar to the previous
+  implementation, but when using `as_str()` instead of `to_str()`, the calling
+  code does not have to handle a `Result` type which should increase overall
+  performance.
+
 ## [0.7.2] - 2023-11-01
 
 ### Changed
@@ -133,7 +162,8 @@
 
 * Initial implementation.
 
-[Unreleased]: https://github.com/bluk/maybe_xml/compare/v0.7.2...HEAD
+[Unreleased]: https://github.com/bluk/maybe_xml/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/bluk/maybe_xml/compare/v0.7.2...v0.8.0
 [0.7.2]: https://github.com/bluk/maybe_xml/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/bluk/maybe_xml/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/bluk/maybe_xml/compare/v0.6.0...v0.7.0
