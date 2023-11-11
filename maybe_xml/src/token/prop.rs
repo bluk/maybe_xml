@@ -379,137 +379,174 @@ mod tests {
 
     #[test]
     fn tag_name() {
-        let tag_name = TagName("br");
+        let tag_name = TagName::from_str("br");
         assert_eq!(tag_name.as_bytes(), b"br");
         assert_eq!(tag_name.as_str(), "br");
     }
 
     #[test]
     fn tag_name_with_namespace_prefix() {
-        let tag_name = TagName("customer:id");
-        assert_eq!(tag_name.local(), LocalName("id"));
+        let tag_name = TagName::from_str("customer:id");
+        assert_eq!(tag_name.local(), LocalName::from_str("id"));
         assert_eq!(tag_name.local().as_str(), "id");
         assert_eq!(
             tag_name.namespace_prefix(),
-            Some(NamespacePrefix("customer"))
+            Some(NamespacePrefix::from_str("customer"))
         );
         assert_eq!(tag_name.namespace_prefix().unwrap().as_str(), "customer");
     }
 
     #[test]
     fn tag_name_without_namespace_prefix() {
-        let tag_name = TagName("id");
-        assert_eq!(tag_name.local(), LocalName("id"));
+        let tag_name = TagName::from_str("id");
+        assert_eq!(tag_name.local(), LocalName::from_str("id"));
         assert_eq!(tag_name.local().as_str(), "id");
         assert_eq!(tag_name.namespace_prefix(), None);
     }
 
     #[test]
     fn empty_attributes() {
-        let attributes = Attributes("");
+        let attributes = Attributes::from_str("");
         assert_eq!(attributes.into_iter().next(), None);
     }
 
     #[test]
     fn attributes_single() {
-        let attributes = Attributes("attr=\"1\"");
-        let mut attributes_iter = attributes.into_iter();
-        assert_eq!(attributes_iter.next(), Some(Attribute("attr=\"1\"")));
-        assert_eq!(attributes_iter.next(), None);
-
-        let mut attributes_into_iter = attributes.into_iter();
-        assert_eq!(attributes_into_iter.next(), Some(Attribute("attr=\"1\"")));
-        assert_eq!(attributes_into_iter.next(), None);
-    }
-
-    #[test]
-    fn attributes_single_with_spaces() {
-        let attributes = Attributes("   attr=\"1 example\" ");
+        let attributes = Attributes::from_str("attr=\"1\"");
         let mut attributes_iter = attributes.into_iter();
         assert_eq!(
             attributes_iter.next(),
-            Some(Attribute("attr=\"1 example\""))
+            Some(Attribute::from_str("attr=\"1\""))
         );
         assert_eq!(attributes_iter.next(), None);
 
         let mut attributes_into_iter = attributes.into_iter();
         assert_eq!(
             attributes_into_iter.next(),
-            Some(Attribute("attr=\"1 example\""))
+            Some(Attribute::from_str("attr=\"1\""))
+        );
+        assert_eq!(attributes_into_iter.next(), None);
+    }
+
+    #[test]
+    fn attributes_single_with_spaces() {
+        let attributes = Attributes::from_str("   attr=\"1 example\" ");
+        let mut attributes_iter = attributes.into_iter();
+        assert_eq!(
+            attributes_iter.next(),
+            Some(Attribute::from_str("attr=\"1 example\""))
+        );
+        assert_eq!(attributes_iter.next(), None);
+
+        let mut attributes_into_iter = attributes.into_iter();
+        assert_eq!(
+            attributes_into_iter.next(),
+            Some(Attribute::from_str("attr=\"1 example\""))
         );
         assert_eq!(attributes_into_iter.next(), None);
     }
 
     #[test]
     fn attributes_multiple() {
-        let attributes = Attributes("attr=\"1\" id='test' name=invalid name=\"multiple example\"");
+        let attributes =
+            Attributes::from_str("attr=\"1\" id='test' name=invalid name=\"multiple example\"");
         let mut attributes_iter = attributes.into_iter();
-        assert_eq!(attributes_iter.next(), Some(Attribute("attr=\"1\"")));
-        assert_eq!(attributes_iter.next(), Some(Attribute("id='test'")));
-        assert_eq!(attributes_iter.next(), Some(Attribute("name=invalid")));
         assert_eq!(
             attributes_iter.next(),
-            Some(Attribute("name=\"multiple example\""))
+            Some(Attribute::from_str("attr=\"1\""))
+        );
+        assert_eq!(
+            attributes_iter.next(),
+            Some(Attribute::from_str("id='test'"))
+        );
+        assert_eq!(
+            attributes_iter.next(),
+            Some(Attribute::from_str("name=invalid"))
+        );
+        assert_eq!(
+            attributes_iter.next(),
+            Some(Attribute::from_str("name=\"multiple example\""))
         );
         assert_eq!(attributes_iter.next(), None);
 
         let mut attributes_into_iter = attributes.into_iter();
-        assert_eq!(attributes_into_iter.next(), Some(Attribute("attr=\"1\"")));
-        assert_eq!(attributes_into_iter.next(), Some(Attribute("id='test'")));
-        assert_eq!(attributes_into_iter.next(), Some(Attribute("name=invalid")));
         assert_eq!(
             attributes_into_iter.next(),
-            Some(Attribute("name=\"multiple example\""))
+            Some(Attribute::from_str("attr=\"1\""))
+        );
+        assert_eq!(
+            attributes_into_iter.next(),
+            Some(Attribute::from_str("id='test'"))
+        );
+        assert_eq!(
+            attributes_into_iter.next(),
+            Some(Attribute::from_str("name=invalid"))
+        );
+        assert_eq!(
+            attributes_into_iter.next(),
+            Some(Attribute::from_str("name=\"multiple example\""))
         );
         assert_eq!(attributes_into_iter.next(), None);
     }
 
     #[test]
     fn attributes_multiple_with_spaces() {
-        let attributes = Attributes(
+        let attributes = Attributes::from_str(
             "     attr=\"1\"  id='test' test = new   name= invalid standalone   name=\"example\" ",
         );
 
         let mut attributes_into_iter = attributes.into_iter();
-        assert_eq!(attributes_into_iter.next(), Some(Attribute("attr=\"1\"")));
-        assert_eq!(attributes_into_iter.next(), Some(Attribute("id='test'")));
-        assert_eq!(attributes_into_iter.next(), Some(Attribute("test = new")));
         assert_eq!(
             attributes_into_iter.next(),
-            Some(Attribute("name= invalid"))
+            Some(Attribute::from_str("attr=\"1\""))
         );
-        assert_eq!(attributes_into_iter.next(), Some(Attribute("standalone")));
         assert_eq!(
             attributes_into_iter.next(),
-            Some(Attribute("name=\"example\""))
+            Some(Attribute::from_str("id='test'"))
+        );
+        assert_eq!(
+            attributes_into_iter.next(),
+            Some(Attribute::from_str("test = new"))
+        );
+        assert_eq!(
+            attributes_into_iter.next(),
+            Some(Attribute::from_str("name= invalid"))
+        );
+        assert_eq!(
+            attributes_into_iter.next(),
+            Some(Attribute::from_str("standalone"))
+        );
+        assert_eq!(
+            attributes_into_iter.next(),
+            Some(Attribute::from_str("name=\"example\""))
         );
         assert_eq!(attributes_into_iter.next(), None);
     }
 
     #[test]
     fn attribute_name_and_value() {
-        let attribute = Attribute("attr=\"1\"");
-        assert_eq!(attribute.name(), AttributeName("attr"));
-        assert_eq!(attribute.value(), Some(AttributeValue("1")));
+        let attribute = Attribute::from_str("attr=\"1\"");
+        assert_eq!(attribute.name(), AttributeName::from_str("attr"));
+        assert_eq!(attribute.value(), Some(AttributeValue::from_str("1")));
 
-        let attribute = Attribute("id='test'");
-        assert_eq!(attribute.name(), AttributeName("id"));
-        assert_eq!(attribute.value(), Some(AttributeValue("test")));
+        let attribute = Attribute::from_str("id='test'");
+        assert_eq!(attribute.name(), AttributeName::from_str("id"));
+        assert_eq!(attribute.value(), Some(AttributeValue::from_str("test")));
 
-        let attribute = Attribute("test =new");
-        assert_eq!(attribute.name(), AttributeName("test"));
-        assert_eq!(attribute.value(), Some(AttributeValue("new")));
+        let attribute = Attribute::from_str("test =new");
+        assert_eq!(attribute.name(), AttributeName::from_str("test"));
+        assert_eq!(attribute.value(), Some(AttributeValue::from_str("new")));
 
-        let attribute = Attribute("name= invalid");
-        assert_eq!(attribute.name(), AttributeName("name"));
-        assert_eq!(attribute.value(), Some(AttributeValue("invalid")));
+        let attribute = Attribute::from_str("name= invalid");
+        assert_eq!(attribute.name(), AttributeName::from_str("name"));
+        assert_eq!(attribute.value(), Some(AttributeValue::from_str("invalid")));
 
-        let attribute = Attribute("standalone");
-        assert_eq!(attribute.name(), AttributeName("standalone"));
+        let attribute = Attribute::from_str("standalone");
+        assert_eq!(attribute.name(), AttributeName::from_str("standalone"));
         assert_eq!(attribute.value(), None);
 
-        let attribute = Attribute("xml:example=\"test\"");
-        assert_eq!(attribute.name(), AttributeName("xml:example"));
-        assert_eq!(attribute.value(), Some(AttributeValue("test")));
+        let attribute = Attribute::from_str("xml:example=\"test\"");
+        assert_eq!(attribute.name(), AttributeName::from_str("xml:example"));
+        assert_eq!(attribute.value(), Some(AttributeValue::from_str("test")));
     }
 }

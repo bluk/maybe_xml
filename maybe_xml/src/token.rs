@@ -335,46 +335,46 @@ mod tests {
 
     #[test]
     fn start_tag_as_ref() {
-        let start_tag = StartTag("<abc>");
+        let start_tag = StartTag::from_str("<abc>");
         assert_eq!(start_tag.as_bytes(), "<abc>".as_bytes());
     }
 
     #[test]
     fn start_tag_from() {
-        let start_tag = StartTag("<abc>");
+        let start_tag = StartTag::from_str("<abc>");
         assert_eq!(start_tag.as_str(), "<abc>");
 
-        let start_tag = StartTag("<abc>");
+        let start_tag = StartTag::from_str("<abc>");
         assert_eq!(start_tag.as_str(), "<abc>");
 
         let expected = "<abc>";
-        let start_tag = StartTag(expected);
+        let start_tag = StartTag::from_str(expected);
         assert_eq!(start_tag.as_str(), "<abc>");
     }
 
     #[test]
     fn start_tag_partial_eq() {
-        let start_tag = StartTag("<abc>");
+        let start_tag = StartTag::from_str("<abc>");
         assert_eq!(start_tag.as_str(), "<abc>");
         assert_eq!(start_tag.as_bytes(), "<abc>".as_bytes());
     }
 
     #[test]
     fn empty_start_tag_name() {
-        let start_tag = StartTag("<>");
+        let start_tag = StartTag::from_str("<>");
         assert_eq!(start_tag.name().as_bytes(), b"");
         assert_eq!(start_tag.name().as_str(), "");
     }
 
     #[test]
     fn start_tag_attributes() {
-        let start_tag = StartTag("<abc attr=\"1\">");
+        let start_tag = StartTag::from_str("<abc attr=\"1\">");
         assert_eq!(
             start_tag.attributes(),
             Some(Attributes::from_str("attr=\"1\""))
         );
 
-        let start_tag = StartTag("<abc attr=\"1\" id=\"#example\">");
+        let start_tag = StartTag::from_str("<abc attr=\"1\" id=\"#example\">");
         assert_eq!(
             start_tag.attributes(),
             Some(Attributes::from_str("attr=\"1\" id=\"#example\""))
@@ -383,20 +383,20 @@ mod tests {
 
     #[test]
     fn empty_empty_element_tag_name() {
-        let empty_element_tag = EmptyElementTag("</>");
+        let empty_element_tag = EmptyElementTag::from_str("</>");
         assert_eq!(empty_element_tag.name().as_bytes(), b"");
         assert_eq!(empty_element_tag.name().as_str(), "");
     }
 
     #[test]
     fn empty_element_tag_attributes() {
-        let empty_element_tag = EmptyElementTag("<abc attr=\"1\"/>");
+        let empty_element_tag = EmptyElementTag::from_str("<abc attr=\"1\"/>");
         assert_eq!(
             empty_element_tag.attributes(),
             Some(Attributes::from_str("attr=\"1\""))
         );
 
-        let empty_element_tag = EmptyElementTag("<abc attr=\"1\" id=\"#example\"/>");
+        let empty_element_tag = EmptyElementTag::from_str("<abc attr=\"1\" id=\"#example\"/>");
         assert_eq!(
             empty_element_tag.attributes(),
             Some(Attributes::from("attr=\"1\" id=\"#example\""))
@@ -405,7 +405,7 @@ mod tests {
 
     #[test]
     fn empty_end_tag_name() {
-        let end_tag = EndTag("</>");
+        let end_tag = EndTag::from_str("</>");
         assert_eq!(end_tag.name().as_bytes(), b"");
         assert_eq!(end_tag.name().as_str(), "");
     }
