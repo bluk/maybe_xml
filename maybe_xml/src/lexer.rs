@@ -55,13 +55,13 @@ use scanner::scan;
 /// let mut pos = 0;
 ///
 /// let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
-/// assert_eq!(Some(Ty::StartTag(StartTag::from("<id>"))), ty);
+/// assert_eq!(Some(Ty::StartTag(StartTag::from_str("<id>"))), ty);
 ///
 /// // Position was assigned to the index after the end of the token
 /// assert_eq!(4, pos);
 ///
 /// let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
-/// assert_eq!(Some(Ty::Characters(Characters::from("123"))), ty);
+/// assert_eq!(Some(Ty::Characters(Characters::from_str("123"))), ty);
 ///
 /// // Position was assigned to the index after the end of the token
 /// assert_eq!(7, pos);
@@ -81,7 +81,7 @@ use scanner::scan;
 /// let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
 ///
 /// let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
-/// assert_eq!(Some(Ty::EndTag(EndTag::from("</id>"))), ty);
+/// assert_eq!(Some(Ty::EndTag(EndTag::from_str("</id>"))), ty);
 ///
 /// // Position was assigned to the index after the end of the token
 /// assert_eq!(5, pos);
@@ -151,7 +151,7 @@ impl<'a> Lexer<'a> {
     /// let mut pos = 0;
     ///
     /// let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
-    /// assert_eq!(Some(Ty::StartTag(StartTag::from("<id>"))), ty);
+    /// assert_eq!(Some(Ty::StartTag(StartTag::from_str("<id>"))), ty);
     ///
     /// // Position was assigned to the index after the end of the token
     /// assert_eq!(4, pos);
@@ -212,12 +212,12 @@ impl<'a> Lexer<'a> {
     /// let mut iter = lexer.iter(pos);
     ///
     /// let token = iter.next();
-    /// assert_eq!(Some(Ty::StartTag(StartTag::from("<id>"))), token.map(|t| t.ty()));
+    /// assert_eq!(Some(Ty::StartTag(StartTag::from_str("<id>"))), token.map(|t| t.ty()));
     ///
     /// let pos = pos + token.map(|t| t.len()).unwrap_or_default();
     ///
     /// let token = iter.next();
-    /// assert_eq!(Some(Ty::Characters(Characters::from("123"))), token.map(|t| t.ty()));
+    /// assert_eq!(Some(Ty::Characters(Characters::from_str("123"))), token.map(|t| t.ty()));
     ///
     /// let pos = pos + token.map(|t| t.len()).unwrap_or_default();
     ///
@@ -241,7 +241,7 @@ impl<'a> Lexer<'a> {
     /// let mut iter = lexer.iter(pos);
     ///
     /// let token = iter.next();
-    /// assert_eq!(Some(Ty::EndTag(EndTag::from("</id>"))), token.map(|t| t.ty()));
+    /// assert_eq!(Some(Ty::EndTag(EndTag::from_str("</id>"))), token.map(|t| t.ty()));
     ///
     /// let pos = pos + token.map(|t| t.len()).unwrap_or_default();
     ///

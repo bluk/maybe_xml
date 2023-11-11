@@ -37,14 +37,14 @@ fn tokenize_simple_1_xml() {
     tokenize(
         SIMPLE_1_XML,
         &[
-            Ty::ProcessingInstruction(ProcessingInstruction::from(r#"<?xml version="1.0"?>"#)),
+            Ty::ProcessingInstruction(ProcessingInstruction::from_str(r#"<?xml version="1.0"?>"#)),
             #[cfg(not(target_os = "windows"))]
-            Ty::Characters(Characters::from("\n")),
+            Ty::Characters(Characters::from_str("\n")),
             #[cfg(target_os = "windows")]
             Ty::Characters(Characters::from("\r\n")),
-            Ty::StartTag(StartTag::from("<document>")),
-            Ty::Characters(Characters::from("Hello world!")),
-            Ty::EndTag(EndTag::from("</document>")),
+            Ty::StartTag(StartTag::from_str("<document>")),
+            Ty::Characters(Characters::from_str("Hello world!")),
+            Ty::EndTag(EndTag::from_str("</document>")),
         ],
     );
 }
@@ -54,14 +54,14 @@ fn tokenize_iter_simple_1_xml() {
     tokenize_via_iterator(
         SIMPLE_1_XML,
         &[
-            Ty::ProcessingInstruction(ProcessingInstruction::from(r#"<?xml version="1.0"?>"#)),
+            Ty::ProcessingInstruction(ProcessingInstruction::from_str(r#"<?xml version="1.0"?>"#)),
             #[cfg(not(target_os = "windows"))]
-            Ty::Characters(Characters::from("\n")),
+            Ty::Characters(Characters::from_str("\n")),
             #[cfg(target_os = "windows")]
             Ty::Characters(Characters::from("\r\n")),
-            Ty::StartTag(StartTag::from("<document>")),
-            Ty::Characters(Characters::from("Hello world!")),
-            Ty::EndTag(EndTag::from("</document>")),
+            Ty::StartTag(StartTag::from_str("<document>")),
+            Ty::Characters(Characters::from_str("Hello world!")),
+            Ty::EndTag(EndTag::from_str("</document>")),
         ],
     );
 }
@@ -72,31 +72,31 @@ fn tokenize_svg_1_xml() {
         SVG_1_XML,
         #[cfg(not(target_os = "windows"))]
         &[
-            Ty::ProcessingInstruction(ProcessingInstruction::from(
+            Ty::ProcessingInstruction(ProcessingInstruction::from_str(
                 r#"<?xml version="1.0"?>"#,
             )),
-            Ty::Characters(Characters::from("\n")),
-            Ty::Declaration(Declaration::from("<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\"\n  \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">")),
-            Ty::Characters(Characters::from("\n\n")),
-            Ty::StartTag(StartTag::from("<svg xmlns=\"http://www.w3.org/2000/svg\"\n     width=\"800\" height=\"800\">")),
-            Ty::Characters(Characters::from("\n  ")),
-            Ty::EmptyElementTag(EmptyElementTag::from("<circle cx=\"400\" cy=\"400\" r=\"50\" stroke=\"blue\"\n    stroke-width=\"1\" fill=\"yellow\" />")),
-            Ty::Characters(Characters::from("\n")),
-            Ty::EndTag(EndTag::from("</svg>")),
+            Ty::Characters(Characters::from_str("\n")),
+            Ty::Declaration(Declaration::from_str("<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\"\n  \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">")),
+            Ty::Characters(Characters::from_str("\n\n")),
+            Ty::StartTag(StartTag::from_str("<svg xmlns=\"http://www.w3.org/2000/svg\"\n     width=\"800\" height=\"800\">")),
+            Ty::Characters(Characters::from_str("\n  ")),
+            Ty::EmptyElementTag(EmptyElementTag::from_str("<circle cx=\"400\" cy=\"400\" r=\"50\" stroke=\"blue\"\n    stroke-width=\"1\" fill=\"yellow\" />")),
+            Ty::Characters(Characters::from_str("\n")),
+            Ty::EndTag(EndTag::from_str("</svg>")),
         ],
         #[cfg(target_os = "windows")]
         &[
             Ty::ProcessingInstruction(ProcessingInstruction::from(
                 r#"<?xml version="1.0"?>"#,
             )),
-            Ty::Characters(Characters::from("\r\n")),
-            Ty::Declaration(Declaration::from("<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\"\r\n  \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">")),
-            Ty::Characters(Characters::from("\r\n\r\n")),
-            Ty::StartTag(StartTag::from("<svg xmlns=\"http://www.w3.org/2000/svg\"\r\n     width=\"800\" height=\"800\">")),
-            Ty::Characters(Characters::from("\r\n  ")),
-            Ty::EmptyElementTag(EmptyElementTag::from("<circle cx=\"400\" cy=\"400\" r=\"50\" stroke=\"blue\"\r\n    stroke-width=\"1\" fill=\"yellow\" />")),
-            Ty::Characters(Characters::from("\r\n")),
-            Ty::EndTag(EndTag::from("</svg>")),
+            Ty::Characters(Characters::from_str("\r\n")),
+            Ty::Declaration(Declaration::from_str("<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\"\r\n  \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">")),
+            Ty::Characters(Characters::from_str("\r\n\r\n")),
+            Ty::StartTag(StartTag::from_str("<svg xmlns=\"http://www.w3.org/2000/svg\"\r\n     width=\"800\" height=\"800\">")),
+            Ty::Characters(Characters::from_str("\r\n  ")),
+            Ty::EmptyElementTag(EmptyElementTag::from_str("<circle cx=\"400\" cy=\"400\" r=\"50\" stroke=\"blue\"\r\n    stroke-width=\"1\" fill=\"yellow\" />")),
+            Ty::Characters(Characters::from_str("\r\n")),
+            Ty::EndTag(EndTag::from_str("</svg>")),
         ],
     );
 }
@@ -107,31 +107,31 @@ fn tokenize_iter_svg_1_xml() {
         SVG_1_XML,
         #[cfg(not(target_os = "windows"))]
         &[
-            Ty::ProcessingInstruction(ProcessingInstruction::from(
+            Ty::ProcessingInstruction(ProcessingInstruction::from_str(
                 r#"<?xml version="1.0"?>"#,
             )),
-            Ty::Characters(Characters::from("\n")),
-            Ty::Declaration(Declaration::from("<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\"\n  \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">")),
-            Ty::Characters(Characters::from("\n\n")),
-            Ty::StartTag(StartTag::from("<svg xmlns=\"http://www.w3.org/2000/svg\"\n     width=\"800\" height=\"800\">")),
-            Ty::Characters(Characters::from("\n  ")),
-            Ty::EmptyElementTag(EmptyElementTag::from("<circle cx=\"400\" cy=\"400\" r=\"50\" stroke=\"blue\"\n    stroke-width=\"1\" fill=\"yellow\" />")),
-            Ty::Characters(Characters::from("\n")),
-            Ty::EndTag(EndTag::from("</svg>")),
+            Ty::Characters(Characters::from_str("\n")),
+            Ty::Declaration(Declaration::from_str("<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\"\n  \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">")),
+            Ty::Characters(Characters::from_str("\n\n")),
+            Ty::StartTag(StartTag::from_str("<svg xmlns=\"http://www.w3.org/2000/svg\"\n     width=\"800\" height=\"800\">")),
+            Ty::Characters(Characters::from_str("\n  ")),
+            Ty::EmptyElementTag(EmptyElementTag::from_str("<circle cx=\"400\" cy=\"400\" r=\"50\" stroke=\"blue\"\n    stroke-width=\"1\" fill=\"yellow\" />")),
+            Ty::Characters(Characters::from_str("\n")),
+            Ty::EndTag(EndTag::from_str("</svg>")),
         ],
         #[cfg(target_os = "windows")]
         &[
-            Ty::ProcessingInstruction(ProcessingInstruction::from(
+            Ty::ProcessingInstruction(ProcessingInstruction::from_str(
                 r#"<?xml version="1.0"?>"#,
             )),
-            Ty::Characters(Characters::from("\r\n")),
-            Ty::Declaration(Declaration::from("<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\"\r\n  \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">")),
-            Ty::Characters(Characters::from("\r\n\r\n")),
-            Ty::StartTag(StartTag::from("<svg xmlns=\"http://www.w3.org/2000/svg\"\r\n     width=\"800\" height=\"800\">")),
-            Ty::Characters(Characters::from("\r\n  ")),
-            Ty::EmptyElementTag(EmptyElementTag::from("<circle cx=\"400\" cy=\"400\" r=\"50\" stroke=\"blue\"\r\n    stroke-width=\"1\" fill=\"yellow\" />")),
-            Ty::Characters(Characters::from("\r\n")),
-            Ty::EndTag(EndTag::from("</svg>")),
+            Ty::Characters(Characters::from_str("\r\n")),
+            Ty::Declaration(Declaration::from_str("<!DOCTYPE svg PUBLIC \"-//W3C//DTD SVG 1.1//EN\"\r\n  \"http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd\">")),
+            Ty::Characters(Characters::from_str("\r\n\r\n")),
+            Ty::StartTag(StartTag::from_str("<svg xmlns=\"http://www.w3.org/2000/svg\"\r\n     width=\"800\" height=\"800\">")),
+            Ty::Characters(Characters::from_str("\r\n  ")),
+            Ty::EmptyElementTag(EmptyElementTag::from_str("<circle cx=\"400\" cy=\"400\" r=\"50\" stroke=\"blue\"\r\n    stroke-width=\"1\" fill=\"yellow\" />")),
+            Ty::Characters(Characters::from_str("\r\n")),
+            Ty::EndTag(EndTag::from_str("</svg>")),
         ],
     );
 }

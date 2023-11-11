@@ -30,15 +30,15 @@
 //! let mut iter = lexer.into_iter().map(|token| token.ty());
 //!
 //! let token_type = iter.next();
-//! assert_eq!(token_type, Some(Ty::StartTag(StartTag::from("<id>"))));
+//! assert_eq!(token_type, Some(Ty::StartTag(StartTag::from_str("<id>"))));
 //! match token_type {
 //!     Some(Ty::StartTag(start_tag)) => {
 //!         assert_eq!(start_tag.name().as_str(), "id");
 //!     }
 //!     _ => panic!("unexpected token"),
 //! }
-//! assert_eq!(iter.next(), Some(Ty::Characters(Characters::from("Example"))));
-//! assert_eq!(iter.next(), Some(Ty::EndTag(EndTag::from("</id>"))));
+//! assert_eq!(iter.next(), Some(Ty::Characters(Characters::from_str("Example"))));
+//! assert_eq!(iter.next(), Some(Ty::EndTag(EndTag::from_str("</id>"))));
 //! assert_eq!(iter.next(), None);
 //! # Ok::<(), core::str::Utf8Error>(())
 //! ```
@@ -56,13 +56,13 @@
 //! let mut pos = 0;
 //!
 //! let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
-//! assert_eq!(Some(Ty::StartTag(StartTag::from("<id>"))), ty);
+//! assert_eq!(Some(Ty::StartTag(StartTag::from_str("<id>"))), ty);
 //!
 //! // Position was assigned to the index after the end of the token
 //! assert_eq!(4, pos);
 //!
 //! let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
-//! assert_eq!(Some(Ty::Characters(Characters::from("123"))), ty);
+//! assert_eq!(Some(Ty::Characters(Characters::from_str("123"))), ty);
 //!
 //! // Position was assigned to the index after the end of the token
 //! assert_eq!(7, pos);

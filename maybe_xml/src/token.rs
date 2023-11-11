@@ -463,7 +463,7 @@ mod tests {
         let empty_element_tag = EmptyElementTag::from_str("<abc attr=\"1\" id=\"#example\"/>");
         assert_eq!(
             empty_element_tag.attributes(),
-            Some(Attributes::from("attr=\"1\" id=\"#example\""))
+            Some(Attributes::from_str("attr=\"1\" id=\"#example\""))
         );
     }
 
