@@ -118,7 +118,6 @@ pub mod token;
 
 pub use lexer::{IntoIter, Iter, Lexer};
 
-#[derive(Clone, Copy, Debug)]
 enum QuoteState {
     None,
     Single,
