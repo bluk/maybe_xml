@@ -12,7 +12,7 @@ const fn is_space_ch(ch: char) -> bool {
     matches!(ch, ' ' | '\t' | '\r' | '\n')
 }
 
-use core::str;
+use core::{fmt, str};
 
 use prop::{Attributes, Content, Instructions, TagName, Target};
 
@@ -137,6 +137,12 @@ impl<'a> Token<'a> {
     }
 }
 
+impl<'a> fmt::Display for Token<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.0)
+    }
+}
+
 impl<'a> From<&'a str> for Token<'a> {
     #[inline]
     fn from(value: &'a str) -> Self {
@@ -202,6 +208,12 @@ macro_rules! converters {
             #[must_use]
             pub const fn into_inner(self) -> &'a [u8] {
                 self.as_bytes()
+            }
+        }
+
+        impl<'a> fmt::Display for $name<'a> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                f.write_str(self.0)
             }
         }
 
