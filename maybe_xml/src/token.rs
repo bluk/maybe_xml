@@ -23,7 +23,7 @@ use core::{fmt, str};
 use prop::{Attributes, Content, Instructions, TagName, Target};
 
 /// A slice of bytes which is identified as a specific token type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Token<'a>(&'a str);
 
 impl<'a> Token<'a> {
@@ -234,7 +234,7 @@ macro_rules! converters {
 pub(crate) use converters;
 
 /// Type of token
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Ty<'a> {
     /// A start tag like `<hello>`.
     StartTag(StartTag<'a>),
