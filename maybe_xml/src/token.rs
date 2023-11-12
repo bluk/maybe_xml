@@ -9,13 +9,8 @@ pub mod prop;
 #[inline]
 #[must_use]
 const fn is_space(byte: u8) -> bool {
+    // matches!(ch, ' ' | '\t' | '\r' | '\n')
     matches!(byte, 32 | 9 | 13 | 10)
-}
-
-#[inline]
-#[must_use]
-const fn is_space_ch(ch: char) -> bool {
-    matches!(ch, ' ' | '\t' | '\r' | '\n')
 }
 
 use core::{fmt, str};

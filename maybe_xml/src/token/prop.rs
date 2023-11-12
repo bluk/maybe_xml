@@ -183,93 +183,125 @@ impl<'a> IntoIterator for Attributes<'a> {
 converters!(Attributes);
 
 #[must_use]
-fn iter_attr(mut index: usize, value: &str) -> (usize, Option<Attribute<'_>>) {
-    if index == value.len() {
-        return (index, None);
+const fn iter_attr(index: usize, value: &str) -> (usize, Option<Attribute<'_>>) {
+    if value.len() <= index {
+        return (value.len(), None);
     }
 
-    if let Some((begin, ch)) = value[index..]
-        .char_indices()
-        .find(|(_, ch)| !super::is_space_ch(*ch))
-    {
-        let mut quote_state = match ch {
-            '"' => QuoteState::Double,
-            '\'' => QuoteState::Single,
-            _ => QuoteState::None,
-        };
-        let begin = index + begin;
-        let begin_plus_first_ch = begin + ch.len_utf8();
+    let bytes = value.as_bytes();
 
-        let mut saw_space_before_equals = false;
-        let mut last_nonspace_index_before_equals = 0;
-        let mut saw_equals = ch == '=';
-        let mut saw_characters_after_equals = false;
-        for (ch_begin_index, ch) in value[begin_plus_first_ch..].char_indices() {
-            match ch {
-                '"' => match quote_state {
-                    QuoteState::None => quote_state = QuoteState::Double,
-                    QuoteState::Single => {}
-                    QuoteState::Double => {
-                        if saw_equals {
-                            let end = begin_plus_first_ch + ch_begin_index + '"'.len_utf8();
-                            let attr = Attribute(&value[begin..end]);
-                            index = end;
-                            return (index, Some(attr));
-                        }
-                    }
-                },
-                '\'' => match quote_state {
-                    QuoteState::None => quote_state = QuoteState::Single,
-                    QuoteState::Single => {
-                        if saw_equals {
-                            let end = begin_plus_first_ch + ch_begin_index + '\''.len_utf8();
-                            let attr = Attribute(&value[begin..end]);
-                            index = end;
-                            return (index, Some(attr));
-                        }
-                    }
-                    QuoteState::Double => {}
-                },
-                '=' => saw_equals = true,
-                ch if super::is_space_ch(ch) => {
-                    if !saw_equals {
-                        saw_space_before_equals = true;
-                        // For the case of `name = value`, the space is
-                        // acknowledged first only. If an `=` is seen after any
-                        // spaces, the space is ignored. If an `=` is not seen
-                        // after space, then return the name only (this is handled below).
-                    } else if saw_characters_after_equals {
-                        match quote_state {
-                            QuoteState::None => {
-                                let end = begin_plus_first_ch + ch_begin_index;
-                                let attr = Attribute(&value[begin..end]);
-                                index = end;
-                                return (index, Some(attr));
-                            }
-                            QuoteState::Single | QuoteState::Double => {}
-                        }
+    let mut begin = index;
+    loop {
+        if bytes.len() <= begin {
+            return (value.len(), None);
+        }
+
+        let byte = bytes[begin];
+        if !super::is_space(byte) {
+            break;
+        }
+
+        begin += 1;
+    }
+
+    let byte = bytes[begin];
+
+    let mut quote_state = match byte {
+        b'"' => QuoteState::Double,
+        b'\'' => QuoteState::Single,
+        _ => QuoteState::None,
+    };
+
+    let mut saw_space_before_equals = false;
+    let mut last_nonspace_index_before_equals = 0;
+    let mut saw_equals = byte == b'=';
+    let mut saw_characters_after_equals = false;
+
+    let mut end = begin + 1;
+    loop {
+        if bytes.len() <= end {
+            let (_, bytes) = bytes.split_at(begin);
+            let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+            let attr = Attribute(value);
+            return (value.len(), Some(attr));
+        }
+
+        match bytes[end] {
+            b'"' => match quote_state {
+                QuoteState::None => quote_state = QuoteState::Double,
+                QuoteState::Single => {}
+                QuoteState::Double => {
+                    if saw_equals {
+                        let end = end + '"'.len_utf8();
+
+                        let (bytes, _) = bytes.split_at(end);
+                        let (_, bytes) = bytes.split_at(begin);
+                        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+                        let attr = Attribute(value);
+
+                        return (end, Some(attr));
                     }
                 }
-                _ => {
+            },
+            b'\'' => match quote_state {
+                QuoteState::None => quote_state = QuoteState::Single,
+                QuoteState::Single => {
                     if saw_equals {
-                        saw_characters_after_equals = true;
-                    } else if saw_space_before_equals {
-                        let end = begin_plus_first_ch + last_nonspace_index_before_equals;
-                        let attr = Attribute(&value[begin..end]);
-                        index = end;
-                        return (index, Some(attr));
-                    } else {
-                        last_nonspace_index_before_equals = ch_begin_index + ch.len_utf8();
+                        let end = end + '\''.len_utf8();
+
+                        let (bytes, _) = bytes.split_at(end);
+                        let (_, bytes) = bytes.split_at(begin);
+                        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+                        let attr = Attribute(value);
+
+                        return (end, Some(attr));
+                    }
+                }
+                QuoteState::Double => {}
+            },
+            b'=' => saw_equals = true,
+            byte if super::is_space(byte) => {
+                if !saw_equals {
+                    saw_space_before_equals = true;
+                    // For the case of `name = value`, the space is
+                    // acknowledged first only. If an `=` is seen after any
+                    // spaces, the space is ignored. If an `=` is not seen
+                    // after space, then return the name only (this is handled below).
+                } else if saw_characters_after_equals {
+                    match quote_state {
+                        QuoteState::None => {
+                            let end = end;
+
+                            let (bytes, _) = bytes.split_at(end);
+                            let (_, bytes) = bytes.split_at(begin);
+                            let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+                            let attr = Attribute(value);
+
+                            return (end, Some(attr));
+                        }
+                        QuoteState::Single | QuoteState::Double => {}
                     }
                 }
             }
+            _ => {
+                if saw_equals {
+                    saw_characters_after_equals = true;
+                } else if saw_space_before_equals {
+                    let end = last_nonspace_index_before_equals;
+
+                    let (bytes, _) = bytes.split_at(end);
+                    let (_, bytes) = bytes.split_at(begin);
+                    let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+                    let attr = Attribute(value);
+
+                    return (end, Some(attr));
+                } else {
+                    last_nonspace_index_before_equals = end + 1;
+                }
+            }
         }
-        let attr = Attribute(&value[begin..]);
-        index = value.len();
-        (index, Some(attr))
-    } else {
-        index = value.len();
-        (index, None)
+
+        end += 1;
     }
 }
 
