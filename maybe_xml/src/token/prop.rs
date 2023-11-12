@@ -88,8 +88,9 @@ impl<'a> TagName<'a> {
     ///
     /// For example, if `xml:example` was the tag name, then `example` would be the local part of the name.
     /// If there is no namespace prefix, the entire name is returned.
+    #[rustversion::attr(since(1.71), const)]
     #[must_use]
-    pub const fn local(&self) -> LocalName<'a> {
+    pub fn local(&self) -> LocalName<'a> {
         let mut index = 0;
         let bytes = self.0.as_bytes();
         loop {
@@ -115,8 +116,9 @@ impl<'a> TagName<'a> {
     /// The namespace prefix if available.
     ///
     /// For example if `xml:example` was the tag name, then `xml` would be the namespace prefix.
+    #[rustversion::attr(since(1.71), const)]
     #[must_use]
-    pub const fn namespace_prefix(&self) -> Option<NamespacePrefix<'a>> {
+    pub fn namespace_prefix(&self) -> Option<NamespacePrefix<'a>> {
         let mut index = 0;
         let bytes = self.0.as_bytes();
         loop {
@@ -182,8 +184,9 @@ impl<'a> IntoIterator for Attributes<'a> {
 
 converters!(Attributes);
 
+#[rustversion::attr(since(1.71), const)]
 #[must_use]
-const fn iter_attr(index: usize, value: &str) -> (usize, Option<Attribute<'_>>) {
+fn iter_attr(index: usize, value: &str) -> (usize, Option<Attribute<'_>>) {
     if value.len() <= index {
         return (value.len(), None);
     }
@@ -328,8 +331,9 @@ pub struct Attribute<'a>(&'a str);
 
 impl<'a> Attribute<'a> {
     /// The attribute's name.
+    #[rustversion::attr(since(1.71), const)]
     #[must_use]
-    pub const fn name(&self) -> AttributeName<'a> {
+    pub fn name(&self) -> AttributeName<'a> {
         let mut index = 0;
         let bytes = self.0.as_bytes();
 
@@ -370,8 +374,9 @@ impl<'a> Attribute<'a> {
     }
 
     /// The optional attribute value with the quotes removed.
+    #[rustversion::attr(since(1.71), const)]
     #[must_use]
-    pub const fn value(&self) -> Option<AttributeValue<'a>> {
+    pub fn value(&self) -> Option<AttributeValue<'a>> {
         let mut index = 0;
         let bytes = self.0.as_bytes();
 
@@ -462,8 +467,9 @@ impl<'a> AttributeName<'a> {
     ///
     /// For example, if `xml:example` was the attribute name, then `example` would be the local part of the name.
     /// If there is no namespace prefix, the entire name is returned.
+    #[rustversion::attr(since(1.71), const)]
     #[must_use]
-    pub const fn local(&self) -> LocalName<'a> {
+    pub fn local(&self) -> LocalName<'a> {
         let mut index = 0;
         let bytes = self.0.as_bytes();
         loop {
@@ -489,8 +495,9 @@ impl<'a> AttributeName<'a> {
     /// The namespace prefix if available.
     ///
     /// For example if `xml:example` was the attribute name, then `xml` would be the namespace prefix.
+    #[rustversion::attr(since(1.71), const)]
     #[must_use]
-    pub const fn namespace_prefix(&self) -> Option<NamespacePrefix<'a>> {
+    pub fn namespace_prefix(&self) -> Option<NamespacePrefix<'a>> {
         let mut index = 0;
         let bytes = self.0.as_bytes();
         loop {

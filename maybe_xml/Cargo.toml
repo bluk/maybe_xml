@@ -20,6 +20,9 @@ repository = "https://github.com/bluk/maybe_xml"
 rust-version = "1.56.0"
 version = "0.8.0"
 
+[dependencies]
+rustversion = "1.0"
+
 [features]
 default = ["std"]
 

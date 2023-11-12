@@ -191,8 +191,9 @@ impl<'a> Lexer<'a> {
     ///
     /// assert_eq!(4, pos);
     ///```
+    #[rustversion::attr(since(1.71), const)]
     #[must_use]
-    pub const fn parse(&self, pos: usize) -> Option<Token<'a>> {
+    pub fn parse(&self, pos: usize) -> Option<Token<'a>> {
         if let Some(end) = scan(self.input, pos) {
             // This is a convoluted but *const* way of getting &self.input[*pos..end]
             let (bytes, _) = self.input.split_at(end);

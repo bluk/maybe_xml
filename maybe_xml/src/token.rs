@@ -250,8 +250,9 @@ pub struct StartTag<'a>(&'a str);
 
 impl<'a> StartTag<'a> {
     /// The name of the tag.
+    #[rustversion::attr(since(1.71), const)]
     #[must_use]
-    pub const fn name(&self) -> TagName<'a> {
+    pub fn name(&self) -> TagName<'a> {
         let mut index = 0;
         let bytes = self.0.as_bytes();
         loop {
@@ -275,8 +276,9 @@ impl<'a> StartTag<'a> {
     }
 
     /// The attributes of the tag.
+    #[rustversion::attr(since(1.71), const)]
     #[must_use]
-    pub const fn attributes(&self) -> Option<Attributes<'a>> {
+    pub fn attributes(&self) -> Option<Attributes<'a>> {
         let mut index = 0;
         let bytes = self.0.as_bytes();
         loop {
@@ -309,8 +311,9 @@ pub struct EmptyElementTag<'a>(&'a str);
 
 impl<'a> EmptyElementTag<'a> {
     /// The name of the tag.
+    #[rustversion::attr(since(1.71), const)]
     #[must_use]
-    pub const fn name(&self) -> TagName<'a> {
+    pub fn name(&self) -> TagName<'a> {
         let mut index = 0;
         let bytes = self.0.as_bytes();
         loop {
@@ -335,8 +338,9 @@ impl<'a> EmptyElementTag<'a> {
     }
 
     /// The attributes of the tag.
+    #[rustversion::attr(since(1.71), const)]
     #[must_use]
-    pub const fn attributes(&self) -> Option<Attributes<'a>> {
+    pub fn attributes(&self) -> Option<Attributes<'a>> {
         let mut index = 0;
         let bytes = self.0.as_bytes();
         loop {
@@ -367,8 +371,9 @@ pub struct EndTag<'a>(&'a str);
 
 impl<'a> EndTag<'a> {
     /// The name of the tag.
+    #[rustversion::attr(since(1.71), const)]
     #[must_use]
-    pub const fn name(&self) -> TagName<'a> {
+    pub fn name(&self) -> TagName<'a> {
         let mut index = 0;
         let bytes = self.0.as_bytes();
         loop {
@@ -417,8 +422,9 @@ converters!(ProcessingInstruction);
 
 impl<'a> ProcessingInstruction<'a> {
     /// The target of the tag.
+    #[rustversion::attr(since(1.71), const)]
     #[must_use]
-    pub const fn target(&self) -> Target<'a> {
+    pub fn target(&self) -> Target<'a> {
         let mut index = 0;
         let bytes = self.0.as_bytes();
         loop {
@@ -443,8 +449,9 @@ impl<'a> ProcessingInstruction<'a> {
     }
 
     /// The instructions of the tag.
+    #[rustversion::attr(since(1.71), const)]
     #[must_use]
-    pub const fn instructions(&self) -> Option<Instructions<'a>> {
+    pub fn instructions(&self) -> Option<Instructions<'a>> {
         let mut index = 0;
         let bytes = self.0.as_bytes();
         loop {
@@ -485,9 +492,9 @@ pub struct Cdata<'a>(&'a str);
 
 impl<'a> Cdata<'a> {
     /// The text content of the characters.
-    #[inline]
+    #[rustversion::attr(since(1.71), const)]
     #[must_use]
-    pub const fn content(&self) -> Content<'a> {
+    pub fn content(&self) -> Content<'a> {
         let bytes = self.0.as_bytes();
         let (bytes, _) = bytes.split_at(self.0.len() - "]]>".len());
         let (_, bytes) = bytes.split_at("<![CDATA[".len());
