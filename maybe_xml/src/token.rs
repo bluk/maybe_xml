@@ -95,36 +95,31 @@ impl<'a> Token<'a> {
     /// Returns the token type.
     #[inline]
     #[must_use]
-    pub fn ty(&self) -> Ty<'a> {
-        // The method could be `const` but the implementation could also be
-        // changed to use the unsafe `get_unchecked` method on the bytes (which
-        // is not const).  There is a slight gain between 3 to 6% in some
-        // micro-benchmark tests.
+    pub const fn ty(&self) -> Ty<'a> {
+        let bytes = self.0.as_bytes();
 
-        let mut chars = self.0.chars();
-
-        if chars.next() != Some('<') {
+        if bytes[0] != b'<' {
             return Ty::Characters(Characters(self.0));
         }
 
-        match chars.next() {
-            Some('/') => return Ty::EndTag(EndTag(self.0)),
-            Some('?') => return Ty::ProcessingInstruction(ProcessingInstruction(self.0)),
-            Some('!') => {
-                match chars.next() {
-                    Some('-') => {
-                        if chars.next() == Some('-') {
+        match bytes[1] {
+            b'/' => return Ty::EndTag(EndTag(self.0)),
+            b'?' => return Ty::ProcessingInstruction(ProcessingInstruction(self.0)),
+            b'!' => {
+                match bytes[2] {
+                    b'-' => {
+                        if bytes[3] == b'-' {
                             return Ty::Comment(Comment(self.0));
                         }
                     }
-                    Some('[') => {
-                        if self.0.len() > "<![CDATA[".len()
-                            && chars.next() == Some('C')
-                            && chars.next() == Some('D')
-                            && chars.next() == Some('A')
-                            && chars.next() == Some('T')
-                            && chars.next() == Some('A')
-                            && chars.next() == Some('[')
+                    b'[' => {
+                        if "<![CDATA[".len() < bytes.len()
+                            && bytes[3] == b'C'
+                            && bytes[4] == b'D'
+                            && bytes[5] == b'A'
+                            && bytes[6] == b'T'
+                            && bytes[7] == b'A'
+                            && bytes[8] == b'['
                         {
                             return Ty::Cdata(Cdata(self.0));
                         }
@@ -134,7 +129,7 @@ impl<'a> Token<'a> {
                 return Ty::Declaration(Declaration(self.0));
             }
             _ => {
-                if chars.nth_back(1) == Some('/') {
+                if bytes[bytes.len() - 2] == b'/' {
                     return Ty::EmptyElementTag(EmptyElementTag(self.0));
                 }
                 return Ty::StartTag(StartTag(self.0));
