@@ -8,6 +8,12 @@ pub mod prop;
 
 #[inline]
 #[must_use]
+const fn is_space(byte: u8) -> bool {
+    matches!(byte, 32 | 9 | 13 | 10)
+}
+
+#[inline]
+#[must_use]
 const fn is_space_ch(ch: char) -> bool {
     matches!(ch, ' ' | '\t' | '\r' | '\n')
 }
@@ -255,24 +261,51 @@ pub struct StartTag<'a>(&'a str);
 impl<'a> StartTag<'a> {
     /// The name of the tag.
     #[must_use]
-    pub fn name(&self) -> TagName<'a> {
-        let index = self
-            .0
-            .char_indices()
-            .find_map(|(pos, ch)| is_space_ch(ch).then(|| pos))
-            .unwrap_or(self.0.len() - '>'.len_utf8());
-        TagName::from_str(&self.0['<'.len_utf8()..index])
+    pub const fn name(&self) -> TagName<'a> {
+        let mut index = 0;
+        let bytes = self.0.as_bytes();
+        loop {
+            if index == bytes.len() {
+                index -= '>'.len_utf8();
+                break;
+            }
+            let byte = bytes[index];
+            if is_space(byte) {
+                break;
+            }
+            index += 1;
+        }
+
+        let (bytes, _) = bytes.split_at(index);
+        let (_, bytes) = bytes.split_at('<'.len_utf8());
+
+        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+
+        TagName::from_str(value)
     }
 
     /// The attributes of the tag.
     #[must_use]
-    pub fn attributes(&self) -> Option<Attributes<'a>> {
-        self.0
-            .char_indices()
-            .find(|(_, ch)| is_space_ch(*ch))
-            .map(|(index, ch)| {
-                Attributes::from_str(&self.0[index + ch.len_utf8()..self.0.len() - '>'.len_utf8()])
-            })
+    pub const fn attributes(&self) -> Option<Attributes<'a>> {
+        let mut index = 0;
+        let bytes = self.0.as_bytes();
+        loop {
+            if index == bytes.len() {
+                return None;
+            }
+            let byte = bytes[index];
+            if is_space(byte) {
+                break;
+            }
+            index += 1;
+        }
+
+        let (_, bytes) = bytes.split_at(index + 1);
+        let (bytes, _) = bytes.split_at(bytes.len() - '>'.len_utf8());
+
+        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+
+        Some(Attributes::from_str(value))
     }
 }
 
@@ -287,26 +320,52 @@ pub struct EmptyElementTag<'a>(&'a str);
 impl<'a> EmptyElementTag<'a> {
     /// The name of the tag.
     #[must_use]
-    pub fn name(&self) -> TagName<'a> {
-        let index = self
-            .0
-            .char_indices()
-            .find_map(|(pos, ch)| is_space_ch(ch).then(|| pos))
-            .unwrap_or(self.0.len() - '/'.len_utf8() - '>'.len_utf8());
-        TagName::from_str(&self.0['<'.len_utf8()..index])
+    pub const fn name(&self) -> TagName<'a> {
+        let mut index = 0;
+        let bytes = self.0.as_bytes();
+        loop {
+            if index == bytes.len() {
+                index -= '/'.len_utf8();
+                index -= '>'.len_utf8();
+                break;
+            }
+            let byte = bytes[index];
+            if is_space(byte) {
+                break;
+            }
+            index += 1;
+        }
+
+        let (bytes, _) = bytes.split_at(index);
+        let (_, bytes) = bytes.split_at('<'.len_utf8());
+
+        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+
+        TagName::from_str(value)
     }
 
     /// The attributes of the tag.
     #[must_use]
-    pub fn attributes(&self) -> Option<Attributes<'a>> {
-        self.0
-            .char_indices()
-            .find(|(_, ch)| is_space_ch(*ch))
-            .map(|(index, ch)| {
-                Attributes::from_str(
-                    &self.0[index + ch.len_utf8()..self.0.len() - '/'.len_utf8() - '>'.len_utf8()],
-                )
-            })
+    pub const fn attributes(&self) -> Option<Attributes<'a>> {
+        let mut index = 0;
+        let bytes = self.0.as_bytes();
+        loop {
+            if index == bytes.len() {
+                return None;
+            }
+            let byte = bytes[index];
+            if is_space(byte) {
+                break;
+            }
+            index += 1;
+        }
+
+        let (_, bytes) = bytes.split_at(index + 1);
+        let (bytes, _) = bytes.split_at(bytes.len() - '/'.len_utf8() - '>'.len_utf8());
+
+        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+
+        Some(Attributes::from_str(value))
     }
 }
 
@@ -319,13 +378,27 @@ pub struct EndTag<'a>(&'a str);
 impl<'a> EndTag<'a> {
     /// The name of the tag.
     #[must_use]
-    pub fn name(&self) -> TagName<'a> {
-        let index = self
-            .0
-            .char_indices()
-            .find_map(|(pos, ch)| is_space_ch(ch).then(|| pos))
-            .unwrap_or(self.0.len() - '>'.len_utf8());
-        TagName::from_str(&self.0['<'.len_utf8() + '/'.len_utf8()..index])
+    pub const fn name(&self) -> TagName<'a> {
+        let mut index = 0;
+        let bytes = self.0.as_bytes();
+        loop {
+            if index == bytes.len() {
+                index -= '>'.len_utf8();
+                break;
+            }
+            let byte = bytes[index];
+            if is_space(byte) {
+                break;
+            }
+            index += 1;
+        }
+
+        let (bytes, _) = bytes.split_at(index);
+        let (_, bytes) = bytes.split_at('<'.len_utf8() + '/'.len_utf8());
+
+        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+
+        TagName::from_str(value)
     }
 }
 
@@ -355,26 +428,52 @@ converters!(ProcessingInstruction);
 impl<'a> ProcessingInstruction<'a> {
     /// The target of the tag.
     #[must_use]
-    pub fn target(&self) -> Target<'a> {
-        let index = self
-            .0
-            .char_indices()
-            .find_map(|(pos, ch)| is_space_ch(ch).then(|| pos))
-            .unwrap_or(self.0.len() - '?'.len_utf8() - '>'.len_utf8());
-        Target::from_str(&self.0['<'.len_utf8() + '?'.len_utf8()..index])
+    pub const fn target(&self) -> Target<'a> {
+        let mut index = 0;
+        let bytes = self.0.as_bytes();
+        loop {
+            if index == bytes.len() {
+                index -= '?'.len_utf8();
+                index -= '>'.len_utf8();
+                break;
+            }
+            let byte = bytes[index];
+            if is_space(byte) {
+                break;
+            }
+            index += 1;
+        }
+
+        let (bytes, _) = bytes.split_at(index);
+        let (_, bytes) = bytes.split_at('<'.len_utf8() + '?'.len_utf8());
+
+        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+
+        Target::from_str(value)
     }
 
     /// The instructions of the tag.
     #[must_use]
-    pub fn instructions(&self) -> Option<Instructions<'a>> {
-        self.0
-            .char_indices()
-            .find(|(_, ch)| is_space_ch(*ch))
-            .map(|(index, ch)| {
-                Instructions::from_str(
-                    &self.0[index + ch.len_utf8()..self.0.len() - '?'.len_utf8() - '>'.len_utf8()],
-                )
-            })
+    pub const fn instructions(&self) -> Option<Instructions<'a>> {
+        let mut index = 0;
+        let bytes = self.0.as_bytes();
+        loop {
+            if index == bytes.len() {
+                return None;
+            }
+            let byte = bytes[index];
+            if is_space(byte) {
+                break;
+            }
+            index += 1;
+        }
+
+        let (_, bytes) = bytes.split_at(index + 1);
+        let (bytes, _) = bytes.split_at(bytes.len() - '?'.len_utf8() - '>'.len_utf8());
+
+        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+
+        Some(Instructions::from_str(value))
     }
 }
 
@@ -398,8 +497,12 @@ impl<'a> Cdata<'a> {
     /// The text content of the characters.
     #[inline]
     #[must_use]
-    pub fn content(&self) -> Content<'a> {
-        Content::from_str(&self.0["<![CDATA[".len()..self.0.len() - "]]>".len()])
+    pub const fn content(&self) -> Content<'a> {
+        let bytes = self.0.as_bytes();
+        let (bytes, _) = bytes.split_at(self.0.len() - "]]>".len());
+        let (_, bytes) = bytes.split_at("<![CDATA[".len());
+        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+        Content::from_str(value)
     }
 }
 

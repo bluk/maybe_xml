@@ -82,26 +82,54 @@ impl<'a> TagName<'a> {
     /// For example, if `xml:example` was the tag name, then `example` would be the local part of the name.
     /// If there is no namespace prefix, the entire name is returned.
     #[must_use]
-    pub fn local(&self) -> LocalName<'a> {
-        if let Some(index) = self
-            .0
-            .char_indices()
-            .find_map(|(pos, ch)| (ch == ':').then(|| pos))
-        {
-            LocalName(&self.0[index + ':'.len_utf8()..])
-        } else {
-            LocalName(self.0)
+    pub const fn local(&self) -> LocalName<'a> {
+        let mut index = 0;
+        let bytes = self.0.as_bytes();
+        loop {
+            if index == bytes.len() {
+                return LocalName(self.0);
+            }
+
+            let byte = bytes[index];
+            if byte == b':' {
+                break;
+            }
+
+            index += 1;
         }
+
+        let (_, bytes) = bytes.split_at(index + 1);
+
+        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+
+        LocalName(value)
     }
 
     /// The namespace prefix if available.
     ///
     /// For example if `xml:example` was the tag name, then `xml` would be the namespace prefix.
     #[must_use]
-    pub fn namespace_prefix(&self) -> Option<NamespacePrefix<'a>> {
-        self.0
-            .char_indices()
-            .find_map(|(pos, ch)| (ch == ':').then(|| NamespacePrefix(&self.0[..pos])))
+    pub const fn namespace_prefix(&self) -> Option<NamespacePrefix<'a>> {
+        let mut index = 0;
+        let bytes = self.0.as_bytes();
+        loop {
+            if index == bytes.len() {
+                return None;
+            }
+
+            let byte = bytes[index];
+            if byte == b':' {
+                break;
+            }
+
+            index += 1;
+        }
+
+        let (bytes, _) = bytes.split_at(index);
+
+        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+
+        Some(NamespacePrefix(value))
     }
 }
 
@@ -262,85 +290,125 @@ pub struct Attribute<'a>(&'a str);
 impl<'a> Attribute<'a> {
     /// The attribute's name.
     #[must_use]
-    pub fn name(&self) -> AttributeName<'a> {
-        if let Some(index) = self
-            .0
-            .char_indices()
-            .find_map(|(pos, ch)| (ch == '=').then(|| pos))
-        {
-            if let Some((pos, ch)) = self.0[..index]
-                .char_indices()
-                .rev()
-                .find(|(_, ch)| !super::is_space_ch(*ch))
-            {
-                let end = pos + ch.len_utf8();
-                return AttributeName(&self.0[..end]);
+    pub const fn name(&self) -> AttributeName<'a> {
+        let mut index = 0;
+        let bytes = self.0.as_bytes();
+
+        loop {
+            if index == bytes.len() {
+                return AttributeName(self.0);
             }
+
+            let byte = bytes[index];
+            if byte == b'=' {
+                break;
+            }
+            index += 1;
         }
-        AttributeName(self.0)
+
+        let (bytes, _) = bytes.split_at(index);
+
+        let mut end = bytes.len() - 1;
+        loop {
+            if end == 0 {
+                return AttributeName(self.0);
+            }
+
+            let byte = bytes[end];
+            if !super::is_space(byte) {
+                end += 1;
+                break;
+            }
+
+            end -= 1;
+        }
+
+        let (bytes, _) = bytes.split_at(end);
+
+        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+
+        AttributeName(value)
     }
 
     /// The optional attribute value with the quotes removed.
     #[must_use]
-    pub fn value(&self) -> Option<AttributeValue<'a>> {
-        if let Some(index) = self
-            .0
-            .char_indices()
-            .find_map(|(pos, ch)| (ch == '=').then(|| pos))
-        {
-            let after_equal_index = index + '='.len_utf8();
-            let mut quote_state = QuoteState::None;
-            let mut begin = after_equal_index;
-            let mut first_nonspace = None;
-            let mut last_nonspace = after_equal_index;
-            for (loop_index, ch) in self.0[after_equal_index..].char_indices() {
-                match ch {
-                    '"' => match quote_state {
-                        QuoteState::None => {
-                            begin = loop_index + '"'.len_utf8();
-                            quote_state = QuoteState::Double;
-                        }
-                        QuoteState::Single => {}
-                        QuoteState::Double => {
-                            return Some(AttributeValue(
-                                &self.0[after_equal_index + begin..after_equal_index + loop_index],
-                            ));
-                        }
-                    },
-                    '\'' => match quote_state {
-                        QuoteState::None => {
-                            begin = loop_index + '\''.len_utf8();
-                            quote_state = QuoteState::Single;
-                        }
-                        QuoteState::Single => {
-                            return Some(AttributeValue(
-                                &self.0[after_equal_index + begin..after_equal_index + loop_index],
-                            ));
-                        }
-                        QuoteState::Double => {}
-                    },
-                    ch => {
-                        if !super::is_space_ch(ch) {
-                            last_nonspace = loop_index + ch.len_utf8();
-                            match first_nonspace {
-                                Some(_) => {}
-                                None => {
-                                    first_nonspace = Some(loop_index);
-                                }
-                            }
+    pub const fn value(&self) -> Option<AttributeValue<'a>> {
+        let mut index = 0;
+        let bytes = self.0.as_bytes();
+
+        loop {
+            if index == bytes.len() {
+                return None;
+            }
+
+            let byte = bytes[index];
+            if byte == b'=' {
+                break;
+            }
+            index += 1;
+        }
+
+        let after_equal_index = index + '='.len_utf8();
+        let mut quote_state = QuoteState::None;
+        let mut begin = after_equal_index;
+        let mut first_nonspace = None;
+        let mut last_nonspace = after_equal_index;
+
+        let mut loop_index = after_equal_index;
+        loop {
+            if loop_index == bytes.len() {
+                break;
+            }
+
+            let byte = bytes[loop_index];
+            match byte {
+                b'"' => match quote_state {
+                    QuoteState::None => {
+                        begin = loop_index + '"'.len_utf8();
+                        quote_state = QuoteState::Double;
+                    }
+                    QuoteState::Single => {}
+                    QuoteState::Double => {
+                        let (bytes, _) = bytes.split_at(loop_index);
+                        let (_, bytes) = bytes.split_at(begin);
+                        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+                        return Some(AttributeValue(value));
+                    }
+                },
+                b'\'' => match quote_state {
+                    QuoteState::None => {
+                        begin = loop_index + '\''.len_utf8();
+                        quote_state = QuoteState::Single;
+                    }
+                    QuoteState::Single => {
+                        let (bytes, _) = bytes.split_at(loop_index);
+                        let (_, bytes) = bytes.split_at(begin);
+                        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+                        return Some(AttributeValue(value));
+                    }
+                    QuoteState::Double => {}
+                },
+                byte => {
+                    if !super::is_space(byte) {
+                        last_nonspace = loop_index + 1;
+                        if first_nonspace.is_none() {
+                            first_nonspace = Some(loop_index);
                         }
                     }
                 }
             }
 
-            first_nonspace.map(|begin| {
-                AttributeValue(
-                    &self.0[after_equal_index + begin..after_equal_index + last_nonspace],
-                )
-            })
-        } else {
-            None
+            loop_index += 1;
         }
+
+        if let Some(begin) = first_nonspace {
+            let (bytes, _) = bytes.split_at(last_nonspace);
+            let (_, bytes) = bytes.split_at(begin);
+            let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+            return Some(AttributeValue(value));
+        }
+
+        None
     }
 }
 
@@ -356,26 +424,54 @@ impl<'a> AttributeName<'a> {
     /// For example, if `xml:example` was the attribute name, then `example` would be the local part of the name.
     /// If there is no namespace prefix, the entire name is returned.
     #[must_use]
-    pub fn local(&self) -> LocalName<'a> {
-        if let Some(index) = self
-            .0
-            .char_indices()
-            .find_map(|(pos, ch)| (ch == ':').then(|| pos))
-        {
-            LocalName(&self.0[index + ':'.len_utf8()..])
-        } else {
-            LocalName(self.0)
+    pub const fn local(&self) -> LocalName<'a> {
+        let mut index = 0;
+        let bytes = self.0.as_bytes();
+        loop {
+            if index == bytes.len() {
+                return LocalName(self.0);
+            }
+
+            let byte = bytes[index];
+            if byte == b':' {
+                break;
+            }
+
+            index += 1;
         }
+
+        let (_, bytes) = bytes.split_at(index + 1);
+
+        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+
+        LocalName(value)
     }
 
     /// The namespace prefix if available.
     ///
     /// For example if `xml:example` was the attribute name, then `xml` would be the namespace prefix.
     #[must_use]
-    pub fn namespace_prefix(&self) -> Option<NamespacePrefix<'a>> {
-        self.0
-            .char_indices()
-            .find_map(|(pos, ch)| (ch == ':').then(|| NamespacePrefix(&self.0[..pos])))
+    pub const fn namespace_prefix(&self) -> Option<NamespacePrefix<'a>> {
+        let mut index = 0;
+        let bytes = self.0.as_bytes();
+        loop {
+            if index == bytes.len() {
+                return None;
+            }
+
+            let byte = bytes[index];
+            if byte == b':' {
+                break;
+            }
+
+            index += 1;
+        }
+
+        let (bytes, _) = bytes.split_at(index);
+
+        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+
+        Some(NamespacePrefix(value))
     }
 }
 
