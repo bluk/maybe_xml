@@ -348,10 +348,6 @@ const fn scan_cdata(input: &[u8]) -> Option<usize> {
 #[inline]
 #[must_use]
 pub(super) const fn scan(input: &[u8], pos: usize) -> Option<usize> {
-    if input.len() <= pos {
-        return None;
-    }
-
     match input[pos] {
         b'<' => scan_markup(input, pos),
         _ => Some(scan_text_content(input, pos)),

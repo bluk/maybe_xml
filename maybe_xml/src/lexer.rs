@@ -6,6 +6,13 @@ mod scanner;
 
 use scanner::scan;
 
+#[allow(clippy::cast_possible_wrap)]
+#[inline]
+#[must_use]
+const fn is_utf8_boundary(byte: u8) -> bool {
+    byte as i8 >= -0x40
+}
+
 /// Tokenizes XML input into a [`Token`].
 ///
 /// The lexer can be used with complete or incremental input.
@@ -140,6 +147,10 @@ impl<'a> Lexer<'a> {
     ///
     /// If a token is found, the position is also updated to after the token.
     ///
+    /// # Panics
+    ///
+    /// Panics if the `pos` is greater than the input length.
+    ///
     /// # Examples
     ///
     /// ```
@@ -158,22 +169,26 @@ impl<'a> Lexer<'a> {
     ///```
     #[must_use]
     pub fn tokenize(&self, pos: &mut usize) -> Option<Token<'a>> {
-        if let Some(end) = scan(self.input, *pos) {
-            // This is a convoluted but *const* way of getting &self.input[*pos..end]
-            let (bytes, _) = self.input.split_at(end);
-            let (_, bytes) = bytes.split_at(*pos);
-            let token = Token::from_str(unsafe { core::str::from_utf8_unchecked(bytes) });
-
-            *pos = end;
-            Some(token)
-        } else {
-            None
+        if self.input.len() == *pos {
+            return None;
         }
+
+        assert!(is_utf8_boundary(self.input[*pos]));
+
+        let end = scan(self.input, *pos)?;
+        let token =
+            Token::from_str(unsafe { core::str::from_utf8_unchecked(&self.input[*pos..end]) });
+        *pos = end;
+        Some(token)
     }
 
     /// Constant function which tokenizes the input starting at the given position.
     ///
     /// If a token is found, the position is also updated to after the token.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the `pos` is greater than the input length.
     ///
     /// # Examples
     ///
@@ -194,6 +209,15 @@ impl<'a> Lexer<'a> {
     #[rustversion::attr(since(1.71), const)]
     #[must_use]
     pub fn parse(&self, pos: usize) -> Option<Token<'a>> {
+        if self.input.len() == pos {
+            return None;
+        }
+
+        assert!(
+            is_utf8_boundary(self.input[pos]),
+            "pos is not at a character boundary"
+        );
+
         if let Some(end) = scan(self.input, pos) {
             // This is a convoluted but *const* way of getting &self.input[*pos..end]
             let (bytes, _) = self.input.split_at(end);
@@ -463,19 +487,29 @@ mod tests {
     }
 
     #[test]
-    fn pos_greater_than_slice_len() {
+    #[should_panic(expected = "out of bounds")]
+    fn panic_on_pos_greater_than_slice_len() {
         let lexer = Lexer::from_str("");
         let mut pos = 1;
-        assert_eq!(None, lexer.tokenize(&mut pos));
-        assert_eq!(pos, 1);
+        let _ = lexer.tokenize(&mut pos);
     }
 
     #[test]
-    fn pos_greater_than_slice_len_2() {
+    #[should_panic(expected = "out of bounds")]
+    fn panic_on_pos_greater_than_slice_len_2() {
         let lexer = Lexer::from_str("hello");
         let mut pos = "hello".len() + 1;
-        assert_eq!(None, lexer.tokenize(&mut pos));
-        assert_eq!(pos, "hello".len() + 1);
+        let _ = lexer.tokenize(&mut pos);
+    }
+
+    #[test]
+    #[should_panic(expected = "pos")]
+    fn test_utf8() {
+        let input = "你好";
+
+        let lexer = Lexer::from_str(input);
+        let mut pos = 1;
+        let _ = lexer.tokenize(&mut pos);
     }
 
     #[cfg(any(feature = "std", feature = "alloc"))]
