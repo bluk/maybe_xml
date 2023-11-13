@@ -158,21 +158,6 @@ impl<'a> Lexer<'a> {
     ///```
     #[must_use]
     pub fn tokenize(&self, pos: &mut usize) -> Option<Token<'a>> {
-        // The &mut function parameter is blocking this function from being const
-        // See https://github.com/rust-lang/rust/issues/57349
-        // On some micro-benchmarks, there was a drop in performance when
-        // removing the assignment of pos and having the caller modify the
-        // position:
-        //
-        // ```
-        // let lexer = Lexer::from_str("<hello>");
-        // let mut pos = 0;
-        // let token = lexer.tokenize(pos)?;
-        // pos = 0 + token.len();
-        // ```
-        //
-        // A separate function could be made avaialble which is const if someone wants it.
-
         if let Some(end) = scan(self.input, *pos) {
             // This is a convoluted but *const* way of getting &self.input[*pos..end]
             let (bytes, _) = self.input.split_at(end);
@@ -180,6 +165,39 @@ impl<'a> Lexer<'a> {
             let token = Token::from_str(unsafe { core::str::from_utf8_unchecked(bytes) });
 
             *pos = end;
+            Some(token)
+        } else {
+            None
+        }
+    }
+
+    /// Constant function which tokenizes the input starting at the given position.
+    ///
+    /// If a token is found, the position is also updated to after the token.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Ty}};
+    ///
+    /// let input = "<id>123</id>";
+    ///
+    /// let lexer = Lexer::from_str(input);
+    /// let mut pos = 0;
+    ///
+    /// let token = lexer.parse(pos);
+    /// assert_eq!(Some(Ty::StartTag(StartTag::from_str("<id>"))), token.map(|token| token.ty()));
+    /// pos += token.map(|token| token.len()).unwrap_or_default();
+    ///
+    /// assert_eq!(4, pos);
+    ///```
+    #[must_use]
+    pub const fn parse(&self, pos: usize) -> Option<Token<'a>> {
+        if let Some(end) = scan(self.input, pos) {
+            // This is a convoluted but *const* way of getting &self.input[*pos..end]
+            let (bytes, _) = self.input.split_at(end);
+            let (_, bytes) = bytes.split_at(pos);
+            let token = Token::from_str(unsafe { core::str::from_utf8_unchecked(bytes) });
             Some(token)
         } else {
             None
