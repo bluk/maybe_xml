@@ -78,7 +78,7 @@ const fn is_utf8_boundary(byte: u8) -> bool {
 /// [`Lexer::tokenize()`][Lexer::tokenize()] method.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Lexer<'a> {
-    input: &'a [u8],
+    input: &'a str,
 }
 
 impl<'a> Lexer<'a> {
@@ -150,25 +150,23 @@ impl<'a> Lexer<'a> {
     #[inline]
     #[must_use]
     pub const unsafe fn from_slice_unchecked(input: &'a [u8]) -> Self {
-        Self { input }
+        Self {
+            input: core::str::from_utf8_unchecked(input),
+        }
     }
 
     /// Creates a new instance with the given UTF-8 string input.
     #[inline]
     #[must_use]
     pub const fn from_str(input: &'a str) -> Self {
-        Self {
-            input: input.as_bytes(),
-        }
+        Self { input }
     }
 
     /// Creates a new instance with the given UTF-8 string input.
     #[inline]
     #[must_use]
     pub const fn new(input: &'a str) -> Self {
-        Self {
-            input: input.as_bytes(),
-        }
+        Self { input }
     }
 
     /// Tokenizes the input starting at the given position.
@@ -219,15 +217,15 @@ impl<'a> Lexer<'a> {
     /// ```
     #[must_use]
     pub fn tokenize(&self, pos: &mut usize) -> Option<Token<'a>> {
-        if self.input.len() == *pos {
+        let input = self.input.as_bytes();
+        if input.len() == *pos {
             return None;
         }
 
-        assert!(is_utf8_boundary(self.input[*pos]));
+        assert!(is_utf8_boundary(input[*pos]));
 
-        let end = scan(self.input, *pos)?;
-        let token =
-            Token::from_str(unsafe { core::str::from_utf8_unchecked(&self.input[*pos..end]) });
+        let end = scan(input, *pos)?;
+        let token = Token::from_str(unsafe { core::str::from_utf8_unchecked(&input[*pos..end]) });
         *pos = end;
         Some(token)
     }
@@ -283,18 +281,20 @@ impl<'a> Lexer<'a> {
     #[rustversion::attr(since(1.71), const)]
     #[must_use]
     pub fn parse(&self, pos: usize) -> Option<Token<'a>> {
-        if self.input.len() == pos {
+        let input = self.input.as_bytes();
+
+        if input.len() == pos {
             return None;
         }
 
         assert!(
-            is_utf8_boundary(self.input[pos]),
+            is_utf8_boundary(input[pos]),
             "pos is not at a character boundary"
         );
 
-        if let Some(end) = scan(self.input, pos) {
+        if let Some(end) = scan(input, pos) {
             // This is a convoluted but *const* way of getting &self.input[*pos..end]
-            let (bytes, _) = self.input.split_at(end);
+            let (bytes, _) = input.split_at(end);
             let (_, bytes) = bytes.split_at(pos);
             let token = Token::from_str(unsafe { core::str::from_utf8_unchecked(bytes) });
             Some(token)
@@ -344,7 +344,7 @@ impl<'a> Lexer<'a> {
     /// Return the underlying bytes being tokenized.
     #[inline]
     #[must_use]
-    pub const fn into_inner(self) -> &'a [u8] {
+    pub const fn into_inner(self) -> &'a str {
         self.input
     }
 }
