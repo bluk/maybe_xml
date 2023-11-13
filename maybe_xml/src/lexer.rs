@@ -15,15 +15,38 @@ const fn is_utf8_boundary(byte: u8) -> bool {
 
 /// Tokenizes XML input into a [`Token`].
 ///
-/// The lexer can be used with complete or incremental input.
-///
 /// It does not allocate.
 ///
-/// If the entire input is available, it may be easier to turn the `Lexer` into
-/// an `Iterator` by calling either [`IntoIterator::into_iter()`] or
-/// [`Lexer::iter()`][Lexer::iter()] on the lexer.
-///
 /// # Examples
+///
+/// ## Using [`Lexer::tokenize()`][Lexer::tokenize()]
+///
+/// ```
+/// use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Ty}};
+///
+/// let input = "<id>123</id>";
+///
+/// let lexer = Lexer::from_str(input);
+/// let mut pos = 0;
+///
+/// let token = lexer.tokenize(&mut pos);
+/// assert_eq!(Some(Ty::StartTag(StartTag::from_str("<id>"))), token.map(|t| t.ty()));
+/// assert_eq!(4, pos);
+///
+/// let token = lexer.tokenize(&mut pos);
+/// assert_eq!(Some(Ty::Characters(Characters::from_str("123"))), token.map(|t| t.ty()));
+/// assert_eq!(7, pos);
+///
+/// let token = lexer.tokenize(&mut pos);
+/// assert_eq!(Some(Ty::EndTag(EndTag::from_str("</id>"))), token.map(|t| t.ty()));
+/// assert_eq!(12, pos);
+///
+/// let token = lexer.tokenize(&mut pos);
+/// assert_eq!(None, token);
+///
+/// // Verify that `pos` is equal to `input.len()` to ensure all data was
+/// // processed.
+/// ```
 ///
 /// ## Using [`Iterator`] functionality
 ///
@@ -49,64 +72,10 @@ const fn is_utf8_boundary(byte: u8) -> bool {
 /// assert_eq!(None, iter.next());
 /// ```
 ///
-/// ## Using [`Lexer::tokenize()`][Lexer::tokenize()] directly
-///
-/// ```
-/// use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Ty}};
-///
-/// let mut buf = Vec::new();
-/// // Note the missing closing tag character `>` in the end tag.
-/// buf.extend(b"<id>123</id");
-///
-/// let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
-/// let mut pos = 0;
-///
-/// let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
-/// assert_eq!(Some(Ty::StartTag(StartTag::from_str("<id>"))), ty);
-///
-/// // Position was assigned to the index after the end of the token
-/// assert_eq!(4, pos);
-///
-/// let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
-/// assert_eq!(Some(Ty::Characters(Characters::from_str("123"))), ty);
-///
-/// // Position was assigned to the index after the end of the token
-/// assert_eq!(7, pos);
-///
-/// let token = lexer.tokenize(&mut pos);
-/// // The last token is incomplete because it is missing the `>`
-/// assert_eq!(None, token);
-///
-/// // Discard the tokenized input
-/// buf.drain(..pos);
-/// pos = 0;
-///
-/// // Wait for additional input
-/// buf.extend(b">");
-///
-/// // Start tokenizing again with the input
-/// let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
-///
-/// let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
-/// assert_eq!(Some(Ty::EndTag(EndTag::from_str("</id>"))), ty);
-///
-/// // Position was assigned to the index after the end of the token
-/// assert_eq!(5, pos);
-///
-/// let token = lexer.tokenize(&mut pos);
-/// // There is no additional data to process
-/// assert_eq!(None, token);
-///
-/// buf.drain(..pos);
-/// pos = 0;
-///
-/// // End of file is reached while reading input
-///
-/// // Verify that the buffer is empty. If it is not empty, then there is data
-/// // which could not be identified as a complete token. This usually indicates
-/// // an error has occurred.
-/// assert!(buf.is_empty());
-/// ```
+/// Note that if the input is malformed or incomplete such as `<tag`, the
+/// Iterator will return `None` and will not return the invalid input. If you
+/// want to verify that all of the input was processed, then you should use the
+/// [`Lexer::tokenize()`][Lexer::tokenize()] method.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Lexer<'a> {
     input: &'a [u8],
@@ -119,6 +88,65 @@ impl<'a> Lexer<'a> {
     ///
     /// The bytes are assumed to represent a valid UTF-8 string. If the bytes
     /// are not UTF-8, then any methods called on this type are undefined.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Ty}};
+    ///
+    /// let mut buf = Vec::new();
+    /// // Note the missing closing tag character `>` in the end tag.
+    /// buf.extend(b"<id>123</id");
+    ///
+    /// let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
+    /// let mut pos = 0;
+    ///
+    /// let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
+    /// assert_eq!(Some(Ty::StartTag(StartTag::from_str("<id>"))), ty);
+    ///
+    /// // Position was assigned to the index after the end of the token
+    /// assert_eq!(4, pos);
+    ///
+    /// let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
+    /// assert_eq!(Some(Ty::Characters(Characters::from_str("123"))), ty);
+    ///
+    /// // Position was assigned to the index after the end of the token
+    /// assert_eq!(7, pos);
+    ///
+    /// let token = lexer.tokenize(&mut pos);
+    /// // The last token is incomplete because it is missing the `>`
+    /// assert_eq!(None, token);
+    ///
+    /// // Discard the tokenized input
+    /// buf.drain(..pos);
+    /// pos = 0;
+    ///
+    /// // Wait for additional input
+    /// buf.extend(b">");
+    ///
+    /// // Start tokenizing again with the input
+    /// let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
+    ///
+    /// let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
+    /// assert_eq!(Some(Ty::EndTag(EndTag::from_str("</id>"))), ty);
+    ///
+    /// // Position was assigned to the index after the end of the token
+    /// assert_eq!(5, pos);
+    ///
+    /// let token = lexer.tokenize(&mut pos);
+    /// // There is no additional data to process
+    /// assert_eq!(None, token);
+    ///
+    /// buf.drain(..pos);
+    /// pos = 0;
+    ///
+    /// // End of file is reached while reading input
+    ///
+    /// // Verify that the buffer is empty. If it is not empty, then there is data
+    /// // which could not be identified as a complete token. This usually indicates
+    /// // an error has occurred.
+    /// assert!(buf.is_empty());
+    /// ```
     #[inline]
     #[must_use]
     pub const unsafe fn from_slice_unchecked(input: &'a [u8]) -> Self {
@@ -145,28 +173,50 @@ impl<'a> Lexer<'a> {
 
     /// Tokenizes the input starting at the given position.
     ///
-    /// If a token is found, the position is also updated to after the token.
+    /// If a token is found, the position argument is also updated to the byte
+    /// index after the token.
     ///
     /// # Panics
     ///
-    /// Panics if the `pos` is greater than the input length.
+    /// Panics if the `pos` is greater than the input length or if `pos` is
+    /// not at a character boundary.
     ///
     /// # Examples
     ///
     /// ```
-    /// use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Ty}};
+    /// use maybe_xml::{Lexer, token::{StartTag, Ty}};
     ///
     /// let input = "<id>123</id>";
     ///
     /// let lexer = Lexer::from_str(input);
     /// let mut pos = 0;
     ///
-    /// let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
-    /// assert_eq!(Some(Ty::StartTag(StartTag::from_str("<id>"))), ty);
+    /// let token = lexer.tokenize(&mut pos);
+    /// assert_eq!(Some(Ty::StartTag(StartTag::from_str("<id>"))), token.map(|t| t.ty()));
     ///
     /// // Position was assigned to the index after the end of the token
     /// assert_eq!(4, pos);
-    ///```
+    /// ```
+    ///
+    /// If `tokenize()` returns `None`, but the position is not equal to the input's
+    /// byte length, then there is unprocessed input such as malformed XML. For
+    /// instance, if the input was `<tag` without the enclosing `>`, then
+    /// `tokenize()` will return `None`.
+    ///
+    /// ```
+    /// use maybe_xml::{Lexer, token::{StartTag, Ty}};
+    ///
+    /// let input = "<tag";
+    ///
+    /// let lexer = Lexer::from_str(input);
+    /// let mut pos = 0;
+    ///
+    /// let token = lexer.tokenize(&mut pos);
+    /// assert_eq!(None, token);
+    ///
+    /// assert_eq!(0, pos);
+    /// assert_ne!(input.len(), pos);
+    /// ```
     #[must_use]
     pub fn tokenize(&self, pos: &mut usize) -> Option<Token<'a>> {
         if self.input.len() == *pos {
@@ -184,16 +234,20 @@ impl<'a> Lexer<'a> {
 
     /// Constant function which tokenizes the input starting at the given position.
     ///
-    /// If a token is found, the position is also updated to after the token.
+    /// # Important
+    ///
+    /// The `pos` is **not** updated and should be updated with the
+    /// [`Token::len()`][Token::len()].
     ///
     /// # Panics
     ///
-    /// Panics if the `pos` is greater than the input length.
+    /// Panics if the `pos` is greater than the input length or if `pos` is
+    /// not at a character boundary.
     ///
     /// # Examples
     ///
     /// ```
-    /// use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Ty}};
+    /// use maybe_xml::{Lexer, token::{StartTag, Ty}};
     ///
     /// let input = "<id>123</id>";
     ///
@@ -201,11 +255,31 @@ impl<'a> Lexer<'a> {
     /// let mut pos = 0;
     ///
     /// let token = lexer.parse(pos);
-    /// assert_eq!(Some(Ty::StartTag(StartTag::from_str("<id>"))), token.map(|token| token.ty()));
-    /// pos += token.map(|token| token.len()).unwrap_or_default();
+    /// assert_eq!(Some(Ty::StartTag(StartTag::from_str("<id>"))), token.map(|t| t.ty()));
     ///
+    /// pos += token.map(|t| t.len()).unwrap_or_default();
     /// assert_eq!(4, pos);
-    ///```
+    /// ```
+    ///
+    /// If `parse()` returns `None`, but the position is not equal to the input's
+    /// byte length, then there is unprocessed input such as malformed XML. For
+    /// instance, if the input was `<tag` without the enclosing `>`, then
+    /// `tokenize()` will return `None`.
+    ///
+    /// ```
+    /// use maybe_xml::{Lexer, token::{StartTag, Ty}};
+    ///
+    /// let input = "<tag";
+    ///
+    /// let lexer = Lexer::from_str(input);
+    /// let mut pos = 0;
+    ///
+    /// let token = lexer.parse(pos);
+    /// assert_eq!(None, token);
+    ///
+    /// assert_eq!(0, pos);
+    /// assert_ne!(input.len(), pos);
+    /// ```
     #[rustversion::attr(since(1.71), const)]
     #[must_use]
     pub fn parse(&self, pos: usize) -> Option<Token<'a>> {
@@ -231,14 +305,17 @@ impl<'a> Lexer<'a> {
 
     /// Returns an iterator for tokens starting at the given position.
     ///
-    /// The `pos` parameter is **not** updated.
+    /// # Panics
+    ///
+    /// The iterator will panic if the initial `pos` is greater than the input
+    /// length or if `pos` is not at a character boundary.
     ///
     /// # Examples
     ///
     /// ## Using other [`Iterator`] functionality
     ///
     /// ```
-    /// use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Ty}};
+    /// use maybe_xml::{Lexer, token::Ty};
     ///
     /// let input = "<id>123</id><name>Jane Doe</name>";
     ///
@@ -257,77 +334,6 @@ impl<'a> Lexer<'a> {
     /// assert_eq!(Some("name"), name);
     ///
     /// assert_eq!(None, iter.next());
-    /// ```
-    ///
-    /// ## Considerations during iteration
-    ///
-    /// ```
-    /// use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Ty}};
-    ///
-    /// let mut buf = Vec::new();
-    /// // Note the missing closing tag character `>` in the end tag.
-    /// buf.extend(b"Test<id>123</id");
-    ///
-    /// let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
-    ///
-    /// // Start after the initial text content
-    /// let pos = 4;
-    ///
-    /// let mut iter = lexer.iter(pos);
-    ///
-    /// let token = iter.next();
-    /// assert_eq!(Some(Ty::StartTag(StartTag::from_str("<id>"))), token.map(|t| t.ty()));
-    ///
-    /// let pos = pos + token.map(|t| t.len()).unwrap_or_default();
-    ///
-    /// let token = iter.next();
-    /// assert_eq!(Some(Ty::Characters(Characters::from_str("123"))), token.map(|t| t.ty()));
-    ///
-    /// let pos = pos + token.map(|t| t.len()).unwrap_or_default();
-    ///
-    /// let token = iter.next();
-    /// // The last token is incomplete because it is missing the `>`
-    /// assert_eq!(None, token);
-    ///
-    /// drop(iter);
-    ///
-    /// // Discard the tokenized input
-    /// buf.drain(..pos);
-    ///
-    /// let pos = 0;
-    ///
-    /// // Wait for additional input
-    /// buf.extend(b">");
-    ///
-    /// // Start tokenizing again with the input
-    /// let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
-    ///
-    /// let mut iter = lexer.iter(pos);
-    ///
-    /// let token = iter.next();
-    /// assert_eq!(Some(Ty::EndTag(EndTag::from_str("</id>"))), token.map(|t| t.ty()));
-    ///
-    /// let pos = pos + token.map(|t| t.len()).unwrap_or_default();
-    ///
-    /// // Position was assigned to the index after the end of the token
-    /// assert_eq!(5, pos);
-    ///
-    /// let token = iter.next();
-    /// // There is no additional data to process
-    /// assert_eq!(None, token);
-    ///
-    /// drop(iter);
-    ///
-    /// buf.drain(..pos);
-    ///
-    /// let pos = 0;
-    ///
-    /// // End of file is reached while reading input
-    ///
-    /// // Verify that the buffer is empty. If it is not empty, then there is data
-    /// // which could not be identified as a complete token. This usually indicates
-    /// // an error has occurred.
-    /// assert!(buf.is_empty());
     /// ```
     #[inline]
     #[must_use]
@@ -359,8 +365,7 @@ impl<'a> IntoIterator for Lexer<'a> {
 /// # Example
 ///
 /// ```
-/// use maybe_xml::{Lexer, token::{EndTag, StartTag, Ty}};
-/// use std::io::{BufRead, BufReader};
+/// use maybe_xml::{Lexer, token::Ty};
 ///
 /// let input = "<ID>Example</id><name>Jane Doe</name>";
 /// let lexer = Lexer::new(input);
@@ -382,7 +387,6 @@ impl<'a> IntoIterator for Lexer<'a> {
 /// assert_eq!(Some("name"), iter.next());
 /// assert_eq!(Some("name"), iter.next());
 /// assert_eq!(None, iter.next());
-/// # Ok::<(), std::io::Error>(())
 /// ```
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct Iter<'a> {
@@ -412,8 +416,7 @@ impl<'a> Iterator for Iter<'a> {
 /// # Example
 ///
 /// ```
-/// use maybe_xml::{Lexer, token::{EndTag, StartTag, Ty}};
-/// use std::io::{BufRead, BufReader};
+/// use maybe_xml::{Lexer, token::Ty};
 ///
 /// let input = "<ID>Example</id><name>Jane Doe</name>";
 /// let lexer = Lexer::new(input);
@@ -436,7 +439,6 @@ impl<'a> Iterator for Iter<'a> {
 /// assert_eq!(Some("name"), iter.next());
 /// assert_eq!(Some("name"), iter.next());
 /// assert_eq!(None, iter.next());
-/// # Ok::<(), std::io::Error>(())
 /// ```
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct IntoIter<'a> {

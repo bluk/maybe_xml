@@ -2,7 +2,7 @@
 //!
 //! [`Token`] is the main type. It identifies a sub-slice of the input buffer
 //! with a type of token using [`Ty`]. There are specific token types like
-//! [`StartTag`] which provide a view of the bytes and provide helper methods.
+//! [`StartTag`] which provide a view of the string and provide helper methods.
 
 pub mod prop;
 
@@ -17,7 +17,7 @@ use core::{fmt, str};
 
 use prop::{Attributes, Content, Instructions, TagName, Target};
 
-/// A slice of bytes which is identified as a specific token type.
+/// A string which is identified as a specific token type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Token<'a>(&'a str);
 
@@ -45,10 +45,6 @@ impl<'a> Token<'a> {
     }
 
     /// The token represented as a str.
-    ///
-    /// # Errors
-    ///
-    /// If the bytes are not a UTF-8 string.
     #[inline]
     #[must_use]
     pub const fn as_str(&self) -> &'a str {
@@ -164,10 +160,6 @@ macro_rules! converters {
             }
 
             /// The token represented as a str.
-            ///
-            /// # Errors
-            ///
-            /// If the bytes are not a UTF-8 string.
             #[inline]
             #[must_use]
             pub const fn as_str(&self) -> &'a str {

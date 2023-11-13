@@ -86,8 +86,9 @@ pub struct TagName<'a>(&'a str);
 impl<'a> TagName<'a> {
     /// The local part of the name.
     ///
-    /// For example, if `xml:example` was the tag name, then `example` would be the local part of the name.
-    /// If there is no namespace prefix, the entire name is returned.
+    /// For example, if `xml:example` was the tag name, then `example` would be
+    /// the local part of the name.  If there is no namespace prefix, the entire
+    /// name is returned.
     #[rustversion::attr(since(1.71), const)]
     #[must_use]
     pub fn local(&self) -> LocalName<'a> {
@@ -115,7 +116,8 @@ impl<'a> TagName<'a> {
 
     /// The namespace prefix if available.
     ///
-    /// For example if `xml:example` was the tag name, then `xml` would be the namespace prefix.
+    /// For example if `xml:example` was the tag name, then `xml` would be the
+    /// namespace prefix.
     #[rustversion::attr(since(1.71), const)]
     #[must_use]
     pub fn namespace_prefix(&self) -> Option<NamespacePrefix<'a>> {
@@ -146,8 +148,9 @@ converters!(TagName);
 
 /// The local part of the name.
 ///
-/// For example, if `xml:example` was the tag name, then `example` would be the local part of the name.
-/// If there is no namespace prefix, the entire name is returned.
+/// For example, if `xml:example` was the tag name, then `example` would be the
+/// local part of the name.  If there is no namespace prefix, the entire name is
+/// returned.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct LocalName<'a>(&'a str);
 
@@ -155,7 +158,8 @@ converters!(LocalName);
 
 /// The namespace prefix if available.
 ///
-/// For example if `xml:namespace` was the tag name, then `xml` would be the namespace prefix.
+/// For example if `xml:namespace` was the tag name, then `xml` would be the
+/// namespace prefix.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct NamespacePrefix<'a>(&'a str);
 
@@ -163,9 +167,9 @@ converters!(NamespacePrefix);
 
 /// All of the attribute bytes of a tag.
 ///
-/// For the vast majority of use cases, a library user should call `iter()` or `.into_iter()`.
+/// For the vast majority of use cases, a library user should call `.into_iter()`.
 ///
-/// The bytes may include additional spacing in the raw byte form.
+/// The bytes may include additional spacing in the string.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Attributes<'a>(&'a str);
 
@@ -465,8 +469,9 @@ pub struct AttributeName<'a>(&'a str);
 impl<'a> AttributeName<'a> {
     /// The local part of the name.
     ///
-    /// For example, if `xml:example` was the attribute name, then `example` would be the local part of the name.
-    /// If there is no namespace prefix, the entire name is returned.
+    /// For example, if `xml:example` was the attribute name, then `example`
+    /// would be the local part of the name.  If there is no namespace prefix,
+    /// the entire name is returned.
     #[rustversion::attr(since(1.71), const)]
     #[must_use]
     pub fn local(&self) -> LocalName<'a> {
@@ -494,7 +499,8 @@ impl<'a> AttributeName<'a> {
 
     /// The namespace prefix if available.
     ///
-    /// For example if `xml:example` was the attribute name, then `xml` would be the namespace prefix.
+    /// For example if `xml:example` was the attribute name, then `xml` would be
+    /// the namespace prefix.
     #[rustversion::attr(since(1.71), const)]
     #[must_use]
     pub fn namespace_prefix(&self) -> Option<NamespacePrefix<'a>> {
@@ -541,7 +547,8 @@ pub struct Target<'a>(&'a str);
 
 converters!(Target);
 
-/// The content of the processing instruction (e.g. `encoding="utf8"` in `<?xml encoding="utf-8"?>`).
+/// The content of the processing instruction (e.g. `encoding="utf8"` in `<?xml
+/// encoding="utf-8"?>`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Instructions<'a>(&'a str);
 
