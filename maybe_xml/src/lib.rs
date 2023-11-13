@@ -99,10 +99,10 @@
     unused_qualifications
 )]
 
-mod lexer;
+mod read;
 pub mod token;
 
-pub use lexer::{IntoIter, Iter, Lexer};
+pub use read::{IntoIter, Iter, Lexer};
 
 enum QuoteState {
     None,
