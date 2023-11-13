@@ -147,6 +147,10 @@ impl<'a> Lexer<'a> {
     /// // an error has occurred.
     /// assert!(buf.is_empty());
     /// ```
+    #[deprecated(
+        since = "0.9.0",
+        note = "Use core::str::from_utf8_unchecked() and then use Reader::from_str() instead."
+    )]
     #[inline]
     #[must_use]
     pub const unsafe fn from_slice_unchecked(input: &'a [u8]) -> Self {
