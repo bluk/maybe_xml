@@ -1,4 +1,4 @@
-//! Lexer for byte slice.
+//! Reader for `&str`.
 
 use crate::token::Token;
 
@@ -19,29 +19,29 @@ const fn is_utf8_boundary(byte: u8) -> bool {
 ///
 /// # Examples
 ///
-/// ## Using [`Lexer::tokenize()`][Lexer::tokenize()]
+/// ## Using [`tokenize()`][Reader::tokenize()]
 ///
 /// ```
-/// use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Ty}};
+/// use maybe_xml::{Reader, token::{Characters, EndTag, StartTag, Ty}};
 ///
 /// let input = "<id>123</id>";
 ///
-/// let lexer = Lexer::from_str(input);
+/// let reader = Reader::from_str(input);
 /// let mut pos = 0;
 ///
-/// let token = lexer.tokenize(&mut pos);
+/// let token = reader.tokenize(&mut pos);
 /// assert_eq!(Some(Ty::StartTag(StartTag::from_str("<id>"))), token.map(|t| t.ty()));
 /// assert_eq!(4, pos);
 ///
-/// let token = lexer.tokenize(&mut pos);
+/// let token = reader.tokenize(&mut pos);
 /// assert_eq!(Some(Ty::Characters(Characters::from_str("123"))), token.map(|t| t.ty()));
 /// assert_eq!(7, pos);
 ///
-/// let token = lexer.tokenize(&mut pos);
+/// let token = reader.tokenize(&mut pos);
 /// assert_eq!(Some(Ty::EndTag(EndTag::from_str("</id>"))), token.map(|t| t.ty()));
 /// assert_eq!(12, pos);
 ///
-/// let token = lexer.tokenize(&mut pos);
+/// let token = reader.tokenize(&mut pos);
 /// assert_eq!(None, token);
 ///
 /// // Verify that `pos` is equal to `input.len()` to ensure all data was
@@ -51,12 +51,12 @@ const fn is_utf8_boundary(byte: u8) -> bool {
 /// ## Using [`Iterator`] functionality
 ///
 /// ```
-/// use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Ty}};
+/// use maybe_xml::{Reader, token::{Characters, EndTag, StartTag, Ty}};
 ///
 /// let input = "<id>123</id><name>Jane Doe</name>";
 ///
-/// let lexer = Lexer::from_str(input);
-/// let mut iter = lexer.into_iter().filter_map(|token| {
+/// let reader = Reader::from_str(input);
+/// let mut iter = reader.into_iter().filter_map(|token| {
 ///     match token.ty() {
 ///         Ty::StartTag(tag) => Some(tag.name().as_str()),
 ///         _ => None,
@@ -75,13 +75,13 @@ const fn is_utf8_boundary(byte: u8) -> bool {
 /// Note that if the input is malformed or incomplete such as `<tag`, the
 /// Iterator will return `None` and will not return the invalid input. If you
 /// want to verify that all of the input was processed, then you should use the
-/// [`Lexer::tokenize()`][Lexer::tokenize()] method.
+/// [`Reader::tokenize()`][Reader::tokenize()] method.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Lexer<'a> {
+pub struct Reader<'a> {
     input: &'a str,
 }
 
-impl<'a> Lexer<'a> {
+impl<'a> Reader<'a> {
     /// Creates a new instance from a byte slice.
     ///
     /// # Safety
@@ -92,28 +92,28 @@ impl<'a> Lexer<'a> {
     /// # Example
     ///
     /// ```
-    /// use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Ty}};
+    /// use maybe_xml::{Reader, token::{Characters, EndTag, StartTag, Ty}};
     ///
     /// let mut buf = Vec::new();
     /// // Note the missing closing tag character `>` in the end tag.
     /// buf.extend(b"<id>123</id");
     ///
-    /// let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
+    /// let reader = unsafe { Reader::from_slice_unchecked(&buf) };
     /// let mut pos = 0;
     ///
-    /// let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
+    /// let ty = reader.tokenize(&mut pos).map(|token| token.ty());
     /// assert_eq!(Some(Ty::StartTag(StartTag::from_str("<id>"))), ty);
     ///
     /// // Position was assigned to the index after the end of the token
     /// assert_eq!(4, pos);
     ///
-    /// let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
+    /// let ty = reader.tokenize(&mut pos).map(|token| token.ty());
     /// assert_eq!(Some(Ty::Characters(Characters::from_str("123"))), ty);
     ///
     /// // Position was assigned to the index after the end of the token
     /// assert_eq!(7, pos);
     ///
-    /// let token = lexer.tokenize(&mut pos);
+    /// let token = reader.tokenize(&mut pos);
     /// // The last token is incomplete because it is missing the `>`
     /// assert_eq!(None, token);
     ///
@@ -125,15 +125,15 @@ impl<'a> Lexer<'a> {
     /// buf.extend(b">");
     ///
     /// // Start tokenizing again with the input
-    /// let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
+    /// let reader = unsafe { Reader::from_slice_unchecked(&buf) };
     ///
-    /// let ty = lexer.tokenize(&mut pos).map(|token| token.ty());
+    /// let ty = reader.tokenize(&mut pos).map(|token| token.ty());
     /// assert_eq!(Some(Ty::EndTag(EndTag::from_str("</id>"))), ty);
     ///
     /// // Position was assigned to the index after the end of the token
     /// assert_eq!(5, pos);
     ///
-    /// let token = lexer.tokenize(&mut pos);
+    /// let token = reader.tokenize(&mut pos);
     /// // There is no additional data to process
     /// assert_eq!(None, token);
     ///
@@ -186,14 +186,14 @@ impl<'a> Lexer<'a> {
     /// # Examples
     ///
     /// ```
-    /// use maybe_xml::{Lexer, token::{StartTag, Ty}};
+    /// use maybe_xml::{Reader, token::{StartTag, Ty}};
     ///
     /// let input = "<id>123</id>";
     ///
-    /// let lexer = Lexer::from_str(input);
+    /// let reader = Reader::from_str(input);
     /// let mut pos = 0;
     ///
-    /// let token = lexer.tokenize(&mut pos);
+    /// let token = reader.tokenize(&mut pos);
     /// assert_eq!(Some(Ty::StartTag(StartTag::from_str("<id>"))), token.map(|t| t.ty()));
     ///
     /// // Position was assigned to the index after the end of the token
@@ -206,14 +206,14 @@ impl<'a> Lexer<'a> {
     /// `tokenize()` will return `None`.
     ///
     /// ```
-    /// use maybe_xml::{Lexer, token::{StartTag, Ty}};
+    /// use maybe_xml::{Reader, token::{StartTag, Ty}};
     ///
     /// let input = "<tag";
     ///
-    /// let lexer = Lexer::from_str(input);
+    /// let reader = Reader::from_str(input);
     /// let mut pos = 0;
     ///
-    /// let token = lexer.tokenize(&mut pos);
+    /// let token = reader.tokenize(&mut pos);
     /// assert_eq!(None, token);
     ///
     /// assert_eq!(0, pos);
@@ -249,14 +249,14 @@ impl<'a> Lexer<'a> {
     /// # Examples
     ///
     /// ```
-    /// use maybe_xml::{Lexer, token::{StartTag, Ty}};
+    /// use maybe_xml::{Reader, token::{StartTag, Ty}};
     ///
     /// let input = "<id>123</id>";
     ///
-    /// let lexer = Lexer::from_str(input);
+    /// let reader = Reader::from_str(input);
     /// let mut pos = 0;
     ///
-    /// let token = lexer.parse(pos);
+    /// let token = reader.parse(pos);
     /// assert_eq!(Some(Ty::StartTag(StartTag::from_str("<id>"))), token.map(|t| t.ty()));
     ///
     /// pos += token.map(|t| t.len()).unwrap_or_default();
@@ -269,14 +269,14 @@ impl<'a> Lexer<'a> {
     /// `tokenize()` will return `None`.
     ///
     /// ```
-    /// use maybe_xml::{Lexer, token::{StartTag, Ty}};
+    /// use maybe_xml::{Reader, token::{StartTag, Ty}};
     ///
     /// let input = "<tag";
     ///
-    /// let lexer = Lexer::from_str(input);
+    /// let reader = Reader::from_str(input);
     /// let mut pos = 0;
     ///
-    /// let token = lexer.parse(pos);
+    /// let token = reader.parse(pos);
     /// assert_eq!(None, token);
     ///
     /// assert_eq!(0, pos);
@@ -319,12 +319,12 @@ impl<'a> Lexer<'a> {
     /// ## Using other [`Iterator`] functionality
     ///
     /// ```
-    /// use maybe_xml::{Lexer, token::Ty};
+    /// use maybe_xml::{Reader, token::Ty};
     ///
     /// let input = "<id>123</id><name>Jane Doe</name>";
     ///
-    /// let lexer = Lexer::from_str(input);
-    /// let mut iter = lexer.iter(0).filter_map(|token| {
+    /// let reader = Reader::from_str(input);
+    /// let mut iter = reader.iter(0).filter_map(|token| {
     ///     match token.ty() {
     ///         Ty::StartTag(tag) => Some(tag.name().as_str()),
     ///         _ => None,
@@ -353,7 +353,7 @@ impl<'a> Lexer<'a> {
     }
 }
 
-impl<'a> IntoIterator for Lexer<'a> {
+impl<'a> IntoIterator for Reader<'a> {
     type Item = Token<'a>;
 
     type IntoIter = IntoIter<'a>;
@@ -364,17 +364,17 @@ impl<'a> IntoIterator for Lexer<'a> {
     }
 }
 
-/// The returned iterator type for [`Lexer::iter()`].
+/// The returned iterator type for [`Reader::iter()`].
 ///
 /// # Example
 ///
 /// ```
-/// use maybe_xml::{Lexer, token::Ty};
+/// use maybe_xml::{Reader, token::Ty};
 ///
 /// let input = "<ID>Example</id><name>Jane Doe</name>";
-/// let lexer = Lexer::new(input);
+/// let reader = Reader::new(input);
 ///
-/// let mut iter = lexer.iter(4)
+/// let mut iter = reader.iter(4)
 ///     .filter_map(|token| {
 ///         match token.ty() {
 ///             Ty::StartTag(start_tag) => {
@@ -394,14 +394,14 @@ impl<'a> IntoIterator for Lexer<'a> {
 /// ```
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct Iter<'a> {
-    inner: Lexer<'a>,
+    inner: Reader<'a>,
     pos: usize,
 }
 
 impl<'a> Iter<'a> {
     #[inline]
     #[must_use]
-    const fn new(inner: Lexer<'a>, pos: usize) -> Self {
+    const fn new(inner: Reader<'a>, pos: usize) -> Self {
         Self { inner, pos }
     }
 }
@@ -415,17 +415,17 @@ impl<'a> Iterator for Iter<'a> {
     }
 }
 
-/// The returned iterator type when [`IntoIterator::into_iter()`] is called on [`Lexer`].
+/// The returned iterator type when [`IntoIterator::into_iter()`] is called on [`Reader`].
 ///
 /// # Example
 ///
 /// ```
-/// use maybe_xml::{Lexer, token::Ty};
+/// use maybe_xml::{Reader, token::Ty};
 ///
 /// let input = "<ID>Example</id><name>Jane Doe</name>";
-/// let lexer = Lexer::new(input);
+/// let reader = Reader::new(input);
 ///
-/// let mut iter = lexer.into_iter()
+/// let mut iter = reader.into_iter()
 ///     .filter_map(|token| {
 ///         match token.ty() {
 ///             Ty::StartTag(start_tag) => {
@@ -446,14 +446,14 @@ impl<'a> Iterator for Iter<'a> {
 /// ```
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub struct IntoIter<'a> {
-    inner: Lexer<'a>,
+    inner: Reader<'a>,
     pos: usize,
 }
 
 impl<'a> IntoIter<'a> {
     #[inline]
     #[must_use]
-    const fn new(inner: Lexer<'a>, pos: usize) -> Self {
+    const fn new(inner: Reader<'a>, pos: usize) -> Self {
         Self { inner, pos }
     }
 }
@@ -486,26 +486,26 @@ mod tests {
 
     #[test]
     fn none_on_empty() {
-        let lexer = Lexer::from_str("");
+        let reader = Reader::from_str("");
         let mut pos = 0;
-        assert_eq!(None, lexer.tokenize(&mut pos));
+        assert_eq!(None, reader.tokenize(&mut pos));
         assert_eq!(0, pos);
     }
 
     #[test]
     #[should_panic(expected = "out of bounds")]
     fn panic_on_pos_greater_than_slice_len() {
-        let lexer = Lexer::from_str("");
+        let reader = Reader::from_str("");
         let mut pos = 1;
-        let _ = lexer.tokenize(&mut pos);
+        let _ = reader.tokenize(&mut pos);
     }
 
     #[test]
     #[should_panic(expected = "out of bounds")]
     fn panic_on_pos_greater_than_slice_len_2() {
-        let lexer = Lexer::from_str("hello");
+        let reader = Reader::from_str("hello");
         let mut pos = "hello".len() + 1;
-        let _ = lexer.tokenize(&mut pos);
+        let _ = reader.tokenize(&mut pos);
     }
 
     #[test]
@@ -513,9 +513,9 @@ mod tests {
     fn test_utf8() {
         let input = "你好";
 
-        let lexer = Lexer::from_str(input);
+        let reader = Reader::from_str(input);
         let mut pos = 1;
-        let _ = lexer.tokenize(&mut pos);
+        let _ = reader.tokenize(&mut pos);
     }
 
     #[cfg(any(feature = "std", feature = "alloc"))]
@@ -524,18 +524,18 @@ mod tests {
         let mut buf = Vec::new();
         let mut pos = 0;
         buf.extend("Hello".as_bytes());
-        let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
-        assert_eq!(Some(Token::from_str("Hello")), lexer.tokenize(&mut pos));
+        let reader = unsafe { Reader::from_slice_unchecked(&buf) };
+        assert_eq!(Some(Token::from_str("Hello")), reader.tokenize(&mut pos));
         assert_eq!(buf.len(), pos);
 
         buf.extend("wo".as_bytes());
-        let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
-        assert_eq!(Some(Token::from_str("wo")), lexer.tokenize(&mut pos));
+        let reader = unsafe { Reader::from_slice_unchecked(&buf) };
+        assert_eq!(Some(Token::from_str("wo")), reader.tokenize(&mut pos));
         assert_eq!(buf.len(), pos);
 
         buf.extend("rld!<".as_bytes());
-        let lexer = unsafe { Lexer::from_slice_unchecked(&buf) };
-        assert_eq!(Some(Token::from_str("rld!")), lexer.tokenize(&mut pos));
+        let reader = unsafe { Reader::from_slice_unchecked(&buf) };
+        assert_eq!(Some(Token::from_str("rld!")), reader.tokenize(&mut pos));
         assert_eq!(buf.len() - 1, pos);
     }
 
@@ -544,13 +544,13 @@ mod tests {
     }
 
     fn verify_tokenize(input: &str, mut pos: usize, expected: &[Ty<'_>], end: usize) {
-        let lexer = Lexer::from_str(input);
+        let reader = Reader::from_str(input);
 
         for e in expected.iter().copied() {
-            assert_eq!(Some(e), lexer.tokenize(&mut pos).map(|token| token.ty()));
+            assert_eq!(Some(e), reader.tokenize(&mut pos).map(|token| token.ty()));
         }
 
-        assert_eq!(None, lexer.tokenize(&mut pos));
+        assert_eq!(None, reader.tokenize(&mut pos));
         assert_eq!(pos, end);
     }
 

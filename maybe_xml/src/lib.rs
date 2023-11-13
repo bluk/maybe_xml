@@ -1,59 +1,48 @@
 //! `MaybeXml` is a library to scan and evaluate [XML][xml]-like data into
-//! tokens. In effect, the library provides a non-validating lexer. The
+//! tokens. In effect, the library provides a non-validating parser. The
 //! interface is similar to many XML pull parsers.
-//!
-//! # Usage
-//!
-//! The library user creates a [`Lexer`] from a `&str`.
-//!
-//! Then, the library user can call [`Lexer::tokenize()`][`Lexer::tokenize()`]
-//! to try to get the next [`Token`][crate::token::Token]. If successful, repeat
-//! calling `tokenize` and process the available tokens.
-//!
-//! Alternatively, the user can turn the `Lexer` into an iterator via
-//! [`Lexer::iter()`][Lexer::iter()] or [`IntoIterator::into_iter()`].
 //!
 //! # Examples
 //!
-//! ## Using [`Lexer::tokenize()`][Lexer::tokenize()]
+//! ## Using [`tokenize()`][Reader::tokenize()]
 //!
 //! ```
-//! use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Ty}};
+//! use maybe_xml::{Reader, token::{Characters, EndTag, StartTag, Ty}};
 //!
 //! let input = "<id>123</id>";
 //!
-//! let lexer = Lexer::from_str(input);
+//! let reader = Reader::from_str(input);
 //! let mut pos = 0;
 //!
-//! let token = lexer.tokenize(&mut pos);
+//! let token = reader.tokenize(&mut pos);
 //! assert_eq!(Some(Ty::StartTag(StartTag::from_str("<id>"))), token.map(|t| t.ty()));
 //! assert_eq!(4, pos);
 //!
-//! let token = lexer.tokenize(&mut pos);
+//! let token = reader.tokenize(&mut pos);
 //! assert_eq!(Some(Ty::Characters(Characters::from_str("123"))), token.map(|t| t.ty()));
 //! assert_eq!(7, pos);
 //!
-//! let token = lexer.tokenize(&mut pos);
+//! let token = reader.tokenize(&mut pos);
 //! assert_eq!(Some(Ty::EndTag(EndTag::from_str("</id>"))), token.map(|t| t.ty()));
 //! assert_eq!(12, pos);
 //!
-//! let token = lexer.tokenize(&mut pos);
+//! let token = reader.tokenize(&mut pos);
 //! assert_eq!(None, token);
 //!
 //! // Verify that `pos` is equal to `input.len()` to ensure all data was
 //! // processed.
 //! ```
 //!
-//! //! ## Using [`Iterator`] functionality
+//! ## Using [`Iterator`] functionality
 //!
 //! ```
-//! use maybe_xml::{Lexer, token::{Characters, EndTag, StartTag, Ty}};
+//! use maybe_xml::{Reader, token::{Characters, EndTag, StartTag, Ty}};
 //!
 //! let input = "<id>Example</id>";
 //!
-//! let lexer = Lexer::from_str(input);
+//! let reader = Reader::from_str(input);
 //!
-//! let mut iter = lexer.into_iter().map(|token| token.ty());
+//! let mut iter = reader.into_iter().map(|token| token.ty());
 //!
 //! let token_type = iter.next();
 //! assert_eq!(token_type, Some(Ty::StartTag(StartTag::from_str("<id>"))));
@@ -102,7 +91,10 @@
 mod read;
 pub mod token;
 
-pub use read::{IntoIter, Iter, Lexer};
+pub use read::{IntoIter, Iter, Reader};
+
+#[deprecated(since = "0.9.0", note = "Use Reader type instead.")]
+pub use read::Reader as Lexer;
 
 enum QuoteState {
     None,

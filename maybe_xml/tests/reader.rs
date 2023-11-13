@@ -2,29 +2,29 @@ use maybe_xml::{
     token::{
         Characters, Declaration, EmptyElementTag, EndTag, ProcessingInstruction, StartTag, Ty,
     },
-    Lexer,
+    Reader,
 };
 
 const SIMPLE_1_XML: &str = include_str!("../tests/resources/simple-1.xml");
 const SVG_1_XML: &str = include_str!("../tests/resources/svg-1.xml");
 
 fn tokenize_via_iterator(input: &str, expected_tokens: &[Ty<'_>]) {
-    let lexer = Lexer::from_str(input);
+    let reader = Reader::from_str(input);
 
-    for (expected_token, token) in expected_tokens.iter().zip(lexer.iter(0)) {
+    for (expected_token, token) in expected_tokens.iter().zip(reader.iter(0)) {
         assert_eq!(*expected_token, token.ty());
     }
 
-    assert_eq!(lexer.into_iter().count(), expected_tokens.len());
+    assert_eq!(reader.into_iter().count(), expected_tokens.len());
 }
 
 fn tokenize(input: &str, expected_tokens: &[Ty<'_>]) {
-    let lexer = Lexer::from_str(input);
+    let reader = Reader::from_str(input);
     let mut pos = 0;
 
     let mut expected_iter = expected_tokens.iter().copied();
 
-    while let Some(token) = lexer.tokenize(&mut pos) {
+    while let Some(token) = reader.tokenize(&mut pos) {
         assert_eq!(Some(token.ty()), expected_iter.next());
     }
 
