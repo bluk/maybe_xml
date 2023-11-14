@@ -101,3 +101,10 @@ enum QuoteState {
     Single,
     Double,
 }
+
+#[allow(clippy::cast_possible_wrap)]
+#[inline]
+#[must_use]
+const fn is_utf8_boundary(byte: u8) -> bool {
+    byte as i8 >= -0x40
+}

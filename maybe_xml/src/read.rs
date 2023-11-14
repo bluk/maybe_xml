@@ -6,13 +6,6 @@ mod scanner;
 
 use scanner::scan;
 
-#[allow(clippy::cast_possible_wrap)]
-#[inline]
-#[must_use]
-const fn is_utf8_boundary(byte: u8) -> bool {
-    byte as i8 >= -0x40
-}
-
 /// Tokenizes XML input into a [`Token`].
 ///
 /// It does not allocate.
@@ -226,7 +219,7 @@ impl<'a> Reader<'a> {
             return None;
         }
 
-        assert!(is_utf8_boundary(input[*pos]));
+        assert!(crate::is_utf8_boundary(input[*pos]));
 
         let end = scan(input, *pos)?;
         let token = Token::from_str(unsafe { core::str::from_utf8_unchecked(&input[*pos..end]) });
@@ -292,7 +285,7 @@ impl<'a> Reader<'a> {
         }
 
         assert!(
-            is_utf8_boundary(input[pos]),
+            crate::is_utf8_boundary(input[pos]),
             "pos is not at a character boundary"
         );
 
