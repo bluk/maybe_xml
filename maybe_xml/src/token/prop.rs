@@ -394,7 +394,7 @@ impl<'a> Attribute<'a> {
     #[inline]
     #[must_use]
     #[cfg(test)]
-    pub const fn from_str(value: &'a str) -> Self {
+    pub(crate) const fn from_str(value: &'a str) -> Self {
         Self(value)
     }
 
@@ -438,7 +438,13 @@ impl<'a> Attribute<'a> {
             let byte = bytes[index];
             if byte == b'=' {
                 break;
+            } else if super::is_space(byte) {
+                let (bytes, _) = bytes.split_at(index);
+                let (_, bytes) = bytes.split_at(begin);
+                let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+                return AttributeName::from_str(value);
             }
+
             index += 1;
         }
 
@@ -676,6 +682,82 @@ mod tests {
     }
 
     #[test]
+    fn attribute_standalone_space() {
+        let attr = Attribute::from_str("attr");
+        assert_eq!("attr", attr.name().as_str());
+        assert_eq!(None, attr.value());
+
+        let attr = Attribute::from_str(" attr ");
+        assert_eq!("attr", attr.name().as_str());
+        assert_eq!(None, attr.value());
+
+        let attr = Attribute::from_str("  attr  ");
+        assert_eq!("attr", attr.name().as_str());
+        assert_eq!(None, attr.value());
+    }
+
+    #[test]
+    fn attribute_no_quotes_space() {
+        let attr = Attribute::from_str("attr=test");
+        assert_eq!("attr", attr.name().as_str());
+        assert_eq!(Some("test"), attr.value().map(|a| a.as_str()));
+
+        let attr = Attribute::from_str(" attr = test ");
+        assert_eq!("attr", attr.name().as_str());
+        assert_eq!(Some("test"), attr.value().map(|a| a.as_str()));
+
+        let attr = Attribute::from_str("  attr  =  test  ");
+        assert_eq!("attr", attr.name().as_str());
+        assert_eq!(Some("test"), attr.value().map(|a| a.as_str()));
+    }
+
+    #[test]
+    fn attribute_single_quotes_space() {
+        let attr = Attribute::from_str("attr='test'");
+        assert_eq!("attr", attr.name().as_str());
+        assert_eq!(Some("test"), attr.value().map(|a| a.as_str()));
+
+        let attr = Attribute::from_str(" attr = 'test' ");
+        assert_eq!("attr", attr.name().as_str());
+        assert_eq!(Some("test"), attr.value().map(|a| a.as_str()));
+
+        let attr = Attribute::from_str("  attr  =  'test'  ");
+        assert_eq!("attr", attr.name().as_str());
+        assert_eq!(Some("test"), attr.value().map(|a| a.as_str()));
+
+        let attr = Attribute::from_str("  attr  =  ' test '  ");
+        assert_eq!("attr", attr.name().as_str());
+        assert_eq!(Some(" test "), attr.value().map(|a| a.as_str()));
+
+        let attr = Attribute::from_str("  attr  =  '  test  '  ");
+        assert_eq!("attr", attr.name().as_str());
+        assert_eq!(Some("  test  "), attr.value().map(|a| a.as_str()));
+    }
+
+    #[test]
+    fn attribute_double_quotes_space() {
+        let attr = Attribute::from_str(r#"attr="test""#);
+        assert_eq!("attr", attr.name().as_str());
+        assert_eq!(Some("test"), attr.value().map(|a| a.as_str()));
+
+        let attr = Attribute::from_str(r#" attr = "test" "#);
+        assert_eq!("attr", attr.name().as_str());
+        assert_eq!(Some("test"), attr.value().map(|a| a.as_str()));
+
+        let attr = Attribute::from_str(r#"  attr  =  "test"  "#);
+        assert_eq!("attr", attr.name().as_str());
+        assert_eq!(Some("test"), attr.value().map(|a| a.as_str()));
+
+        let attr = Attribute::from_str(r#"  attr  =  " test "  "#);
+        assert_eq!("attr", attr.name().as_str());
+        assert_eq!(Some(" test "), attr.value().map(|a| a.as_str()));
+
+        let attr = Attribute::from_str(r#"  attr  =  "  test  "  "#);
+        assert_eq!("attr", attr.name().as_str());
+        assert_eq!(Some("  test  "), attr.value().map(|a| a.as_str()));
+    }
+
+    #[test]
     fn empty_attributes() {
         let attributes = Attributes::from_str("");
         assert_eq!(attributes.into_iter().next(), None);
@@ -736,7 +818,7 @@ mod tests {
     #[test]
     fn attributes_multiple_with_spaces() {
         let attributes = Attributes::from_str(
-            "     attr=\"1\"  id='test' test = new   name= invalid standalone   name=\"example\" ",
+            "     attr=\"1\"  id ='test' test  =  new   name= invalid standalone   name=\"example\"  ",
         );
 
         let mut attributes_into_iter = attributes.into_iter();
@@ -747,12 +829,12 @@ mod tests {
         assert_eq!("1", attr.value().unwrap().as_str());
 
         let attr = attributes_into_iter.next().unwrap();
-        assert_eq!(Attribute::from_str("  id='test'"), attr);
+        assert_eq!(Attribute::from_str("  id ='test'"), attr);
         assert_eq!("id", attr.name().as_str());
         assert_eq!("test", attr.value().unwrap().as_str());
 
         let attr = attributes_into_iter.next().unwrap();
-        assert_eq!(Attribute::from_str(" test = new"), attr);
+        assert_eq!(Attribute::from_str(" test  =  new"), attr);
         assert_eq!("test", attr.name().as_str());
         assert_eq!("new", attr.value().unwrap().as_str());
 
