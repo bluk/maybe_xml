@@ -453,8 +453,35 @@ impl<'a> ProcessingInstruction<'a> {
             index += 1;
         }
 
-        let (_, bytes) = bytes.split_at(index + 1);
-        let (bytes, _) = bytes.split_at(bytes.len() - '?'.len_utf8() - '>'.len_utf8());
+        let mut begin = index + 1;
+        loop {
+            if begin == bytes.len() {
+                return None;
+            }
+            let byte = bytes[begin];
+            if !is_space(byte) {
+                break;
+            }
+            begin += 1;
+        }
+
+        let mut end = bytes.len() - '?'.len_utf8() - '>'.len_utf8() - 1;
+        loop {
+            if end <= begin {
+                return None;
+            }
+
+            let byte = bytes[end];
+            if !is_space(byte) {
+                end += 1;
+                break;
+            }
+
+            end -= 1;
+        }
+
+        let (bytes, _) = bytes.split_at(end);
+        let (_, bytes) = bytes.split_at(begin);
 
         let value = unsafe { core::str::from_utf8_unchecked(bytes) };
 
@@ -572,5 +599,53 @@ mod tests {
         let end_tag = EndTag::from_str("</>");
         assert_eq!(end_tag.name().as_bytes(), b"");
         assert_eq!(end_tag.name().as_str(), "");
+    }
+
+    #[test]
+    fn pi_no_content() {
+        let pi = ProcessingInstruction::from_str("<??>");
+        assert_eq!(Target::from_str(""), pi.target());
+        assert_eq!(None, pi.instructions());
+    }
+
+    #[test]
+    fn pi_no_spaces_content() {
+        let pi = ProcessingInstruction::from_str("<?xml-stylesheet?>");
+        assert_eq!(Target::from_str("xml-stylesheet"), pi.target());
+        assert_eq!(None, pi.instructions());
+    }
+
+    #[test]
+    fn pi_spaces_no_content() {
+        let pi = ProcessingInstruction::from_str("<?xml-stylesheet ?>");
+        assert_eq!(Target::from_str("xml-stylesheet"), pi.target());
+        assert_eq!(None, pi.instructions());
+    }
+
+    #[test]
+    fn pi_spaces_content_space() {
+        let pi = ProcessingInstruction::from_str("<?xml-stylesheet  id=\"1\" test ?>");
+        assert_eq!(Target::from_str("xml-stylesheet"), pi.target());
+        assert_eq!(
+            Some(Instructions::from_str("id=\"1\" test")),
+            pi.instructions()
+        );
+
+        let pi = ProcessingInstruction::from_str("<?xml-stylesheet     id=\"1\" test    ?>");
+        assert_eq!(Target::from_str("xml-stylesheet"), pi.target());
+        assert_eq!(
+            Some(Instructions::from_str("id=\"1\" test")),
+            pi.instructions()
+        );
+    }
+
+    #[test]
+    fn pi_spaces_content_no_trailing_space() {
+        let pi = ProcessingInstruction::from_str("<?xml-stylesheet id=\"1\" test?>");
+        assert_eq!(Target::from_str("xml-stylesheet"), pi.target());
+        assert_eq!(
+            Some(Instructions::from_str("id=\"1\" test")),
+            pi.instructions()
+        );
     }
 }
