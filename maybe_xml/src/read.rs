@@ -58,7 +58,7 @@ use scanner::scan;
 /// ## Using [`Iterator`] functionality
 ///
 /// ```
-/// use maybe_xml::{Reader, token::{Characters, EndTag, StartTag, Ty}};
+/// use maybe_xml::{Reader, token::Ty};
 ///
 /// let input = "<id>123</id><name>Jane Doe</name>";
 ///
