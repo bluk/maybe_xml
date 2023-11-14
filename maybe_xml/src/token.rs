@@ -267,8 +267,9 @@ impl<'a> StartTag<'a> {
     #[rustversion::attr(since(1.71), const)]
     #[must_use]
     pub fn attributes(&self) -> Option<Attributes<'a>> {
-        let mut index = 0;
         let bytes = self.0.as_bytes();
+
+        let mut index = 0;
         loop {
             if index == bytes.len() {
                 return None;
@@ -280,8 +281,35 @@ impl<'a> StartTag<'a> {
             index += 1;
         }
 
-        let (_, bytes) = bytes.split_at(index + 1);
-        let (bytes, _) = bytes.split_at(bytes.len() - '>'.len_utf8());
+        let mut begin = index + 1;
+        loop {
+            if begin == bytes.len() {
+                return None;
+            }
+            let byte = bytes[begin];
+            if !is_space(byte) {
+                break;
+            }
+            begin += 1;
+        }
+
+        let mut end = bytes.len() - '>'.len_utf8() - 1;
+        loop {
+            if end <= begin {
+                return None;
+            }
+
+            let byte = bytes[end];
+            if !is_space(byte) {
+                end += 1;
+                break;
+            }
+
+            end -= 1;
+        }
+
+        let (bytes, _) = bytes.split_at(end);
+        let (_, bytes) = bytes.split_at(begin);
 
         let value = unsafe { core::str::from_utf8_unchecked(bytes) };
 
@@ -329,8 +357,9 @@ impl<'a> EmptyElementTag<'a> {
     #[rustversion::attr(since(1.71), const)]
     #[must_use]
     pub fn attributes(&self) -> Option<Attributes<'a>> {
-        let mut index = 0;
         let bytes = self.0.as_bytes();
+
+        let mut index = 0;
         loop {
             if index == bytes.len() {
                 return None;
@@ -342,8 +371,35 @@ impl<'a> EmptyElementTag<'a> {
             index += 1;
         }
 
-        let (_, bytes) = bytes.split_at(index + 1);
-        let (bytes, _) = bytes.split_at(bytes.len() - '/'.len_utf8() - '>'.len_utf8());
+        let mut begin = index + 1;
+        loop {
+            if begin == bytes.len() {
+                return None;
+            }
+            let byte = bytes[begin];
+            if !is_space(byte) {
+                break;
+            }
+            begin += 1;
+        }
+
+        let mut end = bytes.len() - '/'.len_utf8() - '>'.len_utf8() - 1;
+        loop {
+            if end <= begin {
+                return None;
+            }
+
+            let byte = bytes[end];
+            if !is_space(byte) {
+                end += 1;
+                break;
+            }
+
+            end -= 1;
+        }
+
+        let (bytes, _) = bytes.split_at(end);
+        let (_, bytes) = bytes.split_at(begin);
 
         let value = unsafe { core::str::from_utf8_unchecked(bytes) };
 
@@ -573,6 +629,21 @@ mod tests {
     }
 
     #[test]
+    fn start_tag_attributes_space() {
+        let start_tag = StartTag::from_str("<abc  attr=\"1\" >");
+        assert_eq!(
+            start_tag.attributes(),
+            Some(Attributes::from_str("attr=\"1\""))
+        );
+
+        let start_tag = StartTag::from_str("<abc   attr=\"1\" id=\"#example\"  >");
+        assert_eq!(
+            start_tag.attributes(),
+            Some(Attributes::from_str("attr=\"1\" id=\"#example\""))
+        );
+    }
+
+    #[test]
     fn empty_empty_element_tag_name() {
         let empty_element_tag = EmptyElementTag::from_str("</>");
         assert_eq!(empty_element_tag.name().as_bytes(), b"");
@@ -588,6 +659,22 @@ mod tests {
         );
 
         let empty_element_tag = EmptyElementTag::from_str("<abc attr=\"1\" id=\"#example\"/>");
+        assert_eq!(
+            empty_element_tag.attributes(),
+            Some(Attributes::from_str("attr=\"1\" id=\"#example\""))
+        );
+    }
+
+    #[test]
+    fn empty_element_tag_attributes_space() {
+        let empty_element_tag = EmptyElementTag::from_str("<abc  attr=\"1\" />");
+        assert_eq!(
+            empty_element_tag.attributes(),
+            Some(Attributes::from_str("attr=\"1\""))
+        );
+
+        let empty_element_tag =
+            EmptyElementTag::from_str("<abc   attr=\"1\" id=\"#example\"     />");
         assert_eq!(
             empty_element_tag.attributes(),
             Some(Attributes::from_str("attr=\"1\" id=\"#example\""))
