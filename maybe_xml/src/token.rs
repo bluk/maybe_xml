@@ -166,6 +166,14 @@ macro_rules! converters {
                 self.0
             }
 
+            /// Returns the length in bytes.
+            #[allow(clippy::len_without_is_empty)]
+            #[inline]
+            #[must_use]
+            pub const fn len(&self) -> usize {
+                self.0.len()
+            }
+
             /// The token represented as a str.
             ///
             /// # Errors
