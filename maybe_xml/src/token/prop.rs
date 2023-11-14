@@ -6,7 +6,7 @@
 
 use crate::QuoteState;
 
-use core::{fmt, str};
+use core::str;
 
 macro_rules! converters {
     ($name:ident) => {
@@ -70,12 +70,6 @@ macro_rules! converters {
             #[must_use]
             pub const fn into_inner(self) -> &'a [u8] {
                 self.as_bytes()
-            }
-        }
-
-        impl<'a> fmt::Display for $name<'a> {
-            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                f.write_str(self.0)
             }
         }
     };
