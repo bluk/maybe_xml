@@ -313,9 +313,8 @@ impl<'a> Reader<'a> {
     /// assert_eq!(0, pos);
     /// assert_ne!(input.len(), pos);
     /// ```
-    #[rustversion::attr(since(1.71), const)]
     #[must_use]
-    pub fn parse(&self, pos: usize) -> Option<Token<'a>> {
+    pub const fn parse(&self, pos: usize) -> Option<Token<'a>> {
         let input = self.input.as_bytes();
 
         if input.len() == pos {

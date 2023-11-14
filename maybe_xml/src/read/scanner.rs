@@ -113,8 +113,8 @@ const fn find_close_tag_char_with_brackets_and_quotes(
 #[inline]
 #[must_use]
 const fn scan_text_content(input: &[u8], pos: usize) -> usize {
-    // debug_assert!(pos < input.len());
-    // debug_assert!(input[pos] != b'<');
+    debug_assert!(pos < input.len());
+    debug_assert!(input[pos] != b'<');
 
     let mut index = pos + 1;
     loop {
@@ -133,8 +133,8 @@ const fn scan_text_content(input: &[u8], pos: usize) -> usize {
 #[inline]
 #[must_use]
 const fn scan_markup(input: &[u8], pos: usize) -> Option<usize> {
-    // debug_assert!(pos < input.len());
-    // debug_assert!(input[pos] == b'<');
+    debug_assert!(pos < input.len());
+    debug_assert!(input[pos] == b'<');
 
     let peek = pos + 1;
     if input.len() <= peek {
@@ -156,11 +156,11 @@ const fn scan_start_or_empty_element_tag(input: &[u8], pos: usize) -> Option<usi
     const OFFSET: usize = 1;
 
     // Due to scan_mark(), peek2 is already checked
-    // debug_assert!(pos + 1 < input.len());
-    // debug_assert!(input[pos] == b'<');
-    // debug_assert!(input[pos + 1] != b'/');
-    // debug_assert!(input[pos + 1] != b'?');
-    // debug_assert!(input[pos + 1] != b'!');
+    debug_assert!(pos + 1 < input.len());
+    debug_assert!(input[pos] == b'<');
+    debug_assert!(input[pos + 1] != b'/');
+    debug_assert!(input[pos + 1] != b'?');
+    debug_assert!(input[pos + 1] != b'!');
 
     find_close_tag_char_with_quotes(input, pos + OFFSET)
 }
@@ -171,9 +171,9 @@ const fn scan_end_tag(input: &[u8], pos: usize) -> Option<usize> {
     // Skip the head '</'
     const OFFSET: usize = 2;
 
-    // debug_assert!(pos + 1 < input.len());
-    // debug_assert!(input[pos] == b'<');
-    // debug_assert!(input[pos + 1] == b'/');
+    debug_assert!(pos + 1 < input.len());
+    debug_assert!(input[pos] == b'<');
+    debug_assert!(input[pos + 1] == b'/');
 
     find_close_tag_char_with_quotes(input, pos + OFFSET)
 }
@@ -184,9 +184,9 @@ const fn scan_processing_instruction(input: &[u8], pos: usize) -> Option<usize> 
     // Skip the head '<?'
     const OFFSET: usize = 2;
 
-    // debug_assert!(pos + 1 < input.len());
-    // debug_assert!(input[pos] == b'<');
-    // debug_assert!(input[pos + 1] == b'?');
+    debug_assert!(pos + 1 < input.len());
+    debug_assert!(input[pos] == b'<');
+    debug_assert!(input[pos + 1] == b'?');
 
     // Skip OFFSET + 1 because at the minimum, it must be `<??>`.
     // It cannot be `<?>`.
@@ -212,9 +212,9 @@ const fn scan_declaration_comment_or_cdata(input: &[u8], pos: usize) -> Option<u
     // Skip the head '<!'
     const OFFSET: usize = 2;
 
-    // debug_assert!(pos + 1 < input.len());
-    // debug_assert!(input[pos] == b'<');
-    // debug_assert!(input[pos + 1] == b'!');
+    debug_assert!(pos + 1 < input.len());
+    debug_assert!(input[pos] == b'<');
+    debug_assert!(input[pos + 1] == b'!');
 
     let peek = pos + 2;
     if input.len() <= peek {
@@ -257,9 +257,9 @@ const fn scan_declaration(input: &[u8], pos: usize) -> Option<usize> {
     // Skip the head '<!'
     const OFFSET: usize = 2;
 
-    // debug_assert!(pos + 1 < input.len());
-    // debug_assert!(input[pos] == b'<');
-    // debug_assert!(input[pos + 1] == b'!');
+    debug_assert!(pos + 1 < input.len());
+    debug_assert!(input[pos] == b'<');
+    debug_assert!(input[pos + 1] == b'!');
 
     find_close_tag_char_with_brackets_and_quotes(input, pos + OFFSET)
 }
@@ -270,11 +270,11 @@ const fn scan_comment(input: &[u8], pos: usize) -> Option<usize> {
     // Skip the head '<!--'
     const OFFSET: usize = 4;
 
-    // debug_assert!(pos + 3 < input.len());
-    // debug_assert!(input[pos] == b'<');
-    // debug_assert!(input[pos + 1] == b'!');
-    // debug_assert!(input[pos + 2] == b'-');
-    // debug_assert!(input[pos + 3] == b'-');
+    debug_assert!(pos + 3 < input.len());
+    debug_assert!(input[pos] == b'<');
+    debug_assert!(input[pos + 1] == b'!');
+    debug_assert!(input[pos + 2] == b'-');
+    debug_assert!(input[pos + 3] == b'-');
 
     // Skip OFFSET + 2 because at the minimum, it must be `<!---->`.
     // It cannot be `<!-->`.
@@ -300,16 +300,16 @@ const fn scan_cdata(input: &[u8]) -> Option<usize> {
     // Skip the head '<![CDATA['
     const OFFSET: usize = 9;
 
-    // debug_assert!(input.len() >= 9);
-    // debug_assert!(input[0] == b'<');
-    // debug_assert!(input[1] == b'!');
-    // debug_assert!(input[2] == b'[');
-    // debug_assert!(input[3] == b'C');
-    // debug_assert!(input[4] == b'D');
-    // debug_assert!(input[5] == b'A');
-    // debug_assert!(input[6] == b'T');
-    // debug_assert!(input[7] == b'A');
-    // debug_assert!(input[8] == b'[');
+    debug_assert!(9 <= input.len());
+    debug_assert!(input[0] == b'<');
+    debug_assert!(input[1] == b'!');
+    debug_assert!(input[2] == b'[');
+    debug_assert!(input[3] == b'C');
+    debug_assert!(input[4] == b'D');
+    debug_assert!(input[5] == b'A');
+    debug_assert!(input[6] == b'T');
+    debug_assert!(input[7] == b'A');
+    debug_assert!(input[8] == b'[');
 
     // Skip OFFSET + 2 because at the minimum, it must be `<![CDATA[]]>`.
 
