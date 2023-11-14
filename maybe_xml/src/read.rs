@@ -23,15 +23,29 @@ use scanner::scan;
 /// let mut pos = 0;
 ///
 /// let token = reader.tokenize(&mut pos);
-/// assert_eq!(Some(Ty::StartTag(StartTag::from_str("<id>"))), token.map(|t| t.ty()));
+/// if let Some(Ty::StartTag(tag)) = token.map(|t| t.ty()) {
+///     assert_eq!("id", tag.name().local().as_str());
+///     assert_eq!(None, tag.name().namespace_prefix());
+/// } else {
+///     panic!();
+/// }
 /// assert_eq!(4, pos);
 ///
 /// let token = reader.tokenize(&mut pos);
-/// assert_eq!(Some(Ty::Characters(Characters::from_str("123"))), token.map(|t| t.ty()));
+/// if let Some(Ty::Characters(chars)) = token.map(|t| t.ty()) {
+///     assert_eq!("123", chars.content().as_str());
+/// } else {
+///     panic!();
+/// }
 /// assert_eq!(7, pos);
 ///
 /// let token = reader.tokenize(&mut pos);
-/// assert_eq!(Some(Ty::EndTag(EndTag::from_str("</id>"))), token.map(|t| t.ty()));
+/// if let Some(Ty::EndTag(tag)) = token.map(|t| t.ty()) {
+///     assert_eq!("</id>", tag.as_str());
+///     assert_eq!("id", tag.name().local().as_str());
+/// } else {
+///     panic!();
+/// }
 /// assert_eq!(12, pos);
 ///
 /// let token = reader.tokenize(&mut pos);
@@ -94,14 +108,23 @@ impl<'a> Reader<'a> {
     /// let reader = unsafe { Reader::from_slice_unchecked(&buf) };
     /// let mut pos = 0;
     ///
-    /// let ty = reader.tokenize(&mut pos).map(|token| token.ty());
-    /// assert_eq!(Some(Ty::StartTag(StartTag::from_str("<id>"))), ty);
+    /// let token = reader.tokenize(&mut pos);
+    /// if let Some(Ty::StartTag(tag)) = token.map(|t| t.ty()) {
+    ///     assert_eq!("id", tag.name().local().as_str());
+    ///     assert_eq!(None, tag.name().namespace_prefix());
+    /// } else {
+    ///     panic!();
+    /// }
     ///
     /// // Position was assigned to the index after the end of the token
     /// assert_eq!(4, pos);
     ///
-    /// let ty = reader.tokenize(&mut pos).map(|token| token.ty());
-    /// assert_eq!(Some(Ty::Characters(Characters::from_str("123"))), ty);
+    /// let token = reader.tokenize(&mut pos);
+    /// if let Some(Ty::Characters(chars)) = token.map(|t| t.ty()) {
+    ///     assert_eq!("123", chars.content().as_str());
+    /// } else {
+    ///     panic!();
+    /// }
     ///
     /// // Position was assigned to the index after the end of the token
     /// assert_eq!(7, pos);
@@ -120,8 +143,13 @@ impl<'a> Reader<'a> {
     /// // Start tokenizing again with the input
     /// let reader = unsafe { Reader::from_slice_unchecked(&buf) };
     ///
-    /// let ty = reader.tokenize(&mut pos).map(|token| token.ty());
-    /// assert_eq!(Some(Ty::EndTag(EndTag::from_str("</id>"))), ty);
+    /// let token = reader.tokenize(&mut pos);
+    /// if let Some(Ty::EndTag(tag)) = token.map(|t| t.ty()) {
+    ///     assert_eq!("</id>", tag.as_str());
+    ///     assert_eq!("id", tag.name().local().as_str());
+    /// } else {
+    ///     panic!();
+    /// }
     ///
     /// // Position was assigned to the index after the end of the token
     /// assert_eq!(5, pos);
@@ -187,7 +215,12 @@ impl<'a> Reader<'a> {
     /// let mut pos = 0;
     ///
     /// let token = reader.tokenize(&mut pos);
-    /// assert_eq!(Some(Ty::StartTag(StartTag::from_str("<id>"))), token.map(|t| t.ty()));
+    /// if let Some(Ty::StartTag(tag)) = token.map(|t| t.ty()) {
+    ///     assert_eq!("id", tag.name().local().as_str());
+    ///     assert_eq!(None, tag.name().namespace_prefix());
+    /// } else {
+    ///     panic!();
+    /// }
     ///
     /// // Position was assigned to the index after the end of the token
     /// assert_eq!(4, pos);
@@ -250,7 +283,12 @@ impl<'a> Reader<'a> {
     /// let mut pos = 0;
     ///
     /// let token = reader.parse(pos);
-    /// assert_eq!(Some(Ty::StartTag(StartTag::from_str("<id>"))), token.map(|t| t.ty()));
+    /// if let Some(Ty::StartTag(tag)) = token.map(|t| t.ty()) {
+    ///     assert_eq!("id", tag.name().local().as_str());
+    ///     assert_eq!(None, tag.name().namespace_prefix());
+    /// } else {
+    ///     panic!();
+    /// }
     ///
     /// pos += token.map(|t| t.len()).unwrap_or_default();
     /// assert_eq!(4, pos);
@@ -518,17 +556,17 @@ mod tests {
         let mut pos = 0;
         buf.extend("Hello".as_bytes());
         let reader = unsafe { Reader::from_slice_unchecked(&buf) };
-        assert_eq!(Some(Token::from_str("Hello")), reader.tokenize(&mut pos));
+        assert_eq!(Some("Hello"), reader.tokenize(&mut pos).map(|t| t.as_str()));
         assert_eq!(buf.len(), pos);
 
         buf.extend("wo".as_bytes());
         let reader = unsafe { Reader::from_slice_unchecked(&buf) };
-        assert_eq!(Some(Token::from_str("wo")), reader.tokenize(&mut pos));
+        assert_eq!(Some("wo"), reader.tokenize(&mut pos).map(|t| t.as_str()));
         assert_eq!(buf.len(), pos);
 
         buf.extend("rld!<".as_bytes());
         let reader = unsafe { Reader::from_slice_unchecked(&buf) };
-        assert_eq!(Some(Token::from_str("rld!")), reader.tokenize(&mut pos));
+        assert_eq!(Some("rld!"), reader.tokenize(&mut pos).map(|t| t.as_str()));
         assert_eq!(buf.len() - 1, pos);
     }
 

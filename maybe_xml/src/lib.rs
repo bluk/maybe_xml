@@ -15,15 +15,29 @@
 //! let mut pos = 0;
 //!
 //! let token = reader.tokenize(&mut pos);
-//! assert_eq!(Some(Ty::StartTag(StartTag::from_str("<id>"))), token.map(|t| t.ty()));
+//! if let Some(Ty::StartTag(tag)) = token.map(|t| t.ty()) {
+//!     assert_eq!("id", tag.name().local().as_str());
+//!     assert_eq!(None, tag.name().namespace_prefix());
+//! } else {
+//!     panic!();
+//! }
 //! assert_eq!(4, pos);
 //!
 //! let token = reader.tokenize(&mut pos);
-//! assert_eq!(Some(Ty::Characters(Characters::from_str("123"))), token.map(|t| t.ty()));
+//! if let Some(Ty::Characters(chars)) = token.map(|t| t.ty()) {
+//!     assert_eq!("123", chars.content().as_str());
+//! } else {
+//!     panic!();
+//! }
 //! assert_eq!(7, pos);
 //!
 //! let token = reader.tokenize(&mut pos);
-//! assert_eq!(Some(Ty::EndTag(EndTag::from_str("</id>"))), token.map(|t| t.ty()));
+//! if let Some(Ty::EndTag(tag)) = token.map(|t| t.ty()) {
+//!     assert_eq!("</id>", tag.as_str());
+//!     assert_eq!("id", tag.name().local().as_str());
+//! } else {
+//!     panic!();
+//! }
 //! assert_eq!(12, pos);
 //!
 //! let token = reader.tokenize(&mut pos);
@@ -45,15 +59,24 @@
 //! let mut iter = reader.into_iter().map(|token| token.ty());
 //!
 //! let token_type = iter.next();
-//! assert_eq!(Some(Ty::StartTag(StartTag::from_str("<id>"))), token_type);
 //! match token_type {
 //!     Some(Ty::StartTag(start_tag)) => {
 //!         assert_eq!(start_tag.name().as_str(), "id");
 //!     }
 //!     _ => panic!("unexpected token"),
 //! }
-//! assert_eq!(Some(Ty::Characters(Characters::from_str("Example"))), iter.next());
-//! assert_eq!(Some(Ty::EndTag(EndTag::from_str("</id>"))), iter.next());
+//! if let Some(Ty::Characters(chars)) = iter.next() {
+//!     assert_eq!("Example", chars.content().as_str());
+//! } else {
+//!     panic!();
+//! }
+//!
+//! if let Some(Ty::EndTag(tag)) = iter.next() {
+//!     assert_eq!("</id>", tag.as_str());
+//!     assert_eq!("id", tag.name().local().as_str());
+//! } else {
+//!     panic!();
+//! }
 //! assert_eq!(None, iter.next());
 //! ```
 //!

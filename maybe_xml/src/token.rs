@@ -25,7 +25,7 @@ impl<'a> Token<'a> {
     /// Instantiates a new instance with a string.
     #[inline]
     #[must_use]
-    pub const fn from_str(input: &'a str) -> Self {
+    pub(crate) const fn from_str(input: &'a str) -> Self {
         Self(input)
     }
 
@@ -135,19 +135,13 @@ impl<'a> fmt::Display for Token<'a> {
     }
 }
 
-impl<'a> From<&'a str> for Token<'a> {
-    #[inline]
-    fn from(value: &'a str) -> Self {
-        Self(value)
-    }
-}
-
 macro_rules! converters {
     ($name:ident) => {
         impl<'a> $name<'a> {
             /// Instantiates a new view with the given string.
             #[inline]
             #[must_use]
+            #[cfg(test)]
             pub const fn from_str(value: &'a str) -> Self {
                 Self(value)
             }
@@ -212,15 +206,9 @@ macro_rules! converters {
                 f.write_str(self.0)
             }
         }
-
-        impl<'a> From<&'a str> for $name<'a> {
-            #[inline]
-            fn from(value: &'a str) -> Self {
-                Self(value)
-            }
-        }
     };
 }
+
 pub(crate) use converters;
 
 /// Type of token
