@@ -1,4 +1,4 @@
-//! Tokens are views of byte sub-slices from an input buffer.
+//! Tokens are views of sub-slices from an input buffer.
 //!
 //! [`Token`] is the main type. It identifies a sub-slice of the input buffer
 //! with a type of token using [`Ty`]. There are specific token types like

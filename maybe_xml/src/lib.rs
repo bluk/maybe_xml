@@ -45,7 +45,7 @@
 //! let mut iter = reader.into_iter().map(|token| token.ty());
 //!
 //! let token_type = iter.next();
-//! assert_eq!(token_type, Some(Ty::StartTag(StartTag::from_str("<id>"))));
+//! assert_eq!(Some(Ty::StartTag(StartTag::from_str("<id>"))), token_type);
 //! match token_type {
 //!     Some(Ty::StartTag(start_tag)) => {
 //!         assert_eq!(start_tag.name().as_str(), "id");
@@ -93,6 +93,7 @@ pub mod token;
 
 pub use read::{IntoIter, Iter, Reader};
 
+#[doc(hidden)]
 #[deprecated(since = "0.9.0", note = "Use Reader type instead.")]
 pub use read::Reader as Lexer;
 
