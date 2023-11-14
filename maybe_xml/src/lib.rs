@@ -58,13 +58,12 @@
 //!
 //! let mut iter = reader.into_iter().map(|token| token.ty());
 //!
-//! let token_type = iter.next();
-//! match token_type {
-//!     Some(Ty::StartTag(start_tag)) => {
-//!         assert_eq!(start_tag.name().as_str(), "id");
-//!     }
-//!     _ => panic!("unexpected token"),
+//! if let Some(Ty::StartTag(start_tag)) = iter.next() {
+//!     assert_eq!("id", start_tag.name().as_str(), "id");
+//! } else {
+//!     panic!();
 //! }
+//!
 //! if let Some(Ty::Characters(chars)) = iter.next() {
 //!     assert_eq!("Example", chars.content().as_str());
 //! } else {
