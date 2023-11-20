@@ -115,10 +115,6 @@ pub mod token;
 
 pub use read::{IntoIter, Iter, Reader};
 
-#[doc(hidden)]
-#[deprecated(since = "0.9.0", note = "Use Reader type instead.")]
-pub use read::Reader as Lexer;
-
 enum QuoteState {
     None,
     Single,

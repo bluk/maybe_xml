@@ -51,38 +51,6 @@ impl<'a> Token<'a> {
         self.0
     }
 
-    /// The token represented as a str.
-    ///
-    /// # Errors
-    ///
-    /// If the bytes are not a UTF-8 string.
-    #[deprecated(since = "0.8.0", note = "Use as_str() instead.")]
-    #[inline]
-    pub fn to_str(&self) -> Result<&'a str, core::str::Utf8Error> {
-        Ok(self.as_str())
-    }
-
-    /// The token represented as a str.
-    ///
-    /// # Safety
-    ///
-    /// The underlying bytes are assumed to be UTF-8. If the bytes are
-    /// not valid UTF-8, then the behavior is undefined.
-    #[deprecated(since = "0.8.0", note = "Use as_str() instead.")]
-    #[inline]
-    #[must_use]
-    pub const unsafe fn as_str_unchecked(&self) -> &'a str {
-        self.as_str()
-    }
-
-    /// Returns the underlying slice.
-    #[deprecated(since = "0.8.0", note = "Use as_bytes() instead.")]
-    #[inline]
-    #[must_use]
-    pub const fn into_inner(self) -> &'a [u8] {
-        self.as_bytes()
-    }
-
     /// Returns the token type.
     #[inline]
     #[must_use]
@@ -166,38 +134,6 @@ macro_rules! converters {
             #[must_use]
             pub const fn len(&self) -> usize {
                 self.0.len()
-            }
-
-            /// The token represented as a str.
-            ///
-            /// # Errors
-            ///
-            /// If the bytes are not a UTF-8 string.
-            #[deprecated(since = "0.8.0", note = "Use as_str() instead.")]
-            #[inline]
-            pub fn to_str(&self) -> Result<&'a str, core::str::Utf8Error> {
-                Ok(self.as_str())
-            }
-
-            /// The token represented as a str.
-            ///
-            /// # Safety
-            ///
-            /// The underlying bytes are assumed to be UTF-8. If the bytes are
-            /// not valid UTF-8, then the behavior is undefined.
-            #[deprecated(since = "0.8.0", note = "Use as_str() instead.")]
-            #[inline]
-            #[must_use]
-            pub const unsafe fn as_str_unchecked(&self) -> &'a str {
-                self.as_str()
-            }
-
-            /// Returns the underlying slice.
-            #[deprecated(since = "0.8.0", note = "Use as_bytes() instead.")]
-            #[inline]
-            #[must_use]
-            pub const fn into_inner(self) -> &'a [u8] {
-                self.as_bytes()
             }
         }
 

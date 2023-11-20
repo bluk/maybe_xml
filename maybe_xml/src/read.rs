@@ -89,97 +89,6 @@ pub struct Reader<'a> {
 }
 
 impl<'a> Reader<'a> {
-    /// Creates a new instance from a byte slice.
-    ///
-    /// # Safety
-    ///
-    /// The bytes are assumed to represent a valid UTF-8 string. If the bytes
-    /// are not UTF-8, then any methods called on this type are undefined.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use maybe_xml::{Reader, token::{Characters, EndTag, StartTag, Ty}};
-    ///
-    /// let mut buf = Vec::new();
-    /// // Note the missing closing tag character `>` in the end tag.
-    /// buf.extend(b"<id>123</id");
-    ///
-    /// let reader = unsafe { Reader::from_slice_unchecked(&buf) };
-    /// let mut pos = 0;
-    ///
-    /// let token = reader.tokenize(&mut pos);
-    /// if let Some(Ty::StartTag(tag)) = token.map(|t| t.ty()) {
-    ///     assert_eq!("id", tag.name().local().as_str());
-    ///     assert_eq!(None, tag.name().namespace_prefix());
-    /// } else {
-    ///     panic!();
-    /// }
-    ///
-    /// // Position was assigned to the index after the end of the token
-    /// assert_eq!(4, pos);
-    ///
-    /// let token = reader.tokenize(&mut pos);
-    /// if let Some(Ty::Characters(chars)) = token.map(|t| t.ty()) {
-    ///     assert_eq!("123", chars.content().as_str());
-    /// } else {
-    ///     panic!();
-    /// }
-    ///
-    /// // Position was assigned to the index after the end of the token
-    /// assert_eq!(7, pos);
-    ///
-    /// let token = reader.tokenize(&mut pos);
-    /// // The last token is incomplete because it is missing the `>`
-    /// assert_eq!(None, token);
-    ///
-    /// // Discard the tokenized input
-    /// buf.drain(..pos);
-    /// pos = 0;
-    ///
-    /// // Wait for additional input
-    /// buf.extend(b">");
-    ///
-    /// // Start tokenizing again with the input
-    /// let reader = unsafe { Reader::from_slice_unchecked(&buf) };
-    ///
-    /// let token = reader.tokenize(&mut pos);
-    /// if let Some(Ty::EndTag(tag)) = token.map(|t| t.ty()) {
-    ///     assert_eq!("</id>", tag.as_str());
-    ///     assert_eq!("id", tag.name().local().as_str());
-    /// } else {
-    ///     panic!();
-    /// }
-    ///
-    /// // Position was assigned to the index after the end of the token
-    /// assert_eq!(5, pos);
-    ///
-    /// let token = reader.tokenize(&mut pos);
-    /// // There is no additional data to process
-    /// assert_eq!(None, token);
-    ///
-    /// buf.drain(..pos);
-    /// pos = 0;
-    ///
-    /// // End of file is reached while reading input
-    ///
-    /// // Verify that the buffer is empty. If it is not empty, then there is data
-    /// // which could not be identified as a complete token. This usually indicates
-    /// // an error has occurred.
-    /// assert!(buf.is_empty());
-    /// ```
-    #[deprecated(
-        since = "0.9.0",
-        note = "Use core::str::from_utf8_unchecked() and then use Reader::from_str() instead."
-    )]
-    #[inline]
-    #[must_use]
-    pub const unsafe fn from_slice_unchecked(input: &'a [u8]) -> Self {
-        Self {
-            input: core::str::from_utf8_unchecked(input),
-        }
-    }
-
     /// Creates a new instance with the given UTF-8 string input.
     #[inline]
     #[must_use]
@@ -506,14 +415,6 @@ mod tests {
 
     use super::*;
 
-    #[cfg(all(feature = "alloc", not(feature = "std")))]
-    extern crate alloc;
-
-    #[cfg(all(feature = "alloc", not(feature = "std")))]
-    use alloc::vec::Vec;
-    #[cfg(feature = "std")]
-    use std::vec::Vec;
-
     #[test]
     fn none_on_empty() {
         let reader = Reader::from_str("");
@@ -546,27 +447,6 @@ mod tests {
         let reader = Reader::from_str(input);
         let mut pos = 1;
         let _ = reader.tokenize(&mut pos);
-    }
-
-    #[cfg(any(feature = "std", feature = "alloc"))]
-    #[test]
-    fn text_content() {
-        let mut buf = Vec::new();
-        let mut pos = 0;
-        buf.extend("Hello".as_bytes());
-        let reader = unsafe { Reader::from_slice_unchecked(&buf) };
-        assert_eq!(Some("Hello"), reader.tokenize(&mut pos).map(|t| t.as_str()));
-        assert_eq!(buf.len(), pos);
-
-        buf.extend("wo".as_bytes());
-        let reader = unsafe { Reader::from_slice_unchecked(&buf) };
-        assert_eq!(Some("wo"), reader.tokenize(&mut pos).map(|t| t.as_str()));
-        assert_eq!(buf.len(), pos);
-
-        buf.extend("rld!<".as_bytes());
-        let reader = unsafe { Reader::from_slice_unchecked(&buf) };
-        assert_eq!(Some("rld!"), reader.tokenize(&mut pos).map(|t| t.as_str()));
-        assert_eq!(buf.len() - 1, pos);
     }
 
     fn verify_tokenize_all(input: &str, expected: &[Ty<'_>]) {
