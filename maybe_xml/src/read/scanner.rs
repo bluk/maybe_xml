@@ -242,7 +242,7 @@ const fn scan_declaration_comment_or_cdata(input: &[u8], pos: usize) -> Option<u
                 && input[pos + 7] == b'A'
                 && input[pos + 8] == b'['
             {
-                scan_cdata(input)
+                scan_cdata(input, pos)
             } else {
                 scan_declaration(input, pos)
             }
@@ -296,24 +296,24 @@ const fn scan_comment(input: &[u8], pos: usize) -> Option<usize> {
 
 #[inline]
 #[must_use]
-const fn scan_cdata(input: &[u8]) -> Option<usize> {
+const fn scan_cdata(input: &[u8], pos: usize) -> Option<usize> {
     // Skip the head '<![CDATA['
     const OFFSET: usize = 9;
 
-    debug_assert!(9 <= input.len());
-    debug_assert!(input[0] == b'<');
-    debug_assert!(input[1] == b'!');
-    debug_assert!(input[2] == b'[');
-    debug_assert!(input[3] == b'C');
-    debug_assert!(input[4] == b'D');
-    debug_assert!(input[5] == b'A');
-    debug_assert!(input[6] == b'T');
-    debug_assert!(input[7] == b'A');
-    debug_assert!(input[8] == b'[');
+    debug_assert!(pos + OFFSET < input.len());
+    debug_assert!(input[pos] == b'<');
+    debug_assert!(input[pos + 1] == b'!');
+    debug_assert!(input[pos + 2] == b'[');
+    debug_assert!(input[pos + 3] == b'C');
+    debug_assert!(input[pos + 4] == b'D');
+    debug_assert!(input[pos + 5] == b'A');
+    debug_assert!(input[pos + 6] == b'T');
+    debug_assert!(input[pos + 7] == b'A');
+    debug_assert!(input[pos + 8] == b'[');
 
     // Skip OFFSET + 2 because at the minimum, it must be `<![CDATA[]]>`.
 
-    let mut index = OFFSET + 2;
+    let mut index = pos + OFFSET + 2;
     loop {
         if input.len() <= index {
             return None;
