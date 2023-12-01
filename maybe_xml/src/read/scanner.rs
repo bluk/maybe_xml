@@ -136,12 +136,12 @@ const fn scan_markup(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(pos < input.len());
     debug_assert!(input[pos] == b'<');
 
-    let peek = pos + 1;
-    if input.len() <= peek {
+    let peek2 = pos + 1;
+    if input.len() <= peek2 {
         return None;
     }
 
-    match input[peek] {
+    match input[peek2] {
         b'/' => scan_end_tag(input, pos),
         b'?' => scan_processing_instruction(input, pos),
         b'!' => scan_declaration_comment_or_cdata(input, pos),
@@ -155,7 +155,7 @@ const fn scan_start_or_empty_element_tag(input: &[u8], pos: usize) -> Option<usi
     // Skip the head '<'
     const OFFSET: usize = 1;
 
-    // Due to scan_mark(), peek2 is already checked
+    // Due to scan_markup(), peek2 is already checked
     debug_assert!(pos + 1 < input.len());
     debug_assert!(input[pos] == b'<');
     debug_assert!(input[pos + 1] != b'/');
@@ -171,6 +171,7 @@ const fn scan_end_tag(input: &[u8], pos: usize) -> Option<usize> {
     // Skip the head '</'
     const OFFSET: usize = 2;
 
+    // Due to scan_markup(), peek2 is already checked
     debug_assert!(pos + 1 < input.len());
     debug_assert!(input[pos] == b'<');
     debug_assert!(input[pos + 1] == b'/');
@@ -184,6 +185,7 @@ const fn scan_processing_instruction(input: &[u8], pos: usize) -> Option<usize> 
     // Skip the head '<?'
     const OFFSET: usize = 2;
 
+    // Due to scan_markup(), peek2 is already checked
     debug_assert!(pos + 1 < input.len());
     debug_assert!(input[pos] == b'<');
     debug_assert!(input[pos + 1] == b'?');
@@ -212,22 +214,23 @@ const fn scan_declaration_comment_or_cdata(input: &[u8], pos: usize) -> Option<u
     // Skip the head '<!'
     const OFFSET: usize = 2;
 
+    // Due to scan_markup(), peek2 is already checked
     debug_assert!(pos + 1 < input.len());
     debug_assert!(input[pos] == b'<');
     debug_assert!(input[pos + 1] == b'!');
 
-    let peek = pos + 2;
-    if input.len() <= peek {
+    let peek3 = pos + OFFSET;
+    if input.len() <= peek3 {
         return None;
     }
 
-    match input[peek] {
+    match input[peek3] {
         b'-' => {
-            let peek2 = pos + 3;
-            if input.len() < peek2 {
+            let peek4 = pos + 3;
+            if input.len() < peek4 {
                 return None;
             }
-            match input[peek2] {
+            match input[peek4] {
                 b'-' => scan_comment(input, pos),
                 _ => scan_declaration(input, pos),
             }
@@ -257,7 +260,8 @@ const fn scan_declaration(input: &[u8], pos: usize) -> Option<usize> {
     // Skip the head '<!'
     const OFFSET: usize = 2;
 
-    debug_assert!(pos + 1 < input.len());
+    // Due to scan_declaration_comment_or_cdata(), peek3 is already checked
+    debug_assert!(pos + 2 < input.len());
     debug_assert!(input[pos] == b'<');
     debug_assert!(input[pos + 1] == b'!');
 
@@ -270,6 +274,7 @@ const fn scan_comment(input: &[u8], pos: usize) -> Option<usize> {
     // Skip the head '<!--'
     const OFFSET: usize = 4;
 
+    // Due to scan_declaration_comment_or_cdata(), peek4 is already checked
     debug_assert!(pos + 3 < input.len());
     debug_assert!(input[pos] == b'<');
     debug_assert!(input[pos + 1] == b'!');
@@ -300,7 +305,8 @@ const fn scan_cdata(input: &[u8], pos: usize) -> Option<usize> {
     // Skip the head '<![CDATA['
     const OFFSET: usize = 9;
 
-    debug_assert!(pos + OFFSET < input.len());
+    // Due to scan_declaration_comment_or_cdata(), peek9 is already checked
+    debug_assert!(pos + 8 < input.len());
     debug_assert!(input[pos] == b'<');
     debug_assert!(input[pos + 1] == b'!');
     debug_assert!(input[pos + 2] == b'[');
