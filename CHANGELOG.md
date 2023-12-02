@@ -1,5 +1,14 @@
 # CHANGELOG
 
+## [0.10.1] - 2023-12-01
+
+### Fixed
+
+- Fix incorrect parsing CDATA issue. The `pos` was not used when scanning for
+  the CDATA.
+  Thanks [@Mingun](https://github.com/Mingun).
+  See [Issue #8](https://github.com/bluk/maybe_xml/issues/8)
+
 ## [0.10.0] - 2023-11-21
 
 ### Removed
@@ -213,7 +222,8 @@
 
 * Initial implementation.
 
-[Unreleased]: https://github.com/bluk/maybe_xml/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/bluk/maybe_xml/compare/v0.10.1...HEAD
+[0.10.1]: https://github.com/bluk/maybe_xml/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/bluk/maybe_xml/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/bluk/maybe_xml/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/bluk/maybe_xml/compare/v0.7.2...v0.8.0
