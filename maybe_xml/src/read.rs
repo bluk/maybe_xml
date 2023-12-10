@@ -2,6 +2,7 @@
 
 use crate::token::Token;
 
+mod parser;
 mod scanner;
 
 use scanner::scan;
@@ -635,66 +636,37 @@ mod tests {
     #[test]
     fn declaration_in_one_pass() {
         let input = "<!DOCTYPE test [<!ELEMENT test (#PCDATA)>]>";
-        verify_tokenize_all(input, &[Ty::Declaration(Declaration::from_str(input))]);
+        verify_tokenize(input, 0, &[], 0);
     }
 
     #[test]
     fn declaration_with_single_quotes_attribute() {
         let input = "<!goodbye a='val>'>Content";
-        verify_tokenize_all(
-            input,
-            &[
-                Ty::Declaration(Declaration::from_str("<!goodbye a='val>'>")),
-                Ty::Characters(Characters::from_str("Content")),
-            ],
-        );
+        verify_tokenize(input, 0, &[], 0);
     }
 
     #[test]
     fn declaration_with_double_quotes_attribute() {
         let input = r#"<!goodbye a="val>">Content"#;
-        verify_tokenize_all(
-            input,
-            &[
-                Ty::Declaration(Declaration::from_str("<!goodbye a=\"val>\">")),
-                Ty::Characters(Characters::from_str("Content")),
-            ],
-        );
+        verify_tokenize(input, 0, &[], 0);
     }
 
     #[test]
     fn declaration_with_closed_brackets() {
         let input = "<![%test;[<!ELEMENT test (something*)>]]>";
-        verify_tokenize_all(
-            input,
-            &[Ty::Declaration(Declaration::from_str(
-                "<![%test;[<!ELEMENT test (something*)>]]>",
-            ))],
-        );
+        verify_tokenize(input, 0, &[], 0);
     }
 
     #[test]
     fn declaration_with_unclosed_single_bracket() {
         let input = "<![test>>] >Content";
-        verify_tokenize_all(
-            input,
-            &[
-                Ty::Declaration(Declaration::from_str("<![test>>] >")),
-                Ty::Characters(Characters::from_str("Content")),
-            ],
-        );
+        verify_tokenize(input, 0, &[], 0);
     }
 
     #[test]
     fn declaration_with_unclosed_double_bracket() {
         let input = "<![test>[more>>] >Content>>] >Content";
-        verify_tokenize_all(
-            input,
-            &[
-                Ty::Declaration(Declaration::from_str("<![test>[more>>] >Content>>] >")),
-                Ty::Characters(Characters::from_str("Content")),
-            ],
-        );
+        verify_tokenize(input, 0, &[], 0);
     }
 
     #[test]
@@ -742,13 +714,7 @@ mod tests {
     #[test]
     fn comment_with_invalid_start_means_declaration() {
         let input = r#"<!-goodbye a="-->val-->">Content"#;
-        verify_tokenize_all(
-            input,
-            &[
-                Ty::Declaration(Declaration::from_str("<!-goodbye a=\"-->val-->\">")),
-                Ty::Characters(Characters::from_str("Content")),
-            ],
-        );
+        verify_tokenize(input, 0, &[], 0);
     }
 
     #[test]
@@ -807,7 +773,7 @@ mod tests {
     #[test]
     fn declaration_with_uneven_brackets() {
         let input = "<![&random[ Declaration ]]]>";
-        verify_tokenize_all(input, &[Ty::Declaration(Declaration::from_str(input))]);
+        verify_tokenize(input, 0, &[], 0);
     }
 
     #[test]
@@ -866,13 +832,7 @@ mod tests {
         verify_tokenize(input, 0, &[], 0);
 
         let input = r#"<![CDATA Content a="]]>]]>"]]>Content"#;
-        verify_tokenize_all(
-            input,
-            &[
-                Ty::Declaration(Declaration::from_str(r#"<![CDATA Content a="]]>]]>"]]>"#)),
-                Ty::Characters(Characters::from_str("Content")),
-            ],
-        );
+        verify_tokenize(input, 0, &[], 0);
     }
 
     #[test]
@@ -905,6 +865,33 @@ mod tests {
                     r#"<![CDATA[ Content a="]>]>" test ]>ContentMore ]]>"#,
                 )),
                 Ty::Characters(Characters::from_str("Real Content")),
+            ],
+        );
+    }
+
+    #[test]
+    fn doctype_with_bracket_in_comments() {
+        let input = r#"<?xml version="1.1" encoding="UTF-8"?>
+<!DOCTYPE root [
+<!-- A ] -->
+]>
+<root/>
+"#;
+        verify_tokenize_all(
+            input,
+            &[
+                Ty::ProcessingInstruction(ProcessingInstruction::from_str(
+                    r#"<?xml version="1.1" encoding="UTF-8"?>"#,
+                )),
+                Ty::Characters(Characters::from_str("\n")),
+                Ty::Declaration(Declaration::from_str(
+                    r"<!DOCTYPE root [
+<!-- A ] -->
+]>",
+                )),
+                Ty::Characters(Characters::from_str("\n")),
+                Ty::EmptyElementTag(EmptyElementTag::from_str("<root/>")),
+                Ty::Characters(Characters::from_str("\n")),
             ],
         );
     }
