@@ -1,12 +1,17 @@
+/// Gets the next character from a UTF-8 string.
+///
+/// The assumption is that the input is a slice of bytes representing a valid
+/// UTF-8 string. Due to this assumption, the next character representation must
+/// be a complete Unicode scalar value.
 #[must_use]
 const fn next_ch(input: &[u8], pos: usize) -> Option<(char, usize)> {
+    if input.len() <= pos {
+        return None;
+    }
+
     let mut index = pos;
     macro_rules! next_byte {
         () => {{
-            if input.len() <= index {
-                return None;
-            }
-
             let byte = input[index];
             index += 1;
             byte
