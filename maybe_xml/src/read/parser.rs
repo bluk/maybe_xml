@@ -143,17 +143,23 @@ macro_rules! expect_ch {
     };
 }
 
+#[cfg(test)]
+#[derive(Debug, Default, Clone, Copy)]
+pub(crate) struct ScanDocumentOpts {
+    pub(crate) empty_elem: ScanEmptyTagOpts,
+    pub(crate) start_tag: ScanStartTagOpts,
+    pub(crate) end_tag: ScanEndTagOpts,
+    pub(crate) attr_value: ScanAttributeValueOpts,
+    pub(crate) cd_sect: ScanCdataSectionOpts,
+    pub(crate) char_data: ScanCharDataOpts,
+    pub(crate) pi: ScanProcessingInstructionOpts,
+    pub(crate) comment: ScanCommentOpts,
+}
+
+#[cfg(test)]
 #[must_use]
-const fn scan_document(input: &[u8], pos: usize, opts: ScanElementOpts) -> Option<usize> {
-    let Some(idx) = scan_prolog(
-        input,
-        pos,
-        ScanMarkupDeclOpts {
-            comment_opts: opts.comment_opts,
-            pi_opts: opts.pi_opts,
-            attr_value_opts: opts.start_tag_opts.attr_opts.attr_value_opts,
-        },
-    ) else {
+const fn scan_document(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Option<usize> {
+    let Some(idx) = scan_prolog(input, pos, opts) else {
         return None;
     };
 
@@ -165,8 +171,8 @@ const fn scan_document(input: &[u8], pos: usize, opts: ScanElementOpts) -> Optio
         input,
         idx,
         ScanMiscOpts {
-            comment_opts: opts.comment_opts,
-            pi_opts: opts.pi_opts,
+            comment: opts.comment,
+            pi: opts.pi,
         },
     ) {
         idx = peek_idx;
@@ -182,16 +188,6 @@ const fn is_char(ch: char) -> bool {
       '\u{1}'..='\u{D7FF}'
       | '\u{E000}'..='\u{FFFD}'
       | '\u{1_0000}'..='\u{10_FFFF}')
-}
-
-#[must_use]
-const fn is_restricted_char(ch: char) -> bool {
-    matches!(ch,
-      '\u{1}'..='\u{8}'
-      | '\u{B}'..='\u{C}'
-      | '\u{E}'..='\u{1F}'
-      | '\u{7F}'..='\u{84}'
-      | '\u{86}'..='\u{9F}')
 }
 
 #[inline]
@@ -256,44 +252,11 @@ const fn scan_name(input: &[u8], pos: usize) -> Option<usize> {
 }
 
 #[must_use]
-const fn scan_names(input: &[u8], pos: usize) -> Option<usize> {
-    let Some(mut idx) = scan_name(input, pos) else {
-        return None;
-    };
-
-    loop {
-        let peek_idx = expect_ch!(input, idx, else Some(idx), '\u{20}');
-
-        let Some(peek_idx) = scan_name(input, peek_idx) else {
-            return Some(idx);
-        };
-
-        idx = peek_idx;
-    }
-}
-
-#[must_use]
 const fn scan_nm_token(input: &[u8], pos: usize) -> Option<usize> {
     let mut idx = expect_ch!(input, pos, is_name_ch);
 
     loop {
         idx = expect_ch!(input, idx, else Some(idx), is_name_ch);
-    }
-}
-
-#[must_use]
-const fn scan_nm_tokens(input: &[u8], pos: usize) -> Option<usize> {
-    let Some(mut idx) = scan_nm_token(input, pos) else {
-        return None;
-    };
-
-    loop {
-        let peek_idx = expect_ch!(input, idx, else Some(idx), '\u{20}');
-        let Some(peek_idx) = scan_nm_token(input, peek_idx) else {
-            return Some(idx);
-        };
-
-        idx = peek_idx;
     }
 }
 
@@ -711,8 +674,9 @@ pub(crate) const fn scan_cd_sect(
     }
 }
 
+#[cfg(test)]
 #[must_use]
-const fn scan_prolog(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) -> Option<usize> {
+const fn scan_prolog(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Option<usize> {
     let Some(mut idx) = scan_xml_decl(input, pos) else {
         return None;
     };
@@ -722,8 +686,8 @@ const fn scan_prolog(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) -> Opti
             input,
             idx,
             ScanMiscOpts {
-                comment_opts: opts.comment_opts,
-                pi_opts: opts.pi_opts,
+                comment: opts.comment,
+                pi: opts.pi,
             },
         ) else {
             break;
@@ -731,7 +695,15 @@ const fn scan_prolog(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) -> Opti
         idx = peek_idx;
     }
 
-    if let Some(peek_idx) = scan_doctype_decl(input, idx, opts) {
+    if let Some(peek_idx) = scan_doctype_decl(
+        input,
+        idx,
+        ScanMarkupDeclOpts {
+            comment: opts.comment,
+            pi: opts.pi,
+            attr_value: opts.attr_value,
+        },
+    ) {
         idx = peek_idx;
 
         loop {
@@ -739,8 +711,8 @@ const fn scan_prolog(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) -> Opti
                 input,
                 idx,
                 ScanMiscOpts {
-                    comment_opts: opts.comment_opts,
-                    pi_opts: opts.pi_opts,
+                    comment: opts.comment,
+                    pi: opts.pi,
                 },
             ) else {
                 break;
@@ -752,6 +724,7 @@ const fn scan_prolog(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) -> Opti
     Some(idx)
 }
 
+#[cfg(test)]
 #[must_use]
 const fn scan_xml_decl(input: &[u8], pos: usize) -> Option<usize> {
     let idx = expect_ch!(input, pos, '<', '?', 'x', 'm', 'l');
@@ -773,6 +746,7 @@ const fn scan_xml_decl(input: &[u8], pos: usize) -> Option<usize> {
     Some(expect_ch!(input, idx, '?', '>'))
 }
 
+#[cfg(test)]
 #[must_use]
 const fn scan_version_info(input: &[u8], pos: usize) -> Option<usize> {
     let Some(idx) = scan_space(input, pos) else {
@@ -811,30 +785,23 @@ const fn scan_eq(input: &[u8], pos: usize) -> Option<usize> {
     Some(idx)
 }
 
+#[cfg(test)]
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct ScanMiscOpts {
-    pub(crate) comment_opts: ScanCommentOpts,
-    pub(crate) pi_opts: ScanProcessingInstructionOpts,
+    pub(crate) comment: ScanCommentOpts,
+    pub(crate) pi: ScanProcessingInstructionOpts,
 }
 
-impl ScanMiscOpts {
-    pub(crate) const fn new_compatible() -> Self {
-        Self {
-            comment_opts: ScanCommentOpts::new_compatible(),
-            pi_opts: ScanProcessingInstructionOpts::new_compatible(),
-        }
-    }
-}
-
+#[cfg(test)]
 #[must_use]
 const fn scan_misc(input: &[u8], pos: usize, opts: ScanMiscOpts) -> Option<usize> {
     // TODO: Should peek at the first character and decide what to do
 
-    if let Some(idx) = scan_comment(input, pos, opts.comment_opts) {
+    if let Some(idx) = scan_comment(input, pos, opts.comment) {
         return Some(idx);
     }
 
-    if let Some(idx) = scan_pi(input, pos, opts.pi_opts) {
+    if let Some(idx) = scan_pi(input, pos, opts.pi) {
         return Some(idx);
     }
 
@@ -907,17 +874,17 @@ const fn scan_int_subset(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) -> 
 
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct ScanMarkupDeclOpts {
-    pub(crate) comment_opts: ScanCommentOpts,
-    pub(crate) pi_opts: ScanProcessingInstructionOpts,
-    pub(crate) attr_value_opts: ScanAttributeValueOpts,
+    pub(crate) comment: ScanCommentOpts,
+    pub(crate) pi: ScanProcessingInstructionOpts,
+    pub(crate) attr_value: ScanAttributeValueOpts,
 }
 
 impl ScanMarkupDeclOpts {
     pub(crate) const fn new_compatible() -> Self {
         Self {
-            comment_opts: ScanCommentOpts::new_compatible(),
-            pi_opts: ScanProcessingInstructionOpts::new_compatible(),
-            attr_value_opts: ScanAttributeValueOpts::new_compatible(),
+            pi: ScanProcessingInstructionOpts::new_compatible(),
+            comment: ScanCommentOpts::new_compatible(),
+            attr_value: ScanAttributeValueOpts::new_compatible(),
         }
     }
 }
@@ -929,7 +896,7 @@ const fn scan_markup_decl(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) ->
         return Some(idx);
     }
 
-    if let Some(idx) = scan_att_list_decl(input, pos, opts.attr_value_opts) {
+    if let Some(idx) = scan_att_list_decl(input, pos, opts.attr_value) {
         return Some(idx);
     }
 
@@ -941,11 +908,11 @@ const fn scan_markup_decl(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) ->
         return Some(idx);
     }
 
-    if let Some(idx) = scan_pi(input, pos, opts.pi_opts) {
+    if let Some(idx) = scan_pi(input, pos, opts.pi) {
         return Some(idx);
     }
 
-    if let Some(idx) = scan_comment(input, pos, opts.comment_opts) {
+    if let Some(idx) = scan_comment(input, pos, opts.comment) {
         return Some(idx);
     }
 
@@ -954,6 +921,7 @@ const fn scan_markup_decl(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) ->
 
 // XXX: Missing 30, 31
 
+#[cfg(test)]
 #[must_use]
 const fn scan_sd_decl(input: &[u8], pos: usize) -> Option<usize> {
     let Some(idx) = scan_space(input, pos) else {
@@ -984,26 +952,16 @@ const fn scan_sd_decl(input: &[u8], pos: usize) -> Option<usize> {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy)]
-pub(crate) struct ScanElementOpts {
-    pub(crate) empty_elem_opts: ScanEmptyTagOpts,
-    pub(crate) start_tag_opts: ScanStartTagOpts,
-    pub(crate) end_tag_opts: ScanEndTagOpts,
-    pub(crate) cd_sect_opts: ScanCdataSectionOpts,
-    pub(crate) char_data_opts: ScanCharDataOpts,
-    pub(crate) pi_opts: ScanProcessingInstructionOpts,
-    pub(crate) comment_opts: ScanCommentOpts,
-}
-
+#[cfg(test)]
 #[must_use]
-const fn scan_element(input: &[u8], pos: usize, opts: ScanElementOpts) -> Option<usize> {
-    if let Some(peek_idx) = scan_empty_tag(input, pos, opts.empty_elem_opts) {
+const fn scan_element(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Option<usize> {
+    if let Some(peek_idx) = scan_empty_tag(input, pos, opts.empty_elem) {
         return Some(peek_idx);
     }
 
     // Or...
 
-    let Some(mut idx) = scan_start_tag(input, pos, opts.start_tag_opts) else {
+    let Some(mut idx) = scan_start_tag(input, pos, opts.start_tag) else {
         return None;
     };
 
@@ -1017,7 +975,7 @@ const fn scan_element(input: &[u8], pos: usize, opts: ScanElementOpts) -> Option
 
     let end_tag_start = idx;
 
-    let Some(idx) = scan_end_tag(input, idx, opts.end_tag_opts) else {
+    let Some(idx) = scan_end_tag(input, idx, opts.end_tag) else {
         return None;
     };
 
@@ -1183,11 +1141,12 @@ pub(crate) const fn scan_end_tag(input: &[u8], pos: usize, opts: ScanEndTagOpts)
     Some(expect_ch!(input, idx, '>'))
 }
 
+#[cfg(test)]
 #[must_use]
-const fn scan_content(input: &[u8], pos: usize, opts: ScanElementOpts) -> usize {
+const fn scan_content(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> usize {
     let mut idx = pos;
 
-    if let Some(peek_idx) = scan_char_data(input, idx, opts.char_data_opts) {
+    if let Some(peek_idx) = scan_char_data(input, idx, opts.char_data) {
         idx = peek_idx;
     }
 
@@ -1196,17 +1155,17 @@ const fn scan_content(input: &[u8], pos: usize, opts: ScanElementOpts) -> usize 
             idx = peek_idx;
         } else if let Some(peek_idx) = scan_ref(input, idx) {
             idx = peek_idx;
-        } else if let Some(peek_idx) = scan_cd_sect(input, idx, opts.cd_sect_opts) {
+        } else if let Some(peek_idx) = scan_cd_sect(input, idx, opts.cd_sect) {
             idx = peek_idx;
-        } else if let Some(peek_idx) = scan_pi(input, idx, opts.pi_opts) {
+        } else if let Some(peek_idx) = scan_pi(input, idx, opts.pi) {
             idx = peek_idx;
-        } else if let Some(peek_idx) = scan_comment(input, idx, opts.comment_opts) {
+        } else if let Some(peek_idx) = scan_comment(input, idx, opts.comment) {
             idx = peek_idx;
         } else {
             break;
         }
 
-        if let Some(peek_idx) = scan_char_data(input, idx, opts.char_data_opts) {
+        if let Some(peek_idx) = scan_char_data(input, idx, opts.char_data) {
             idx = peek_idx;
         }
     }
@@ -1274,7 +1233,7 @@ pub(crate) const fn scan_empty_tag(
 }
 
 #[must_use]
-pub(crate) const fn scan_element_decl(input: &[u8], pos: usize) -> Option<usize> {
+const fn scan_element_decl(input: &[u8], pos: usize) -> Option<usize> {
     // TODO: Can optimize because the leading characters may have been peeked at
     let idx = expect_ch!(input, pos, '<', '!', 'E', 'L', 'E', 'M', 'E', 'N', 'T');
     let Some(idx) = scan_space(input, idx) else {
@@ -1297,7 +1256,7 @@ pub(crate) const fn scan_element_decl(input: &[u8], pos: usize) -> Option<usize>
 }
 
 #[must_use]
-pub(crate) const fn scan_content_spec(input: &[u8], pos: usize) -> Option<usize> {
+const fn scan_content_spec(input: &[u8], pos: usize) -> Option<usize> {
     // TODO: Should peek to decide which branch
 
     if let Some(idx) = peek_ch!(input, pos, 'E', 'M', 'P', 'T', 'Y') {
@@ -1320,7 +1279,7 @@ pub(crate) const fn scan_content_spec(input: &[u8], pos: usize) -> Option<usize>
 }
 
 #[must_use]
-pub(crate) const fn scan_children(input: &[u8], pos: usize) -> Option<usize> {
+const fn scan_children(input: &[u8], pos: usize) -> Option<usize> {
     let mut idx = pos;
     if let Some(peek_idx) = scan_choice(input, idx) {
         idx = peek_idx;
@@ -1341,7 +1300,7 @@ pub(crate) const fn scan_children(input: &[u8], pos: usize) -> Option<usize> {
 }
 
 #[must_use]
-pub(crate) const fn scan_cp(input: &[u8], pos: usize) -> Option<usize> {
+const fn scan_cp(input: &[u8], pos: usize) -> Option<usize> {
     let mut idx = pos;
     if let Some(peek_idx) = scan_name(input, idx) {
         idx = peek_idx;
@@ -1364,7 +1323,7 @@ pub(crate) const fn scan_cp(input: &[u8], pos: usize) -> Option<usize> {
 }
 
 #[must_use]
-pub(crate) const fn scan_choice(input: &[u8], pos: usize) -> Option<usize> {
+const fn scan_choice(input: &[u8], pos: usize) -> Option<usize> {
     let idx = expect_ch!(input, pos, '(');
 
     let idx = scan_optional_space(input, idx);
@@ -1404,7 +1363,7 @@ pub(crate) const fn scan_choice(input: &[u8], pos: usize) -> Option<usize> {
 }
 
 #[must_use]
-pub(crate) const fn scan_seq(input: &[u8], pos: usize) -> Option<usize> {
+const fn scan_seq(input: &[u8], pos: usize) -> Option<usize> {
     let idx = expect_ch!(input, pos, '(');
 
     let idx = scan_optional_space(input, idx);
@@ -1434,7 +1393,7 @@ pub(crate) const fn scan_seq(input: &[u8], pos: usize) -> Option<usize> {
 }
 
 #[must_use]
-pub(crate) const fn scan_mixed(input: &[u8], pos: usize) -> Option<usize> {
+const fn scan_mixed(input: &[u8], pos: usize) -> Option<usize> {
     // TODO: Could optimize if the leading character is peaked?
 
     let idx = expect_ch!(input, pos, '(');
@@ -1896,6 +1855,7 @@ const fn scan_ndata_decl(input: &[u8], pos: usize) -> Option<usize> {
     scan_name(input, idx)
 }
 
+#[cfg(test)]
 #[must_use]
 const fn scan_encoding_decl(input: &[u8], pos: usize) -> Option<usize> {
     let Some(idx) = scan_space(input, pos) else {
@@ -1934,6 +1894,7 @@ const fn scan_encoding_decl(input: &[u8], pos: usize) -> Option<usize> {
     }
 }
 
+#[cfg(test)]
 #[must_use]
 const fn is_enc_name_char(ch: char) -> bool {
     matches!(ch,
@@ -1942,7 +1903,7 @@ const fn is_enc_name_char(ch: char) -> bool {
 }
 
 #[must_use]
-pub(crate) const fn scan_notiation_decl(input: &[u8], pos: usize) -> Option<usize> {
+const fn scan_notiation_decl(input: &[u8], pos: usize) -> Option<usize> {
     // TODO: Can optimize because the leading characters may have been peeked at
 
     let idx = expect_ch!(input, pos, '<', '!', 'N', 'O', 'T', 'A', 'T', 'I', 'O', 'N');
@@ -2233,5 +2194,32 @@ mod tests {
         // declaration
         let input = r" <!ELEMENT x (%a.b; | %c.d;)*> ";
         assert_eq!(None, scan_element_decl(input.as_bytes(), 1));
+    }
+
+    #[test]
+    fn test_read_resources() {
+        let large_1_xml = include_str!("../../tests/resources/large-1.xml");
+        assert_eq!(
+            Some(large_1_xml.len()),
+            scan_document(large_1_xml.as_bytes(), 0, ScanDocumentOpts::default())
+        );
+
+        let rss_1_xml = include_str!("../../tests/resources/rss-1.xml");
+        assert_eq!(
+            Some(rss_1_xml.len()),
+            scan_document(rss_1_xml.as_bytes(), 0, ScanDocumentOpts::default())
+        );
+
+        let simple_1_xml = include_str!("../../tests/resources/simple-1.xml");
+        assert_eq!(
+            Some(simple_1_xml.len()),
+            scan_document(simple_1_xml.as_bytes(), 0, ScanDocumentOpts::default())
+        );
+
+        let svg_1_xml = include_str!("../../tests/resources/svg-1.xml");
+        assert_eq!(
+            Some(svg_1_xml.len()),
+            scan_document(svg_1_xml.as_bytes(), 0, ScanDocumentOpts::default())
+        );
     }
 }
