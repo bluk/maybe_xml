@@ -51,7 +51,7 @@ const fn next_ch(input: &[u8], pos: usize) -> Option<(char, usize)> {
 
     let fourth = next_byte!();
 
-    let code_pt = (((first & 0b0001_1111) as u32) << 18)
+    let code_pt = (((first & 0b0000_1111) as u32) << 18)
         | (((second & 0b0011_1111) as u32) << 12)
         | (((third & 0b0011_1111) as u32) << 6)
         | ((fourth & 0b0011_1111) as u32);
@@ -2068,7 +2068,21 @@ const fn scan_public_id(input: &[u8], pos: usize) -> Option<usize> {
 
 #[cfg(test)]
 mod tests {
+    use proptest::prelude::*;
+
     use super::*;
+
+    #[cfg(feature = "std")]
+    proptest! {
+        #[test]
+        fn test_next_ch(expected in any::<char>()) {
+            let mut buf = [0u8; 4];
+            let expect_str = expected.encode_utf8(&mut buf);
+            let expected_len = expect_str.len();
+            let actual = next_ch(&buf, 0);
+            assert_eq!(Some((expected, expected_len)), actual);
+        }
+    }
 
     #[test]
     const fn test_space() {
