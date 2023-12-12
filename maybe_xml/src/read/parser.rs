@@ -148,7 +148,6 @@ macro_rules! expect_ch {
 pub(crate) struct ScanDocumentOpts {
     pub(crate) empty_elem: ScanEmptyTagOpts,
     pub(crate) start_tag: ScanStartTagOpts,
-    pub(crate) end_tag: ScanEndTagOpts,
     pub(crate) attr_value: ScanAttributeValueOpts,
     pub(crate) cd_sect: ScanCdataSectionOpts,
     pub(crate) char_data: ScanCharDataOpts,
@@ -965,7 +964,7 @@ const fn scan_element(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Optio
 
     let end_tag_start = idx;
 
-    let Some(idx) = scan_end_tag(input, idx, opts.end_tag) else {
+    let Some(idx) = scan_end_tag(input, idx, false) else {
         return None;
     };
 
@@ -1090,45 +1089,66 @@ const fn scan_attribute(input: &[u8], pos: usize, opts: ScanAttributeOpts) -> Op
     scan_attribute_value(input, idx, opts.attr_value_opts)
 }
 
-#[derive(Debug, Default, Clone, Copy)]
-pub(crate) struct ScanEndTagOpts {
-    pub(crate) allow_attributes: bool,
-    pub(crate) attr_opts: ScanAttributeOpts,
+#[cfg(test)]
+#[inline]
+#[must_use]
+const fn scan_end_tag(
+    input: &[u8],
+    pos: usize,
+    allow_more_than_name_and_trailing_space: bool,
+) -> Option<usize> {
+    if input.len() <= pos + 1 {
+        return None;
+    }
+    if input[pos] != b'<' {
+        return None;
+    }
+    if input[pos + 1] != b'/' {
+        return None;
+    }
+
+    scan_end_tag_after_prefix(input, pos + 2, allow_more_than_name_and_trailing_space)
 }
 
-impl ScanEndTagOpts {
-    pub(crate) const fn new_compatible() -> Self {
-        Self {
-            allow_attributes: true,
-            attr_opts: ScanAttributeOpts::new_compatible(),
+#[inline]
+#[must_use]
+pub(crate) const fn scan_end_tag_after_prefix(
+    input: &[u8],
+    pos: usize,
+    allow_more_than_name_and_trailing_space: bool,
+) -> Option<usize> {
+    if allow_more_than_name_and_trailing_space {
+        debug_assert!(!is_name_ch('>'));
+
+        let mut idx = pos;
+        loop {
+            if input.len() == idx {
+                return None;
+            }
+
+            if input[idx] == b'>' {
+                return Some(idx + 1);
+            }
+
+            idx += 1;
         }
     }
-}
 
-#[must_use]
-pub(crate) const fn scan_end_tag(input: &[u8], pos: usize, opts: ScanEndTagOpts) -> Option<usize> {
-    // TODO: Can optimize because the leading characters may have been peeked at
-
-    let idx = expect_ch!(input, pos, '<', '/');
-    let Some(mut idx) = scan_name(input, idx) else {
+    let Some(idx) = scan_name(input, pos) else {
         return None;
     };
 
-    if opts.allow_attributes {
-        loop {
-            let Some(peek_idx) = scan_space(input, idx) else {
-                break;
-            };
-            let Some(peek_idx) = scan_attribute(input, peek_idx, opts.attr_opts) else {
-                break;
-            };
-            idx = peek_idx;
-        }
-    }
-
     let idx = scan_optional_space(input, idx);
 
-    Some(expect_ch!(input, idx, '>'))
+    if input.len() == idx {
+        return None;
+    }
+
+    if input[idx] != b'>' {
+        return None;
+    }
+
+    Some(idx + 1)
 }
 
 #[cfg(test)]

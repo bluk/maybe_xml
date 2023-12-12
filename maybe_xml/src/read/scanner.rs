@@ -2,7 +2,7 @@
 
 use crate::read::parser::{
     self, ScanCdataSectionOpts, ScanCharDataOpts, ScanCommentOpts, ScanEmptyTagOpts,
-    ScanEndTagOpts, ScanMarkupDeclOpts, ScanProcessingInstructionOpts, ScanStartTagOpts,
+    ScanMarkupDeclOpts, ScanProcessingInstructionOpts, ScanStartTagOpts,
 };
 
 #[inline]
@@ -52,12 +52,15 @@ const fn scan_start_or_empty_element_tag(input: &[u8], pos: usize) -> Option<usi
 
 #[must_use]
 const fn scan_end_tag(input: &[u8], pos: usize) -> Option<usize> {
+    // Skip the head '</'
+    const OFFSET: usize = 2;
+
     // Due to scan_markup(), peek2 is already checked
     debug_assert!(pos + 1 < input.len());
     debug_assert!(input[pos] == b'<');
     debug_assert!(input[pos + 1] == b'/');
 
-    parser::scan_end_tag(input, pos, ScanEndTagOpts::new_compatible())
+    parser::scan_end_tag_after_prefix(input, pos + OFFSET, true)
 }
 
 #[inline]

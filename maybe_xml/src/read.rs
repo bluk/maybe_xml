@@ -552,30 +552,9 @@ mod tests {
     fn end_tag() {
         let input = "</goodbye>";
         verify_tokenize_all(input, &[Ty::EndTag(EndTag::from_str(input))]);
-    }
 
-    #[test]
-    fn end_tag_with_single_quotes_attribute() {
-        let input = "</goodbye a='val>'>Content";
-        verify_tokenize_all(
-            input,
-            &[
-                Ty::EndTag(EndTag::from_str("</goodbye a='val>'>")),
-                Ty::Characters(Characters::from_str("Content")),
-            ],
-        );
-    }
-
-    #[test]
-    fn end_tag_with_double_quotes_attribute() {
-        let input = r#"</goodbye a="val>">Content"#;
-        verify_tokenize_all(
-            input,
-            &[
-                Ty::EndTag(EndTag::from_str("</goodbye a=\"val>\">")),
-                Ty::Characters(Characters::from_str("Content")),
-            ],
-        );
+        let input = "</goodbye >";
+        verify_tokenize_all(input, &[Ty::EndTag(EndTag::from_str(input))]);
     }
 
     #[test]
