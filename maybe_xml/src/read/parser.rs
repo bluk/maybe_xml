@@ -143,6 +143,38 @@ macro_rules! expect_ch {
     };
 }
 
+#[must_use]
+const fn scan_document(input: &[u8], pos: usize, opts: ScanElementOpts) -> Option<usize> {
+    let Some(idx) = scan_prolog(
+        input,
+        pos,
+        ScanMarkupDeclOpts {
+            comment_opts: opts.comment_opts,
+            pi_opts: opts.pi_opts,
+            attr_value_opts: opts.start_tag_opts.attr_opts.attr_value_opts,
+        },
+    ) else {
+        return None;
+    };
+
+    let Some(mut idx) = scan_element(input, idx, opts) else {
+        return None;
+    };
+
+    while let Some(peek_idx) = scan_misc(
+        input,
+        idx,
+        ScanMiscOpts {
+            comment_opts: opts.comment_opts,
+            pi_opts: opts.pi_opts,
+        },
+    ) {
+        idx = peek_idx;
+    }
+
+    Some(idx)
+}
+
 #[inline]
 #[must_use]
 const fn is_char(ch: char) -> bool {
@@ -219,8 +251,7 @@ const fn scan_name(input: &[u8], pos: usize) -> Option<usize> {
     let mut idx = expect_ch!(input, pos, is_name_start_char);
 
     loop {
-        let peek_idx = expect_ch!(input, idx, else Some(idx), is_name_ch);
-        idx = peek_idx;
+        idx = expect_ch!(input, idx, else Some(idx), is_name_ch);
     }
 }
 
@@ -246,8 +277,7 @@ const fn scan_nm_token(input: &[u8], pos: usize) -> Option<usize> {
     let mut idx = expect_ch!(input, pos, is_name_ch);
 
     loop {
-        let peek_idx = expect_ch!(input, idx, else Some(idx), is_name_ch);
-        idx = peek_idx;
+        idx = expect_ch!(input, idx, else Some(idx), is_name_ch);
     }
 }
 
@@ -588,14 +618,8 @@ impl ScanProcessingInstructionOpts {
 }
 
 /// Scans for Processing Instructions
-///
-/// # Spec Divergence
-///
-/// - Process the prolog as a processing instruction
-/// - Allow all characters (instead of just valid XML characters)
-/// - Allow non spaces after the PI target name
 #[must_use]
-pub(crate) const fn scan_processing_instruction(
+pub(crate) const fn scan_pi(
     input: &[u8],
     pos: usize,
     opts: ScanProcessingInstructionOpts,
@@ -618,13 +642,9 @@ pub(crate) const fn scan_processing_instruction(
         return None;
     }
 
-    let mut scanned_space = false;
     if let Some(peek_idx) = scan_space(input, idx) {
-        scanned_space = true;
         idx = peek_idx;
-    }
-
-    if !scanned_space {
+    } else {
         if let Some(peek_idx) = peek_ch!(input, idx, '?') {
             if let Some(peek_idx) = peek_ch!(input, peek_idx, '>') {
                 return Some(peek_idx);
@@ -666,12 +686,8 @@ impl ScanCdataSectionOpts {
 }
 
 /// Scans for CDATA section
-///
-/// # Spec Divergence
-///
-/// - Allow all characters (instead of just valid XML characters)
 #[must_use]
-pub(crate) const fn scan_cdata_section(
+pub(crate) const fn scan_cd_sect(
     input: &[u8],
     pos: usize,
     opts: ScanCdataSectionOpts,
@@ -696,11 +712,7 @@ pub(crate) const fn scan_cdata_section(
 }
 
 #[must_use]
-pub(crate) const fn scan_prolog(
-    input: &[u8],
-    pos: usize,
-    opts: ScanMarkupDeclOpts,
-) -> Option<usize> {
+const fn scan_prolog(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) -> Option<usize> {
     let Some(mut idx) = scan_xml_decl(input, pos) else {
         return None;
     };
@@ -756,7 +768,7 @@ const fn scan_xml_decl(input: &[u8], pos: usize) -> Option<usize> {
         idx = peek_idx;
     }
 
-    idx = scan_optional_space(input, idx);
+    let idx = scan_optional_space(input, idx);
 
     Some(expect_ch!(input, idx, '?', '>'))
 }
@@ -822,7 +834,7 @@ const fn scan_misc(input: &[u8], pos: usize, opts: ScanMiscOpts) -> Option<usize
         return Some(idx);
     }
 
-    if let Some(idx) = scan_processing_instruction(input, pos, opts.pi_opts) {
+    if let Some(idx) = scan_pi(input, pos, opts.pi_opts) {
         return Some(idx);
     }
 
@@ -857,9 +869,6 @@ pub(crate) const fn scan_doctype_decl(
 
     if let Some(peek_idx) = peek_ch!(input, idx, '[') {
         idx = scan_int_subset(input, peek_idx, opts);
-
-        // XXX: Verify the ']' is not parsed by scan_int_subset
-
         let peek_idx = expect_ch!(input, idx, ']');
         idx = scan_optional_space(input, peek_idx);
     }
@@ -886,15 +895,11 @@ const fn scan_int_subset(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) -> 
     loop {
         if let Some(peek_idx) = scan_markup_decl(input, idx, opts) {
             idx = peek_idx;
-            continue;
-        }
-
-        if let Some(peek_idx) = scan_decl_sep(input, idx) {
+        } else if let Some(peek_idx) = scan_decl_sep(input, idx) {
             idx = peek_idx;
-            continue;
+        } else {
+            break;
         }
-
-        break;
     }
 
     idx
@@ -936,7 +941,7 @@ const fn scan_markup_decl(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) ->
         return Some(idx);
     }
 
-    if let Some(idx) = scan_processing_instruction(input, pos, opts.pi_opts) {
+    if let Some(idx) = scan_pi(input, pos, opts.pi_opts) {
         return Some(idx);
     }
 
@@ -977,6 +982,71 @@ const fn scan_sd_decl(input: &[u8], pos: usize) -> Option<usize> {
 
         idx = peek_idx;
     }
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub(crate) struct ScanElementOpts {
+    pub(crate) empty_elem_opts: ScanEmptyTagOpts,
+    pub(crate) start_tag_opts: ScanStartTagOpts,
+    pub(crate) end_tag_opts: ScanEndTagOpts,
+    pub(crate) cd_sect_opts: ScanCdataSectionOpts,
+    pub(crate) char_data_opts: ScanCharDataOpts,
+    pub(crate) pi_opts: ScanProcessingInstructionOpts,
+    pub(crate) comment_opts: ScanCommentOpts,
+}
+
+#[must_use]
+const fn scan_element(input: &[u8], pos: usize, opts: ScanElementOpts) -> Option<usize> {
+    if let Some(peek_idx) = scan_empty_tag(input, pos, opts.empty_elem_opts) {
+        return Some(peek_idx);
+    }
+
+    // Or...
+
+    let Some(mut idx) = scan_start_tag(input, pos, opts.start_tag_opts) else {
+        return None;
+    };
+
+    let Some(start_name_end) = scan_name(input, pos + 1) else {
+        unreachable!();
+    };
+    let (start_name, _) = input.split_at(start_name_end);
+    let (_, start_name) = start_name.split_at(pos + 1);
+
+    idx = scan_content(input, idx, opts);
+
+    let end_tag_start = idx;
+
+    let Some(idx) = scan_end_tag(input, idx, opts.end_tag_opts) else {
+        return None;
+    };
+
+    let Some(end_name_end) = scan_name(input, end_tag_start + 2) else {
+        unreachable!();
+    };
+    let (end_name, _) = input.split_at(end_name_end);
+    let (_, end_name) = end_name.split_at(end_tag_start + 2);
+
+    // Verifying the start tag name is equal to the end tag name byte for byte
+
+    if start_name.len() != end_name.len() {
+        return None;
+    }
+
+    let mut name_idx = 0;
+    loop {
+        if name_idx == start_name.len() {
+            break;
+        }
+
+        if start_name[name_idx] != end_name[name_idx] {
+            return None;
+        }
+
+        name_idx += 1;
+    }
+
+    Some(idx)
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -1035,7 +1105,7 @@ pub(crate) const fn scan_start_tag(
         break;
     }
 
-    idx = scan_optional_space(input, idx);
+    let idx = scan_optional_space(input, idx);
 
     Some(expect_ch!(input, idx, '>'))
 }
@@ -1108,12 +1178,41 @@ pub(crate) const fn scan_end_tag(input: &[u8], pos: usize, opts: ScanEndTagOpts)
         }
     }
 
-    idx = scan_optional_space(input, idx);
+    let idx = scan_optional_space(input, idx);
 
     Some(expect_ch!(input, idx, '>'))
 }
 
-// XXX: Skip 43
+#[must_use]
+const fn scan_content(input: &[u8], pos: usize, opts: ScanElementOpts) -> usize {
+    let mut idx = pos;
+
+    if let Some(peek_idx) = scan_char_data(input, idx, opts.char_data_opts) {
+        idx = peek_idx;
+    }
+
+    loop {
+        if let Some(peek_idx) = scan_element(input, idx, opts) {
+            idx = peek_idx;
+        } else if let Some(peek_idx) = scan_ref(input, idx) {
+            idx = peek_idx;
+        } else if let Some(peek_idx) = scan_cd_sect(input, idx, opts.cd_sect_opts) {
+            idx = peek_idx;
+        } else if let Some(peek_idx) = scan_pi(input, idx, opts.pi_opts) {
+            idx = peek_idx;
+        } else if let Some(peek_idx) = scan_comment(input, idx, opts.comment_opts) {
+            idx = peek_idx;
+        } else {
+            break;
+        }
+
+        if let Some(peek_idx) = scan_char_data(input, idx, opts.char_data_opts) {
+            idx = peek_idx;
+        }
+    }
+
+    idx
+}
 
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct ScanEmptyTagOpts {
@@ -1169,7 +1268,7 @@ pub(crate) const fn scan_empty_tag(
         break;
     }
 
-    idx = scan_optional_space(input, idx);
+    let idx = scan_optional_space(input, idx);
 
     Some(expect_ch!(input, idx, '/', '>'))
 }
@@ -1184,12 +1283,15 @@ pub(crate) const fn scan_element_decl(input: &[u8], pos: usize) -> Option<usize>
     let Some(idx) = scan_name(input, idx) else {
         return None;
     };
-
-    let Some(mut idx) = scan_content_spec(input, idx) else {
+    let Some(idx) = scan_space(input, idx) else {
         return None;
     };
 
-    idx = scan_optional_space(input, idx);
+    let Some(idx) = scan_content_spec(input, idx) else {
+        return None;
+    };
+
+    let idx = scan_optional_space(input, idx);
 
     Some(expect_ch!(input, idx, '>'))
 }
@@ -1263,38 +1365,32 @@ pub(crate) const fn scan_cp(input: &[u8], pos: usize) -> Option<usize> {
 
 #[must_use]
 pub(crate) const fn scan_choice(input: &[u8], pos: usize) -> Option<usize> {
-    let mut idx = expect_ch!(input, pos, '(');
+    let idx = expect_ch!(input, pos, '(');
 
-    idx = scan_optional_space(input, idx);
+    let idx = scan_optional_space(input, idx);
 
-    let Some(peek_idx) = scan_cp(input, idx) else {
+    let Some(idx) = scan_cp(input, idx) else {
         return None;
     };
-    idx = peek_idx;
 
-    idx = scan_optional_space(input, idx);
+    let idx = scan_optional_space(input, idx);
 
-    let peek_idx = expect_ch!(input, idx, '|');
-    idx = peek_idx;
+    let idx = expect_ch!(input, idx, '|');
 
-    idx = scan_optional_space(input, idx);
+    let idx = scan_optional_space(input, idx);
 
-    let Some(peek_idx) = scan_cp(input, idx) else {
+    let Some(mut idx) = scan_cp(input, idx) else {
         return None;
     };
-    idx = peek_idx;
 
     loop {
-        let mut choices_idx = idx;
+        let choices_idx = scan_optional_space(input, idx);
 
-        choices_idx = scan_optional_space(input, choices_idx);
-
-        let Some(peek_idx) = peek_ch!(input, choices_idx, '|') else {
+        let Some(choices_idx) = peek_ch!(input, choices_idx, '|') else {
             break;
         };
-        choices_idx = peek_idx;
 
-        choices_idx = scan_optional_space(input, choices_idx);
+        let choices_idx = scan_optional_space(input, choices_idx);
 
         let Some(peek_idx) = scan_cp(input, choices_idx) else {
             return None;
@@ -1302,33 +1398,29 @@ pub(crate) const fn scan_choice(input: &[u8], pos: usize) -> Option<usize> {
         idx = peek_idx;
     }
 
-    idx = scan_optional_space(input, idx);
+    let idx = scan_optional_space(input, idx);
 
     Some(expect_ch!(input, idx, ')'))
 }
 
 #[must_use]
 pub(crate) const fn scan_seq(input: &[u8], pos: usize) -> Option<usize> {
-    let mut idx = expect_ch!(input, pos, '(');
+    let idx = expect_ch!(input, pos, '(');
 
-    idx = scan_optional_space(input, idx);
+    let idx = scan_optional_space(input, idx);
 
-    let Some(peek_idx) = scan_cp(input, idx) else {
+    let Some(mut idx) = scan_cp(input, idx) else {
         return None;
     };
-    idx = peek_idx;
 
     loop {
-        let mut seq_idx = idx;
+        let seq_idx = scan_optional_space(input, idx);
 
-        seq_idx = scan_optional_space(input, seq_idx);
-
-        let Some(peek_idx) = peek_ch!(input, seq_idx, ',') else {
+        let Some(seq_idx) = peek_ch!(input, seq_idx, ',') else {
             break;
         };
-        seq_idx = peek_idx;
 
-        seq_idx = scan_optional_space(input, seq_idx);
+        let seq_idx = scan_optional_space(input, seq_idx);
 
         let Some(peek_idx) = scan_cp(input, seq_idx) else {
             return None;
@@ -1336,7 +1428,7 @@ pub(crate) const fn scan_seq(input: &[u8], pos: usize) -> Option<usize> {
         idx = peek_idx;
     }
 
-    idx = scan_optional_space(input, idx);
+    let idx = scan_optional_space(input, idx);
 
     Some(expect_ch!(input, idx, ')'))
 }
@@ -1345,33 +1437,32 @@ pub(crate) const fn scan_seq(input: &[u8], pos: usize) -> Option<usize> {
 pub(crate) const fn scan_mixed(input: &[u8], pos: usize) -> Option<usize> {
     // TODO: Could optimize if the leading character is peaked?
 
-    let mut idx = expect_ch!(input, pos, '(');
+    let idx = expect_ch!(input, pos, '(');
 
-    idx = scan_optional_space(input, idx);
+    let idx = scan_optional_space(input, idx);
 
-    let mut idx = expect_ch!(input, idx, '#', 'P', 'C', 'D', 'A', 'T', 'A');
+    let idx = expect_ch!(input, idx, '#', 'P', 'C', 'D', 'A', 'T', 'A');
 
-    idx = scan_optional_space(input, idx);
+    let idx = scan_optional_space(input, idx);
 
     // Check for an early exit
 
-    let (ch, peek_idx) = expect_ch!(input, idx);
+    let (ch, idx) = expect_ch!(input, idx);
     if ch == ')' {
-        let (ch, peek_2_idx) = expect_ch!(input, peek_idx, else Some(peek_idx));
+        let (ch, peek_idx) = expect_ch!(input, idx, else Some(idx));
 
         if ch == '*' {
-            return Some(peek_2_idx);
+            return Some(peek_idx);
         }
 
-        return Some(peek_idx);
+        return Some(idx);
     }
 
     if ch != '|' {
         return None;
     }
-    idx = peek_idx;
 
-    idx = scan_optional_space(input, idx);
+    let idx = scan_optional_space(input, idx);
 
     let Some(mut idx) = scan_name(input, idx) else {
         return None;
@@ -1423,7 +1514,7 @@ const fn scan_att_list_decl(
         idx = peek_idx;
     }
 
-    idx = scan_optional_space(input, idx);
+    let idx = scan_optional_space(input, idx);
 
     Some(expect_ch!(input, idx, '>'))
 }
@@ -1455,31 +1546,30 @@ const fn scan_att_type(input: &[u8], pos: usize) -> Option<usize> {
         return Some(peek_idx);
     };
 
-    if let Some(peek_idx) = peek_ch!(input, pos, 'I', 'D', 'R', 'E', 'F', 'S') {
-        return Some(peek_idx);
-    };
-
-    if let Some(peek_idx) = peek_ch!(input, pos, 'I', 'D', 'R', 'E', 'F') {
-        return Some(peek_idx);
-    };
-
     if let Some(peek_idx) = peek_ch!(input, pos, 'I', 'D') {
+        if let Some(peek_idx) = peek_ch!(input, peek_idx, 'R', 'E', 'F') {
+            if let Some(peek_idx) = peek_ch!(input, peek_idx, 'S') {
+                return Some(peek_idx);
+            };
+            return Some(peek_idx);
+        };
         return Some(peek_idx);
     };
 
-    if let Some(peek_idx) = peek_ch!(input, pos, 'E', 'N', 'T', 'I', 'T', 'I', 'E', 'S') {
-        return Some(peek_idx);
-    };
+    if let Some(peek_idx) = peek_ch!(input, pos, 'E', 'N', 'T', 'I', 'T') {
+        if let Some(peek_idx) = peek_ch!(input, peek_idx, 'Y') {
+            return Some(peek_idx);
+        };
 
-    if let Some(peek_idx) = peek_ch!(input, pos, 'E', 'N', 'T', 'I', 'T', 'Y') {
-        return Some(peek_idx);
-    };
-
-    if let Some(peek_idx) = peek_ch!(input, pos, 'N', 'M', 'T', 'O', 'K', 'E', 'N', 'S') {
-        return Some(peek_idx);
-    };
+        if let Some(peek_idx) = peek_ch!(input, pos, 'I', 'E', 'S') {
+            return Some(peek_idx);
+        };
+    }
 
     if let Some(peek_idx) = peek_ch!(input, pos, 'N', 'M', 'T', 'O', 'K', 'E', 'N') {
+        if let Some(peek_idx) = peek_ch!(input, peek_idx, 'S') {
+            return Some(peek_idx);
+        };
         return Some(peek_idx);
     };
 
@@ -1507,25 +1597,22 @@ const fn scan_notation_type(input: &[u8], pos: usize) -> Option<usize> {
         return None;
     };
 
-    let mut idx = expect_ch!(input, idx, '(');
+    let idx = expect_ch!(input, idx, '(');
 
-    idx = scan_optional_space(input, idx);
+    let idx = scan_optional_space(input, idx);
 
     let Some(mut idx) = scan_name(input, idx) else {
         return None;
     };
 
     loop {
-        let mut names_idx = idx;
+        let names_idx = scan_optional_space(input, idx);
 
-        names_idx = scan_optional_space(input, names_idx);
-
-        let Some(peek_idx) = peek_ch!(input, names_idx, '|') else {
+        let Some(names_idx) = peek_ch!(input, names_idx, '|') else {
             break;
         };
-        names_idx = peek_idx;
 
-        names_idx = scan_optional_space(input, names_idx);
+        let names_idx = scan_optional_space(input, names_idx);
 
         let Some(peek_idx) = scan_name(input, names_idx) else {
             break;
@@ -1534,32 +1621,29 @@ const fn scan_notation_type(input: &[u8], pos: usize) -> Option<usize> {
         idx = peek_idx;
     }
 
-    idx = scan_optional_space(input, idx);
+    let idx = scan_optional_space(input, idx);
 
     Some(expect_ch!(input, idx, ')'))
 }
 
 #[must_use]
 const fn scan_enumeration(input: &[u8], pos: usize) -> Option<usize> {
-    let mut idx = expect_ch!(input, pos, '(');
+    let idx = expect_ch!(input, pos, '(');
 
-    idx = scan_optional_space(input, idx);
+    let idx = scan_optional_space(input, idx);
 
     let Some(mut idx) = scan_nm_token(input, idx) else {
         return None;
     };
 
     loop {
-        let mut nmtokens_idx = idx;
+        let nmtokens_idx = scan_optional_space(input, idx);
 
-        nmtokens_idx = scan_optional_space(input, nmtokens_idx);
-
-        let Some(peek_idx) = peek_ch!(input, nmtokens_idx, '|') else {
+        let Some(nmtokens_idx) = peek_ch!(input, nmtokens_idx, '|') else {
             break;
         };
-        nmtokens_idx = peek_idx;
 
-        nmtokens_idx = scan_optional_space(input, nmtokens_idx);
+        let nmtokens_idx = scan_optional_space(input, nmtokens_idx);
 
         let Some(peek_idx) = scan_nm_token(input, nmtokens_idx) else {
             break;
@@ -1567,7 +1651,7 @@ const fn scan_enumeration(input: &[u8], pos: usize) -> Option<usize> {
         idx = peek_idx;
     }
 
-    idx = scan_optional_space(input, idx);
+    let idx = scan_optional_space(input, idx);
 
     Some(expect_ch!(input, idx, ')'))
 }
@@ -1711,11 +1795,10 @@ const fn scan_ge_decl(input: &[u8], pos: usize) -> Option<usize> {
     let Some(idx) = scan_space(input, idx) else {
         return None;
     };
-    let Some(mut idx) = scan_entity_def(input, idx) else {
+    let Some(idx) = scan_entity_def(input, idx) else {
         return None;
     };
-
-    idx = scan_optional_space(input, idx);
+    let idx = scan_optional_space(input, idx);
 
     Some(expect_ch!(input, idx, '>'))
 }
@@ -1736,10 +1819,10 @@ const fn scan_pe_decl(input: &[u8], pos: usize) -> Option<usize> {
     let Some(idx) = scan_space(input, idx) else {
         return None;
     };
-    let Some(mut idx) = scan_pe_def(input, idx) else {
+    let Some(idx) = scan_pe_def(input, idx) else {
         return None;
     };
-    idx = scan_optional_space(input, idx);
+    let idx = scan_optional_space(input, idx);
 
     Some(expect_ch!(input, idx, '>'))
 }
@@ -1767,8 +1850,8 @@ const fn scan_entity_def(input: &[u8], pos: usize) -> Option<usize> {
 const fn scan_pe_def(input: &[u8], pos: usize) -> Option<usize> {
     // TODO: Should peek at the first character and decide what to do
 
-    if let Some(idx) = scan_entity_value(input, pos) {
-        return Some(idx);
+    if let Some(peek_idx) = scan_entity_value(input, pos) {
+        return Some(peek_idx);
     }
 
     scan_external_id(input, pos)
@@ -1778,24 +1861,24 @@ const fn scan_pe_def(input: &[u8], pos: usize) -> Option<usize> {
 const fn scan_external_id(input: &[u8], pos: usize) -> Option<usize> {
     // TODO: Should peek at the first character and decide what to do
 
-    if let Some(idx) = peek_ch!(input, pos, 'S', 'Y', 'S', 'T', 'E', 'M') {
-        let Some(idx) = scan_space(input, idx) else {
+    if let Some(peek_idx) = peek_ch!(input, pos, 'S', 'Y', 'S', 'T', 'E', 'M') {
+        let Some(peek_idx) = scan_space(input, peek_idx) else {
             return None;
         };
-        return scan_system_literal(input, idx);
+        return scan_system_literal(input, peek_idx);
     }
 
-    if let Some(idx) = peek_ch!(input, pos, 'P', 'U', 'B', 'L', 'I', 'C') {
-        let Some(idx) = scan_space(input, idx) else {
+    if let Some(peek_idx) = peek_ch!(input, pos, 'P', 'U', 'B', 'L', 'I', 'C') {
+        let Some(peek_idx) = scan_space(input, peek_idx) else {
             return None;
         };
-        let Some(idx) = scan_pub_id_literal(input, idx) else {
+        let Some(peek_idx) = scan_pub_id_literal(input, peek_idx) else {
             return None;
         };
-        let Some(idx) = scan_space(input, idx) else {
+        let Some(peek_idx) = scan_space(input, peek_idx) else {
             return None;
         };
-        return scan_system_literal(input, idx);
+        return scan_system_literal(input, peek_idx);
     }
 
     None
@@ -1815,9 +1898,9 @@ const fn scan_ndata_decl(input: &[u8], pos: usize) -> Option<usize> {
 
 #[must_use]
 const fn scan_encoding_decl(input: &[u8], pos: usize) -> Option<usize> {
-    let mut idx = pos;
-
-    idx = scan_optional_space(input, idx);
+    let Some(idx) = scan_space(input, pos) else {
+        return None;
+    };
 
     let idx = expect_ch!(input, idx, 'e', 'n', 'c', 'o', 'd', 'i', 'n', 'g');
     let Some(idx) = scan_eq(input, idx) else {
@@ -1838,15 +1921,16 @@ const fn scan_encoding_decl(input: &[u8], pos: usize) -> Option<usize> {
 
     loop {
         let (ch, peek_idx) = expect_ch!(input, idx);
-        idx = peek_idx;
 
         if ch == quote_ch {
-            return Some(idx);
+            return Some(peek_idx);
         }
 
         if !is_enc_name_char(ch) {
             return None;
         }
+
+        idx = peek_idx;
     }
 }
 
@@ -1881,7 +1965,7 @@ pub(crate) const fn scan_notiation_decl(input: &[u8], pos: usize) -> Option<usiz
         return None;
     }
 
-    idx = scan_optional_space(input, idx);
+    let idx = scan_optional_space(input, idx);
 
     Some(expect_ch!(input, idx, '>'))
 }
@@ -1954,6 +2038,12 @@ mod tests {
             Some(input.len() - 3),
             scan_char_data(input.as_bytes(), 0, ScanCharDataOpts::default())
         );
+
+        let input = " abcd]]]>";
+        assert_eq!(
+            Some(input.len() - 3),
+            scan_char_data(input.as_bytes(), 0, ScanCharDataOpts::default())
+        );
     }
 
     #[test]
@@ -1993,6 +2083,18 @@ mod tests {
             None,
             scan_comment(input.as_bytes(), 1, ScanCommentOpts::default())
         );
+        let input = " <!-- -a---> ";
+        assert_eq!(
+            Some(input.len() - 1),
+            scan_comment(
+                input.as_bytes(),
+                1,
+                ScanCommentOpts {
+                    allow_double_dash: true,
+                    ..Default::default()
+                }
+            )
+        );
 
         let input = " <!-----> ";
         assert_eq!(
@@ -2000,7 +2102,19 @@ mod tests {
             scan_comment(input.as_bytes(), 1, ScanCommentOpts::default())
         );
 
+        let input = " <!--- --> ";
+        assert_eq!(
+            Some(input.len() - 1),
+            scan_comment(input.as_bytes(), 1, ScanCommentOpts::default())
+        );
+
         let input = " <!-- - --> ";
+        assert_eq!(
+            Some(input.len() - 1),
+            scan_comment(input.as_bytes(), 1, ScanCommentOpts::default())
+        );
+
+        let input = " <!-- example for <head> & <body> --> ";
         assert_eq!(
             Some(input.len() - 1),
             scan_comment(input.as_bytes(), 1, ScanCommentOpts::default())
@@ -2017,6 +2131,50 @@ mod tests {
     }
 
     #[test]
+    fn test_pi() {
+        let input = r" <?xml?> ";
+        assert_eq!(
+            None,
+            scan_pi(
+                input.as_bytes(),
+                1,
+                ScanProcessingInstructionOpts::default()
+            )
+        );
+
+        let input = r" <?xml-stylesheet example test ? > ?> ";
+        assert_eq!(
+            Some(input.len() - 1),
+            scan_pi(
+                input.as_bytes(),
+                1,
+                ScanProcessingInstructionOpts::default()
+            )
+        );
+    }
+
+    #[test]
+    fn test_cd_sect() {
+        let input = r" <![CDATA[]]> ";
+        assert_eq!(
+            Some(input.len() - 1),
+            scan_cd_sect(input.as_bytes(), 1, ScanCdataSectionOpts::default())
+        );
+
+        let input = r" <![CDATA[]]]]> ";
+        assert_eq!(
+            Some(input.len() - 1),
+            scan_cd_sect(input.as_bytes(), 1, ScanCdataSectionOpts::default())
+        );
+
+        let input = r" <![CDATA[<example>Hello</example>]]> ";
+        assert_eq!(
+            Some(input.len() - 1),
+            scan_cd_sect(input.as_bytes(), 1, ScanCdataSectionOpts::default())
+        );
+    }
+
+    #[test]
     fn test_xml_decl() {
         let input = r#"<?xml version="1.1"?>"#;
         assert_eq!(Some(input.len()), scan_xml_decl(input.as_bytes(), 0));
@@ -2026,5 +2184,54 @@ mod tests {
 
         let input = r#"<?xml version="1.1" encoding="UTF-8" standalone="yes"?>"#;
         assert_eq!(Some(input.len()), scan_xml_decl(input.as_bytes(), 0));
+    }
+
+    #[test]
+    fn test_element_decl() {
+        let input = r" <!ELEMENT example EMPTY> ";
+        assert_eq!(
+            Some(input.len() - 1),
+            scan_element_decl(input.as_bytes(), 1)
+        );
+
+        let input = r" <!ELEMENT example ANY> ";
+        assert_eq!(
+            Some(input.len() - 1),
+            scan_element_decl(input.as_bytes(), 1)
+        );
+
+        let input = r" <!ELEMENT test (#PCDATA)> ";
+        assert_eq!(
+            Some(input.len() - 1),
+            scan_element_decl(input.as_bytes(), 1)
+        );
+
+        let input = r" <!ELEMENT x (#PCDATA|abcd)* > ";
+        assert_eq!(
+            Some(input.len() - 1),
+            scan_element_decl(input.as_bytes(), 1)
+        );
+
+        let input = r" <!ELEMENT x (a, b, cdef?)> ";
+        assert_eq!(
+            Some(input.len() - 1),
+            scan_element_decl(input.as_bytes(), 1)
+        );
+
+        let input = r" <!ELEMENT x (a, (b | c | d)*, efg*)> ";
+        assert_eq!(
+            Some(input.len() - 1),
+            scan_element_decl(input.as_bytes(), 1)
+        );
+
+        // The parameter entity references are not allowed in internal (inline)
+        // declaration
+        let input = r" <!ELEMENT %nm.parm; %cnt.p; > ";
+        assert_eq!(None, scan_element_decl(input.as_bytes(), 1));
+
+        // The parameter entity references are not allowed in internal (inline)
+        // declaration
+        let input = r" <!ELEMENT x (%a.b; | %c.d;)*> ";
+        assert_eq!(None, scan_element_decl(input.as_bytes(), 1));
     }
 }

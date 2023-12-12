@@ -75,7 +75,7 @@ const fn scan_processing_instruction(input: &[u8], pos: usize) -> Option<usize> 
     // Skip OFFSET + 1 because at the minimum, it must be `<??>`.
     // It cannot be `<?>`.
 
-    parser::scan_processing_instruction(input, pos, ScanProcessingInstructionOpts::new_compatible())
+    parser::scan_pi(input, pos, ScanProcessingInstructionOpts::new_compatible())
 }
 
 #[inline]
@@ -166,7 +166,7 @@ const fn scan_cdata(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(input[pos + 7] == b'A');
     debug_assert!(input[pos + 8] == b'[');
 
-    parser::scan_cdata_section(input, pos, ScanCdataSectionOpts::new_compatible())
+    parser::scan_cd_sect(input, pos, ScanCdataSectionOpts::new_compatible())
 }
 
 /// Scans a slice of bytes from the beginning and attempts to find a token.

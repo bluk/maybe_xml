@@ -636,7 +636,12 @@ mod tests {
     #[test]
     fn declaration_in_one_pass() {
         let input = "<!DOCTYPE test [<!ELEMENT test (#PCDATA)>]>";
-        verify_tokenize(input, 0, &[], 0);
+        verify_tokenize_all(
+            input,
+            &[Ty::Declaration(Declaration::from_str(
+                "<!DOCTYPE test [<!ELEMENT test (#PCDATA)>]>",
+            ))],
+        );
     }
 
     #[test]
