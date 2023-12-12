@@ -1,3 +1,5 @@
+const UTF8_CONTINUATION_BYTE_MASK: u8 = 0b0011_1111;
+
 /// Gets the next character from a UTF-8 string.
 ///
 /// The assumption is that the input is a slice of bytes representing a valid
@@ -29,8 +31,10 @@ const fn next_ch(input: &[u8], pos: usize) -> Option<(char, usize)> {
 
     let second = next_byte!();
 
+    let rest = (second & UTF8_CONTINUATION_BYTE_MASK) as u32;
+
     if first < 0b1110_0000 {
-        let code_pt = (((first & 0b0001_1111) as u32) << 6) | ((second & 0b0011_1111) as u32);
+        let code_pt = (((first & 0b0001_1111) as u32) << 6) | rest;
         match char::from_u32(code_pt) {
             Some(ch) => return Some((ch, index)),
             None => return None,
@@ -39,10 +43,10 @@ const fn next_ch(input: &[u8], pos: usize) -> Option<(char, usize)> {
 
     let third = next_byte!();
 
+    let rest = rest << 6 | ((third & UTF8_CONTINUATION_BYTE_MASK) as u32);
+
     if first < 0b1111_0000 {
-        let code_pt = (((first & 0b0001_1111) as u32) << 12)
-            | (((second & 0b0011_1111) as u32) << 6)
-            | ((third & 0b0011_1111) as u32);
+        let code_pt = (((first & 0b0001_1111) as u32) << 12) | rest;
         match char::from_u32(code_pt) {
             Some(ch) => return Some((ch, index)),
             None => return None,
@@ -51,10 +55,9 @@ const fn next_ch(input: &[u8], pos: usize) -> Option<(char, usize)> {
 
     let fourth = next_byte!();
 
-    let code_pt = (((first & 0b0000_1111) as u32) << 18)
-        | (((second & 0b0011_1111) as u32) << 12)
-        | (((third & 0b0011_1111) as u32) << 6)
-        | ((fourth & 0b0011_1111) as u32);
+    let rest = rest << 6 | ((fourth & UTF8_CONTINUATION_BYTE_MASK) as u32);
+
+    let code_pt = (((first & 0b0000_1111) as u32) << 18) | rest;
 
     match char::from_u32(code_pt) {
         Some(ch) => Some((ch, index)),
