@@ -65,6 +65,9 @@ const fn next_ch(input: &[u8], pos: usize) -> Option<(char, usize)> {
     }
 }
 
+/// Peeks if the next character is what is expected and returns the index of the
+/// start of the next character.  If it is not the expected character, evaluates
+/// to `None`.
 macro_rules! peek_ch {
     ($input:expr, $pos:expr, $expected:literal $(,)?) => {
         if let Some((ch, index)) = next_ch($input, $pos) {
@@ -86,6 +89,10 @@ macro_rules! peek_ch {
     };
 }
 
+/// Expects a character or returns from the function with an expression.
+///
+/// Like [`peek_ch!`] but returns from the function instead of evaluating the
+/// expression to `None`.
 macro_rules! expect_ch {
     ($input:expr, $pos:expr $(,)?) => {
         expect_ch!($input, $pos, else None)
@@ -136,6 +143,7 @@ macro_rules! expect_ch {
     };
 }
 
+#[inline]
 #[must_use]
 const fn is_char(ch: char) -> bool {
     matches!(ch,
@@ -167,6 +175,16 @@ const fn scan_space(input: &[u8], pos: usize) -> Option<usize> {
     loop {
         let peek_idx = expect_ch!(input, idx, else Some(idx), is_space);
         idx = peek_idx;
+    }
+}
+
+#[inline]
+#[must_use]
+const fn scan_optional_space(input: &[u8], pos: usize) -> usize {
+    if let Some(peek_idx) = scan_space(input, pos) {
+        peek_idx
+    } else {
+        pos
     }
 }
 
@@ -738,9 +756,7 @@ const fn scan_xml_decl(input: &[u8], pos: usize) -> Option<usize> {
         idx = peek_idx;
     }
 
-    if let Some(peek_idx) = scan_space(input, idx) {
-        idx = peek_idx;
-    }
+    idx = scan_optional_space(input, idx);
 
     Some(expect_ch!(input, idx, '?', '>'))
 }
@@ -777,17 +793,9 @@ const fn scan_version_info(input: &[u8], pos: usize) -> Option<usize> {
 
 #[must_use]
 const fn scan_eq(input: &[u8], pos: usize) -> Option<usize> {
-    let mut idx = pos;
-    if let Some(peek_idx) = scan_space(input, idx) {
-        idx = peek_idx;
-    };
-
-    let mut idx = expect_ch!(input, idx, '=');
-
-    if let Some(peek_idx) = scan_space(input, idx) {
-        idx = peek_idx;
-    };
-
+    let idx = scan_optional_space(input, pos);
+    let idx = expect_ch!(input, idx, '=');
+    let idx = scan_optional_space(input, idx);
     Some(idx)
 }
 
@@ -818,11 +826,7 @@ const fn scan_misc(input: &[u8], pos: usize, opts: ScanMiscOpts) -> Option<usize
         return Some(idx);
     }
 
-    if let Some(idx) = scan_space(input, pos) {
-        return Some(idx);
-    }
-
-    None
+    scan_space(input, pos)
 }
 
 #[must_use]
@@ -847,11 +851,7 @@ pub(crate) const fn scan_doctype_decl(
         idx = peek_idx;
 
         if let Some(peek_idx) = scan_external_id(input, idx) {
-            idx = peek_idx;
-
-            if let Some(peek_idx) = scan_space(input, idx) {
-                idx = peek_idx;
-            }
+            idx = scan_optional_space(input, peek_idx);
         }
     }
 
@@ -861,11 +861,7 @@ pub(crate) const fn scan_doctype_decl(
         // XXX: Verify the ']' is not parsed by scan_int_subset
 
         let peek_idx = expect_ch!(input, idx, ']');
-        idx = peek_idx;
-
-        if let Some(peek_idx) = scan_space(input, idx) {
-            idx = peek_idx;
-        }
+        idx = scan_optional_space(input, peek_idx);
     }
 
     Some(expect_ch!(input, idx, '>'))
@@ -1039,9 +1035,7 @@ pub(crate) const fn scan_start_tag(
         break;
     }
 
-    if let Some(peek_idx) = scan_space(input, idx) {
-        idx = peek_idx;
-    }
+    idx = scan_optional_space(input, idx);
 
     Some(expect_ch!(input, idx, '>'))
 }
@@ -1114,9 +1108,7 @@ pub(crate) const fn scan_end_tag(input: &[u8], pos: usize, opts: ScanEndTagOpts)
         }
     }
 
-    if let Some(peek_idx) = scan_space(input, idx) {
-        idx = peek_idx;
-    }
+    idx = scan_optional_space(input, idx);
 
     Some(expect_ch!(input, idx, '>'))
 }
@@ -1177,9 +1169,7 @@ pub(crate) const fn scan_empty_tag(
         break;
     }
 
-    if let Some(peek_idx) = scan_space(input, idx) {
-        idx = peek_idx;
-    }
+    idx = scan_optional_space(input, idx);
 
     Some(expect_ch!(input, idx, '/', '>'))
 }
@@ -1199,9 +1189,7 @@ pub(crate) const fn scan_element_decl(input: &[u8], pos: usize) -> Option<usize>
         return None;
     };
 
-    if let Some(peek_idx) = scan_space(input, idx) {
-        idx = peek_idx;
-    }
+    idx = scan_optional_space(input, idx);
 
     Some(expect_ch!(input, idx, '>'))
 }
@@ -1277,25 +1265,19 @@ pub(crate) const fn scan_cp(input: &[u8], pos: usize) -> Option<usize> {
 pub(crate) const fn scan_choice(input: &[u8], pos: usize) -> Option<usize> {
     let mut idx = expect_ch!(input, pos, '(');
 
-    if let Some(peek_idx) = scan_space(input, idx) {
-        idx = peek_idx;
-    }
+    idx = scan_optional_space(input, idx);
 
     let Some(peek_idx) = scan_cp(input, idx) else {
         return None;
     };
     idx = peek_idx;
 
-    if let Some(peek_idx) = scan_space(input, idx) {
-        idx = peek_idx;
-    }
+    idx = scan_optional_space(input, idx);
 
     let peek_idx = expect_ch!(input, idx, '|');
     idx = peek_idx;
 
-    if let Some(peek_idx) = scan_space(input, idx) {
-        idx = peek_idx;
-    }
+    idx = scan_optional_space(input, idx);
 
     let Some(peek_idx) = scan_cp(input, idx) else {
         return None;
@@ -1305,18 +1287,14 @@ pub(crate) const fn scan_choice(input: &[u8], pos: usize) -> Option<usize> {
     loop {
         let mut choices_idx = idx;
 
-        if let Some(peek_idx) = scan_space(input, choices_idx) {
-            choices_idx = peek_idx;
-        }
+        choices_idx = scan_optional_space(input, choices_idx);
 
         let Some(peek_idx) = peek_ch!(input, choices_idx, '|') else {
             break;
         };
         choices_idx = peek_idx;
 
-        if let Some(peek_idx) = scan_space(input, choices_idx) {
-            choices_idx = peek_idx;
-        }
+        choices_idx = scan_optional_space(input, choices_idx);
 
         let Some(peek_idx) = scan_cp(input, choices_idx) else {
             return None;
@@ -1324,9 +1302,7 @@ pub(crate) const fn scan_choice(input: &[u8], pos: usize) -> Option<usize> {
         idx = peek_idx;
     }
 
-    if let Some(peek_idx) = scan_space(input, idx) {
-        idx = peek_idx;
-    }
+    idx = scan_optional_space(input, idx);
 
     Some(expect_ch!(input, idx, ')'))
 }
@@ -1334,9 +1310,8 @@ pub(crate) const fn scan_choice(input: &[u8], pos: usize) -> Option<usize> {
 #[must_use]
 pub(crate) const fn scan_seq(input: &[u8], pos: usize) -> Option<usize> {
     let mut idx = expect_ch!(input, pos, '(');
-    if let Some(peek_idx) = scan_space(input, idx) {
-        idx = peek_idx;
-    }
+
+    idx = scan_optional_space(input, idx);
 
     let Some(peek_idx) = scan_cp(input, idx) else {
         return None;
@@ -1344,30 +1319,24 @@ pub(crate) const fn scan_seq(input: &[u8], pos: usize) -> Option<usize> {
     idx = peek_idx;
 
     loop {
-        let mut choices_idx = idx;
+        let mut seq_idx = idx;
 
-        if let Some(peek_idx) = scan_space(input, choices_idx) {
-            choices_idx = peek_idx;
-        }
+        seq_idx = scan_optional_space(input, seq_idx);
 
-        let Some(peek_idx) = peek_ch!(input, choices_idx, ',') else {
+        let Some(peek_idx) = peek_ch!(input, seq_idx, ',') else {
             break;
         };
-        choices_idx = peek_idx;
+        seq_idx = peek_idx;
 
-        if let Some(peek_idx) = scan_space(input, choices_idx) {
-            choices_idx = peek_idx;
-        }
+        seq_idx = scan_optional_space(input, seq_idx);
 
-        let Some(peek_idx) = scan_cp(input, choices_idx) else {
+        let Some(peek_idx) = scan_cp(input, seq_idx) else {
             return None;
         };
         idx = peek_idx;
     }
 
-    if let Some(peek_idx) = scan_space(input, idx) {
-        idx = peek_idx;
-    }
+    idx = scan_optional_space(input, idx);
 
     Some(expect_ch!(input, idx, ')'))
 }
@@ -1377,15 +1346,12 @@ pub(crate) const fn scan_mixed(input: &[u8], pos: usize) -> Option<usize> {
     // TODO: Could optimize if the leading character is peaked?
 
     let mut idx = expect_ch!(input, pos, '(');
-    if let Some(peek_idx) = scan_space(input, idx) {
-        idx = peek_idx;
-    }
+
+    idx = scan_optional_space(input, idx);
 
     let mut idx = expect_ch!(input, idx, '#', 'P', 'C', 'D', 'A', 'T', 'A');
 
-    if let Some(peek_idx) = scan_space(input, idx) {
-        idx = peek_idx;
-    }
+    idx = scan_optional_space(input, idx);
 
     // Check for an early exit
 
@@ -1405,18 +1371,14 @@ pub(crate) const fn scan_mixed(input: &[u8], pos: usize) -> Option<usize> {
     }
     idx = peek_idx;
 
-    if let Some(peek_idx) = scan_space(input, idx) {
-        idx = peek_idx;
-    }
+    idx = scan_optional_space(input, idx);
 
     let Some(mut idx) = scan_name(input, idx) else {
         return None;
     };
 
     loop {
-        if let Some(peek_idx) = scan_space(input, idx) {
-            idx = peek_idx;
-        }
+        idx = scan_optional_space(input, idx);
 
         let (ch, peek_idx) = expect_ch!(input, idx);
         if ch == ')' {
@@ -1434,9 +1396,7 @@ pub(crate) const fn scan_mixed(input: &[u8], pos: usize) -> Option<usize> {
         }
         idx = peek_idx;
 
-        if let Some(peek_idx) = scan_space(input, idx) {
-            idx = peek_idx;
-        }
+        idx = scan_optional_space(input, idx);
 
         let Some(peek_idx) = scan_name(input, idx) else {
             return None;
@@ -1463,9 +1423,7 @@ const fn scan_att_list_decl(
         idx = peek_idx;
     }
 
-    if let Some(peek_idx) = scan_space(input, idx) {
-        idx = peek_idx;
-    }
+    idx = scan_optional_space(input, idx);
 
     Some(expect_ch!(input, idx, '>'))
 }
@@ -1551,9 +1509,7 @@ const fn scan_notation_type(input: &[u8], pos: usize) -> Option<usize> {
 
     let mut idx = expect_ch!(input, idx, '(');
 
-    if let Some(peek_idx) = scan_space(input, idx) {
-        idx = peek_idx;
-    }
+    idx = scan_optional_space(input, idx);
 
     let Some(mut idx) = scan_name(input, idx) else {
         return None;
@@ -1562,18 +1518,14 @@ const fn scan_notation_type(input: &[u8], pos: usize) -> Option<usize> {
     loop {
         let mut names_idx = idx;
 
-        if let Some(peek_idx) = scan_space(input, names_idx) {
-            names_idx = peek_idx;
-        }
+        names_idx = scan_optional_space(input, names_idx);
 
         let Some(peek_idx) = peek_ch!(input, names_idx, '|') else {
             break;
         };
         names_idx = peek_idx;
 
-        if let Some(peek_idx) = scan_space(input, names_idx) {
-            names_idx = peek_idx;
-        }
+        names_idx = scan_optional_space(input, names_idx);
 
         let Some(peek_idx) = scan_name(input, names_idx) else {
             break;
@@ -1582,9 +1534,7 @@ const fn scan_notation_type(input: &[u8], pos: usize) -> Option<usize> {
         idx = peek_idx;
     }
 
-    if let Some(peek_idx) = scan_space(input, idx) {
-        idx = peek_idx;
-    }
+    idx = scan_optional_space(input, idx);
 
     Some(expect_ch!(input, idx, ')'))
 }
@@ -1592,27 +1542,24 @@ const fn scan_notation_type(input: &[u8], pos: usize) -> Option<usize> {
 #[must_use]
 const fn scan_enumeration(input: &[u8], pos: usize) -> Option<usize> {
     let mut idx = expect_ch!(input, pos, '(');
-    if let Some(peek_idx) = scan_space(input, idx) {
-        idx = peek_idx;
-    }
+
+    idx = scan_optional_space(input, idx);
+
     let Some(mut idx) = scan_nm_token(input, idx) else {
         return None;
     };
 
     loop {
         let mut nmtokens_idx = idx;
-        if let Some(peek_idx) = scan_space(input, nmtokens_idx) {
-            nmtokens_idx = peek_idx;
-        }
+
+        nmtokens_idx = scan_optional_space(input, nmtokens_idx);
 
         let Some(peek_idx) = peek_ch!(input, nmtokens_idx, '|') else {
             break;
         };
         nmtokens_idx = peek_idx;
 
-        if let Some(peek_idx) = scan_space(input, nmtokens_idx) {
-            nmtokens_idx = peek_idx;
-        }
+        nmtokens_idx = scan_optional_space(input, nmtokens_idx);
 
         let Some(peek_idx) = scan_nm_token(input, nmtokens_idx) else {
             break;
@@ -1620,9 +1567,7 @@ const fn scan_enumeration(input: &[u8], pos: usize) -> Option<usize> {
         idx = peek_idx;
     }
 
-    if let Some(peek_idx) = scan_space(input, idx) {
-        idx = peek_idx;
-    }
+    idx = scan_optional_space(input, idx);
 
     Some(expect_ch!(input, idx, ')'))
 }
@@ -1769,9 +1714,8 @@ const fn scan_ge_decl(input: &[u8], pos: usize) -> Option<usize> {
     let Some(mut idx) = scan_entity_def(input, idx) else {
         return None;
     };
-    if let Some(peek_idx) = scan_space(input, idx) {
-        idx = peek_idx;
-    }
+
+    idx = scan_optional_space(input, idx);
 
     Some(expect_ch!(input, idx, '>'))
 }
@@ -1795,9 +1739,7 @@ const fn scan_pe_decl(input: &[u8], pos: usize) -> Option<usize> {
     let Some(mut idx) = scan_pe_def(input, idx) else {
         return None;
     };
-    if let Some(peek_idx) = scan_space(input, idx) {
-        idx = peek_idx;
-    }
+    idx = scan_optional_space(input, idx);
 
     Some(expect_ch!(input, idx, '>'))
 }
@@ -1874,9 +1816,8 @@ const fn scan_ndata_decl(input: &[u8], pos: usize) -> Option<usize> {
 #[must_use]
 const fn scan_encoding_decl(input: &[u8], pos: usize) -> Option<usize> {
     let mut idx = pos;
-    if let Some(peek_idx) = scan_space(input, idx) {
-        idx = peek_idx;
-    }
+
+    idx = scan_optional_space(input, idx);
 
     let idx = expect_ch!(input, idx, 'e', 'n', 'c', 'o', 'd', 'i', 'n', 'g');
     let Some(idx) = scan_eq(input, idx) else {
@@ -1940,9 +1881,7 @@ pub(crate) const fn scan_notiation_decl(input: &[u8], pos: usize) -> Option<usiz
         return None;
     }
 
-    if let Some(peek_idx) = scan_space(input, idx) {
-        idx = peek_idx;
-    }
+    idx = scan_optional_space(input, idx);
 
     Some(expect_ch!(input, idx, '>'))
 }
