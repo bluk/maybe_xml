@@ -471,45 +471,35 @@ impl ScanCharDataOpts {
 }
 
 /// Scans for character data.
+#[inline]
 #[must_use]
-pub(crate) const fn scan_char_data(
-    input: &[u8],
-    pos: usize,
-    opts: ScanCharDataOpts,
-) -> Option<usize> {
-    // TODO: Pass in peeked first character so that it does not need to be read again
-
-    let (ch, mut idx) = expect_ch!(input, pos);
-
-    if ch == '<' {
-        return None;
-    }
-
-    if ch == '&' && !opts.allow_ampersand {
-        return None;
-    }
-
+pub(crate) const fn scan_char_data(input: &[u8], pos: usize, opts: ScanCharDataOpts) -> usize {
+    let mut idx = pos;
     loop {
-        let (ch, peek_idx) = expect_ch!(input, idx, else Some(idx));
-
-        if ch == '<' {
-            return Some(idx);
+        if input.len() == idx {
+            return idx;
         }
 
-        if ch == '&' && !opts.allow_ampersand {
-            return Some(idx);
+        let byte = input[idx];
+
+        if byte == b'<' {
+            return idx;
         }
 
-        if ch == '>'
+        if !opts.allow_ampersand && byte == b'&' {
+            return idx;
+        }
+
+        if !opts.allow_cdata_section_close
+            && byte == b'>'
             && pos <= idx - 2
             && input[idx - 1] == b']'
             && input[idx - 2] == b']'
-            && !opts.allow_cdata_section_close
         {
-            return Some(idx - 2);
+            return idx - 2;
         }
 
-        idx = peek_idx;
+        idx += 1;
     }
 }
 
@@ -1144,11 +1134,7 @@ pub(crate) const fn scan_end_tag(input: &[u8], pos: usize, opts: ScanEndTagOpts)
 #[cfg(test)]
 #[must_use]
 const fn scan_content(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> usize {
-    let mut idx = pos;
-
-    if let Some(peek_idx) = scan_char_data(input, idx, opts.char_data) {
-        idx = peek_idx;
-    }
+    let mut idx = scan_char_data(input, pos, opts.char_data);
 
     loop {
         if let Some(peek_idx) = scan_element(input, idx, opts) {
@@ -1165,9 +1151,7 @@ const fn scan_content(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> usize
             break;
         }
 
-        if let Some(peek_idx) = scan_char_data(input, idx, opts.char_data) {
-            idx = peek_idx;
-        }
+        idx = scan_char_data(input, idx, opts.char_data);
     }
 
     idx
@@ -1978,31 +1962,31 @@ mod tests {
     fn test_scan_char_data() {
         let input = " abcd";
         assert_eq!(
-            Some(input.len()),
+            input.len(),
             scan_char_data(input.as_bytes(), 0, ScanCharDataOpts::default())
         );
 
         let input = " abcd]]";
         assert_eq!(
-            Some(input.len()),
+            input.len(),
             scan_char_data(input.as_bytes(), 0, ScanCharDataOpts::default())
         );
 
         let input = " abcd]>";
         assert_eq!(
-            Some(input.len()),
+            input.len(),
             scan_char_data(input.as_bytes(), 0, ScanCharDataOpts::default())
         );
 
         let input = " abcd]]>";
         assert_eq!(
-            Some(input.len() - 3),
+            input.len() - 3,
             scan_char_data(input.as_bytes(), 0, ScanCharDataOpts::default())
         );
 
         let input = " abcd]]]>";
         assert_eq!(
-            Some(input.len() - 3),
+            input.len() - 3,
             scan_char_data(input.as_bytes(), 0, ScanCharDataOpts::default())
         );
     }

@@ -11,11 +11,7 @@ const fn scan_text_content(input: &[u8], pos: usize) -> usize {
     debug_assert!(pos < input.len());
     debug_assert!(input[pos] != b'<');
 
-    if let Some(index) = parser::scan_char_data(input, pos, ScanCharDataOpts::new_compatible()) {
-        return index;
-    }
-
-    panic!("should have been parsing text content")
+    parser::scan_char_data(input, pos + 1, ScanCharDataOpts::new_compatible())
 }
 
 #[inline]
