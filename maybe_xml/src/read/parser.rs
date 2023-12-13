@@ -196,6 +196,22 @@ pub(crate) struct ScanDocumentOpts {
 }
 
 #[cfg(test)]
+impl ScanDocumentOpts {
+    #[inline]
+    #[must_use]
+    pub const fn new() -> Self {
+        Self {
+            attrs: ScanAttributeOpts::new(),
+            attr_value: ScanAttributeValueOpts::new(),
+            cd_sect: ScanCdataSectionOpts::new(),
+            char_data: ScanCharDataOpts::new(),
+            pi: ScanProcessingInstructionOpts::new(),
+            comment: ScanCommentOpts::new(),
+        }
+    }
+}
+
+#[cfg(test)]
 #[must_use]
 const fn scan_document(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Option<usize> {
     let Some(idx) = scan_prolog(input, pos, opts) else {
@@ -346,6 +362,18 @@ pub(crate) struct ScanAttributeValueOpts {
 }
 
 impl ScanAttributeValueOpts {
+    #[inline]
+    #[must_use]
+    pub(crate) const fn new() -> Self {
+        Self {
+            allow_less_than: false,
+            allow_ampersand: false,
+            allow_no_quote: false,
+        }
+    }
+
+    #[inline]
+    #[must_use]
     pub(crate) const fn new_compatible() -> Self {
         Self {
             allow_less_than: true,
@@ -534,6 +562,17 @@ pub(crate) struct ScanCharDataOpts {
 }
 
 impl ScanCharDataOpts {
+    #[inline]
+    #[must_use]
+    pub(crate) const fn new() -> Self {
+        Self {
+            allow_ampersand: false,
+            allow_cdata_section_close: false,
+        }
+    }
+
+    #[inline]
+    #[must_use]
     pub(crate) const fn new_compatible() -> Self {
         Self {
             allow_ampersand: true,
@@ -607,6 +646,17 @@ pub(crate) struct ScanCommentOpts {
 }
 
 impl ScanCommentOpts {
+    #[inline]
+    #[must_use]
+    pub(crate) const fn new() -> Self {
+        Self {
+            allow_double_dash: false,
+            allow_non_chars: false,
+        }
+    }
+
+    #[inline]
+    #[must_use]
     pub(crate) const fn new_compatible() -> Self {
         Self {
             allow_double_dash: true,
@@ -723,6 +773,17 @@ pub(crate) struct ScanProcessingInstructionOpts {
 }
 
 impl ScanProcessingInstructionOpts {
+    #[inline]
+    #[must_use]
+    pub(crate) const fn new() -> Self {
+        Self {
+            allow_xml_target_name: false,
+            allow_all_chars: false,
+        }
+    }
+
+    #[inline]
+    #[must_use]
     pub(crate) const fn new_compatible() -> Self {
         Self {
             allow_xml_target_name: true,
@@ -820,6 +881,16 @@ pub(crate) struct ScanCdataSectionOpts {
 }
 
 impl ScanCdataSectionOpts {
+    #[inline]
+    #[must_use]
+    pub(crate) const fn new() -> Self {
+        Self {
+            allow_all_chars: false,
+        }
+    }
+
+    #[inline]
+    #[must_use]
     pub(crate) const fn new_compatible() -> Self {
         Self {
             allow_all_chars: true,
@@ -1170,6 +1241,18 @@ pub(crate) struct ScanMarkupDeclOpts {
 }
 
 impl ScanMarkupDeclOpts {
+    #[inline]
+    #[must_use]
+    pub(crate) const fn new() -> Self {
+        Self {
+            pi: ScanProcessingInstructionOpts::new(),
+            comment: ScanCommentOpts::new(),
+            attr_value: ScanAttributeValueOpts::new(),
+        }
+    }
+
+    #[inline]
+    #[must_use]
     pub(crate) const fn new_compatible() -> Self {
         Self {
             pi: ScanProcessingInstructionOpts::new_compatible(),
@@ -1366,6 +1449,17 @@ pub(crate) struct ScanAttributeOpts {
 }
 
 impl ScanAttributeOpts {
+    #[inline]
+    #[must_use]
+    pub(crate) const fn new() -> Self {
+        Self {
+            allow_no_value: false,
+            attr_value_opts: ScanAttributeValueOpts::new(),
+        }
+    }
+
+    #[inline]
+    #[must_use]
     pub(crate) const fn new_compatible() -> Self {
         Self {
             allow_no_value: true,
