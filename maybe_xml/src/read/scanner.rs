@@ -51,11 +51,7 @@ const fn scan_start_or_empty_element_tag(input: &[u8], pos: usize) -> Option<usi
     debug_assert!(input[pos + 1] != b'?');
     debug_assert!(input[pos + 1] != b'!');
 
-    parser::scan_start_or_empty_tag_after_prefix(
-        input,
-        pos + OFFSET,
-        ScanAttributeOpts::new_compatible(),
-    )
+    parser::scan_start_or_empty_tag_after_prefix(input, pos + OFFSET, ScanAttributeOpts::new())
 }
 
 #[must_use]
@@ -68,7 +64,7 @@ const fn scan_end_tag(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(input[pos] == b'<');
     debug_assert!(input[pos + 1] == b'/');
 
-    parser::scan_end_tag_after_prefix(input, pos + OFFSET, true)
+    parser::scan_end_tag_after_prefix(input, pos + OFFSET, false)
 }
 
 #[inline]
@@ -85,7 +81,10 @@ const fn scan_processing_instruction(input: &[u8], pos: usize) -> Option<usize> 
     parser::scan_pi_after_prefix(
         input,
         pos + OFFSET,
-        ScanProcessingInstructionOpts::new_compatible(),
+        ScanProcessingInstructionOpts {
+            allow_xml_target_name: true,
+            allow_all_chars: false,
+        },
     )
 }
 
@@ -146,11 +145,7 @@ const fn scan_declaration(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(input[pos] == b'<');
     debug_assert!(input[pos + 1] == b'!');
 
-    parser::scan_doctype_decl_after_prefix(
-        input,
-        pos + OFFSET,
-        ScanMarkupDeclOpts::new_compatible(),
-    )
+    parser::scan_doctype_decl_after_prefix(input, pos + OFFSET, ScanMarkupDeclOpts::new())
 }
 
 #[inline]
@@ -166,7 +161,7 @@ const fn scan_comment(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(input[pos + 2] == b'-');
     debug_assert!(input[pos + 3] == b'-');
 
-    parser::scan_comment_after_prefix(input, pos + OFFSET, ScanCommentOpts::new_compatible())
+    parser::scan_comment_after_prefix(input, pos + OFFSET, ScanCommentOpts::new())
 }
 
 #[inline]
@@ -187,7 +182,7 @@ const fn scan_cdata(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(input[pos + 7] == b'A');
     debug_assert!(input[pos + 8] == b'[');
 
-    parser::scan_cd_sect_after_prefix(input, pos + OFFSET, ScanCdataSectionOpts::new_compatible())
+    parser::scan_cd_sect_after_prefix(input, pos + OFFSET, ScanCdataSectionOpts::new())
 }
 
 /// Scans a slice of bytes from the beginning and attempts to find a token.

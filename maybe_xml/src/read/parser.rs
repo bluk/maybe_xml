@@ -185,24 +185,22 @@ macro_rules! expect_byte {
 }
 
 #[cfg(test)]
-#[derive(Debug, Default, Clone, Copy)]
-pub(crate) struct ScanDocumentOpts {
-    pub(crate) attrs: ScanAttributeOpts,
-    pub(crate) attr_value: ScanAttributeValueOpts,
-    pub(crate) cd_sect: ScanCdataSectionOpts,
-    pub(crate) char_data: ScanCharDataOpts,
-    pub(crate) pi: ScanProcessingInstructionOpts,
-    pub(crate) comment: ScanCommentOpts,
+#[derive(Debug, Clone, Copy)]
+struct ScanDocumentOpts {
+    attrs: ScanAttributeOpts,
+    cd_sect: ScanCdataSectionOpts,
+    char_data: ScanCharDataOpts,
+    pi: ScanProcessingInstructionOpts,
+    comment: ScanCommentOpts,
 }
 
 #[cfg(test)]
 impl ScanDocumentOpts {
     #[inline]
     #[must_use]
-    pub const fn new() -> Self {
+    const fn new() -> Self {
         Self {
             attrs: ScanAttributeOpts::new(),
-            attr_value: ScanAttributeValueOpts::new(),
             cd_sect: ScanCdataSectionOpts::new(),
             char_data: ScanCharDataOpts::new(),
             pi: ScanProcessingInstructionOpts::new(),
@@ -355,30 +353,20 @@ const fn scan_entity_value(input: &[u8], pos: usize) -> Option<usize> {
 
 #[allow(clippy::struct_field_names)]
 #[derive(Debug, Default, Clone, Copy)]
-pub(crate) struct ScanAttributeValueOpts {
-    pub(crate) allow_less_than: bool,
-    pub(crate) allow_ampersand: bool,
-    pub(crate) allow_no_quote: bool,
+struct ScanAttributeValueOpts {
+    allow_less_than: bool,
+    allow_ampersand: bool,
+    allow_no_quote: bool,
 }
 
 impl ScanAttributeValueOpts {
     #[inline]
     #[must_use]
-    pub(crate) const fn new() -> Self {
+    const fn new() -> Self {
         Self {
             allow_less_than: false,
             allow_ampersand: false,
             allow_no_quote: false,
-        }
-    }
-
-    #[inline]
-    #[must_use]
-    pub(crate) const fn new_compatible() -> Self {
-        Self {
-            allow_less_than: true,
-            allow_ampersand: true,
-            allow_no_quote: true,
         }
     }
 }
@@ -557,11 +545,12 @@ const fn is_pub_id_char(ch: char) -> bool {
 
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct ScanCharDataOpts {
-    pub(crate) allow_ampersand: bool,
-    pub(crate) allow_cdata_section_close: bool,
+    allow_ampersand: bool,
+    allow_cdata_section_close: bool,
 }
 
 impl ScanCharDataOpts {
+    #[cfg(test)]
     #[inline]
     #[must_use]
     pub(crate) const fn new() -> Self {
@@ -641,8 +630,8 @@ pub(crate) const fn scan_char_data(input: &[u8], pos: usize, opts: ScanCharDataO
 
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct ScanCommentOpts {
-    pub(crate) allow_double_dash: bool,
-    pub(crate) allow_non_chars: bool,
+    allow_double_dash: bool,
+    allow_non_chars: bool,
 }
 
 impl ScanCommentOpts {
@@ -652,15 +641,6 @@ impl ScanCommentOpts {
         Self {
             allow_double_dash: false,
             allow_non_chars: false,
-        }
-    }
-
-    #[inline]
-    #[must_use]
-    pub(crate) const fn new_compatible() -> Self {
-        Self {
-            allow_double_dash: true,
-            allow_non_chars: true,
         }
     }
 }
@@ -775,19 +755,10 @@ pub(crate) struct ScanProcessingInstructionOpts {
 impl ScanProcessingInstructionOpts {
     #[inline]
     #[must_use]
-    pub(crate) const fn new() -> Self {
+    const fn new() -> Self {
         Self {
             allow_xml_target_name: false,
             allow_all_chars: false,
-        }
-    }
-
-    #[inline]
-    #[must_use]
-    pub(crate) const fn new_compatible() -> Self {
-        Self {
-            allow_xml_target_name: true,
-            allow_all_chars: true,
         }
     }
 }
@@ -886,14 +857,6 @@ impl ScanCdataSectionOpts {
     pub(crate) const fn new() -> Self {
         Self {
             allow_all_chars: false,
-        }
-    }
-
-    #[inline]
-    #[must_use]
-    pub(crate) const fn new_compatible() -> Self {
-        Self {
-            allow_all_chars: true,
         }
     }
 }
@@ -1008,7 +971,7 @@ const fn scan_prolog(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Option
         ScanMarkupDeclOpts {
             comment: opts.comment,
             pi: opts.pi,
-            attr_value: opts.attr_value,
+            attr_value: opts.attrs.attr_value_opts,
         },
     ) {
         idx = peek_idx;
@@ -1094,9 +1057,9 @@ const fn scan_eq(input: &[u8], pos: usize) -> Option<usize> {
 
 #[cfg(test)]
 #[derive(Debug, Default, Clone, Copy)]
-pub(crate) struct ScanMiscOpts {
-    pub(crate) comment: ScanCommentOpts,
-    pub(crate) pi: ScanProcessingInstructionOpts,
+struct ScanMiscOpts {
+    comment: ScanCommentOpts,
+    pi: ScanProcessingInstructionOpts,
 }
 
 #[cfg(test)]
@@ -1117,11 +1080,7 @@ const fn scan_misc(input: &[u8], pos: usize, opts: ScanMiscOpts) -> Option<usize
 
 #[cfg(test)]
 #[must_use]
-pub(crate) const fn scan_doctype_decl(
-    input: &[u8],
-    pos: usize,
-    opts: ScanMarkupDeclOpts,
-) -> Option<usize> {
+const fn scan_doctype_decl(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) -> Option<usize> {
     if input.len() <= pos + 1 {
         return None;
     }
@@ -1235,9 +1194,9 @@ const fn scan_int_subset(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) -> 
 
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct ScanMarkupDeclOpts {
-    pub(crate) comment: ScanCommentOpts,
-    pub(crate) pi: ScanProcessingInstructionOpts,
-    pub(crate) attr_value: ScanAttributeValueOpts,
+    comment: ScanCommentOpts,
+    pi: ScanProcessingInstructionOpts,
+    attr_value: ScanAttributeValueOpts,
 }
 
 impl ScanMarkupDeclOpts {
@@ -1248,16 +1207,6 @@ impl ScanMarkupDeclOpts {
             pi: ScanProcessingInstructionOpts::new(),
             comment: ScanCommentOpts::new(),
             attr_value: ScanAttributeValueOpts::new(),
-        }
-    }
-
-    #[inline]
-    #[must_use]
-    pub(crate) const fn new_compatible() -> Self {
-        Self {
-            pi: ScanProcessingInstructionOpts::new_compatible(),
-            comment: ScanCommentOpts::new_compatible(),
-            attr_value: ScanAttributeValueOpts::new_compatible(),
         }
     }
 }
@@ -1444,8 +1393,8 @@ const fn scan_start_tag_after_prefix(
 
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct ScanAttributeOpts {
-    pub(crate) allow_no_value: bool,
-    pub(crate) attr_value_opts: ScanAttributeValueOpts,
+    allow_no_value: bool,
+    attr_value_opts: ScanAttributeValueOpts,
 }
 
 impl ScanAttributeOpts {
@@ -1455,15 +1404,6 @@ impl ScanAttributeOpts {
         Self {
             allow_no_value: false,
             attr_value_opts: ScanAttributeValueOpts::new(),
-        }
-    }
-
-    #[inline]
-    #[must_use]
-    pub(crate) const fn new_compatible() -> Self {
-        Self {
-            allow_no_value: true,
-            attr_value_opts: ScanAttributeValueOpts::new_compatible(),
         }
     }
 }
@@ -2557,7 +2497,14 @@ mod tests {
         let input = r#"<!--goodbye a="--val-->"-- test -->Content"#;
         assert_eq!(
             Some(r#"<!--goodbye a="--val-->"#.len()),
-            scan_comment(input.as_bytes(), 0, ScanCommentOpts::new_compatible())
+            scan_comment(
+                input.as_bytes(),
+                0,
+                ScanCommentOpts {
+                    allow_double_dash: true,
+                    allow_non_chars: false
+                }
+            )
         );
 
         let input = r#"<!--goodbye a="--"#;
@@ -2575,13 +2522,27 @@ mod tests {
         let input = r#"<!--goodbye a="--val--" test ->Content"#;
         assert_eq!(
             None,
-            scan_comment(input.as_bytes(), 0, ScanCommentOpts::new_compatible())
+            scan_comment(
+                input.as_bytes(),
+                0,
+                ScanCommentOpts {
+                    allow_double_dash: true,
+                    allow_non_chars: false
+                }
+            )
         );
 
         let input = r#"<!--goodbye a="--val--" test ->ContentMore -->Real Content"#;
         assert_eq!(
             Some(r#"<!--goodbye a="--val--" test ->ContentMore -->"#.len()),
-            scan_comment(input.as_bytes(), 0, ScanCommentOpts::new_compatible())
+            scan_comment(
+                input.as_bytes(),
+                0,
+                ScanCommentOpts {
+                    allow_double_dash: true,
+                    allow_non_chars: false
+                }
+            )
         );
     }
 
@@ -2590,7 +2551,18 @@ mod tests {
         let input = r#"<id attr="1" id=test>"#;
         assert_eq!(
             Some(input.len()),
-            scan_start_tag(input.as_bytes(), 0, ScanAttributeOpts::new_compatible())
+            scan_start_tag(
+                input.as_bytes(),
+                0,
+                ScanAttributeOpts {
+                    allow_no_value: false,
+                    attr_value_opts: ScanAttributeValueOpts {
+                        allow_less_than: false,
+                        allow_ampersand: false,
+                        allow_no_quote: true
+                    }
+                }
+            )
         );
     }
 
@@ -2736,25 +2708,25 @@ mod tests {
         let large_1_xml = include_str!("../../tests/resources/large-1.xml");
         assert_eq!(
             Some(large_1_xml.len()),
-            scan_document(large_1_xml.as_bytes(), 0, ScanDocumentOpts::default())
+            scan_document(large_1_xml.as_bytes(), 0, ScanDocumentOpts::new())
         );
 
         let rss_1_xml = include_str!("../../tests/resources/rss-1.xml");
         assert_eq!(
             Some(rss_1_xml.len()),
-            scan_document(rss_1_xml.as_bytes(), 0, ScanDocumentOpts::default())
+            scan_document(rss_1_xml.as_bytes(), 0, ScanDocumentOpts::new())
         );
 
         let simple_1_xml = include_str!("../../tests/resources/simple-1.xml");
         assert_eq!(
             Some(simple_1_xml.len()),
-            scan_document(simple_1_xml.as_bytes(), 0, ScanDocumentOpts::default())
+            scan_document(simple_1_xml.as_bytes(), 0, ScanDocumentOpts::new())
         );
 
         let svg_1_xml = include_str!("../../tests/resources/svg-1.xml");
         assert_eq!(
             Some(svg_1_xml.len()),
-            scan_document(svg_1_xml.as_bytes(), 0, ScanDocumentOpts::default())
+            scan_document(svg_1_xml.as_bytes(), 0, ScanDocumentOpts::new())
         );
     }
 }
