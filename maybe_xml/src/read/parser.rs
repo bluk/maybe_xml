@@ -292,7 +292,8 @@ const fn scan_entity_value(input: &[u8], pos: usize) -> Option<usize> {
         }
 
         if ch == '&' {
-            if let Some(peek_idx) = scan_ref(input, idx) {
+            debug_assert!(peek_idx == idx + 1);
+            if let Some(peek_idx) = scan_ref_after_ampersand(input, idx + 1) {
                 idx = peek_idx;
                 continue;
             }
@@ -355,7 +356,7 @@ const fn scan_attribute_value(
                 }
 
                 if byte == b'&' {
-                    if let Some(peek_idx) = scan_ref(input, idx) {
+                    if let Some(peek_idx) = scan_ref_after_ampersand(input, idx + 1) {
                         idx = peek_idx;
                         continue;
                     }
@@ -388,7 +389,7 @@ const fn scan_attribute_value(
         }
 
         if byte == b'&' {
-            if let Some(peek_idx) = scan_ref(input, idx) {
+            if let Some(peek_idx) = scan_ref_after_ampersand(input, idx + 1) {
                 idx = peek_idx;
                 continue;
             }
@@ -1720,26 +1721,38 @@ const fn scan_default_decl(
 }
 
 #[must_use]
-const fn scan_char_ref(input: &[u8], pos: usize) -> Option<usize> {
-    // TODO: Can optimize because the leading characters may have been peeked at
+const fn scan_char_ref_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
+    debug_assert!(input[pos - 2] == b'&');
+    debug_assert!(input[pos - 1] == b'#');
 
-    let idx = expect_ch!(input, pos, '&', '#');
-    let (ch, mut idx) = expect_ch!(input, idx);
+    if input.len() <= pos {
+        return None;
+    }
+    let byte = input[pos];
+    let mut idx = pos;
 
-    if ch == 'x' {
-        let (ch, mut idx) = expect_ch!(input, idx);
+    if byte == b'x' {
+        idx += 1;
 
-        if !ch.is_ascii_hexdigit() {
+        if input.len() <= idx {
             return None;
         }
+        let byte = input[pos];
+
+        if !byte.is_ascii_hexdigit() {
+            return None;
+        }
+        idx += 1;
 
         loop {
-            let (ch, peek_idx) = expect_ch!(input, idx);
+            if input.len() <= idx {
+                return None;
+            }
 
-            match ch {
-                ';' => return Some(peek_idx),
-                _ if ch.is_ascii_hexdigit() => {
-                    idx = peek_idx;
+            match input[idx] {
+                b';' => return Some(idx + 1),
+                b if b.is_ascii_hexdigit() => {
+                    idx += 1;
                 }
                 _ => {
                     return None;
@@ -1747,17 +1760,20 @@ const fn scan_char_ref(input: &[u8], pos: usize) -> Option<usize> {
             }
         }
     } else {
-        if !ch.is_ascii_digit() {
+        if !byte.is_ascii_digit() {
             return None;
         }
+        idx += 1;
 
         loop {
-            let (ch, peek_idx) = expect_ch!(input, idx);
+            if input.len() <= idx {
+                return None;
+            }
 
-            match ch {
-                ';' => return Some(peek_idx),
-                _ if ch.is_ascii_digit() => {
-                    idx = peek_idx;
+            match input[idx] {
+                b';' => return Some(idx + 1),
+                b if b.is_ascii_digit() => {
+                    idx += 1;
                 }
                 _ => {
                     return None;
@@ -1767,30 +1783,55 @@ const fn scan_char_ref(input: &[u8], pos: usize) -> Option<usize> {
     }
 }
 
+#[cfg(test)]
 #[must_use]
 const fn scan_ref(input: &[u8], pos: usize) -> Option<usize> {
-    // TODO: Can optimize because the first character may have been peeked at
-
-    match next_ch(input, pos) {
-        Some(('&', _)) => match next_ch(input, pos + 1) {
-            Some(('#', _)) => scan_char_ref(input, pos),
-            Some((_, _)) => scan_entity_ref(input, pos),
-            None => None,
-        },
-        _ => None,
+    if input.len() <= pos {
+        return None;
     }
+
+    let byte = input[pos];
+
+    if byte != b'&' {
+        return None;
+    }
+
+    scan_ref_after_ampersand(input, pos + 1)
 }
 
 #[must_use]
-const fn scan_entity_ref(input: &[u8], pos: usize) -> Option<usize> {
-    // TODO: Can optimize because the first character may have been peeked at
+const fn scan_ref_after_ampersand(input: &[u8], pos: usize) -> Option<usize> {
+    debug_assert!(input[pos - 1] == b'&');
 
-    let idx = expect_ch!(input, pos, '&');
-    let Some(idx) = scan_name(input, idx) else {
+    if input.len() <= pos {
+        return None;
+    }
+
+    let byte = input[pos];
+
+    if byte == b'#' {
+        scan_char_ref_after_prefix(input, pos + 1)
+    } else {
+        scan_entity_ref_after_prefix(input, pos)
+    }
+}
+
+#[inline]
+#[must_use]
+const fn scan_entity_ref_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
+    debug_assert!(input[pos - 1] == b'&');
+
+    let Some(idx) = scan_name(input, pos) else {
         return None;
     };
 
-    Some(expect_ch!(input, idx, ';'))
+    if input.len() <= idx {
+        return None;
+    }
+    if input[idx] != b';' {
+        return None;
+    }
+    Some(idx + 1)
 }
 
 /// Scan parameter-entity reference
