@@ -157,6 +157,9 @@ const fn scan_comment(input: &[u8], pos: usize) -> Option<usize> {
 #[inline]
 #[must_use]
 const fn scan_cdata(input: &[u8], pos: usize) -> Option<usize> {
+    // Skip the head '<![CDATA['
+    const OFFSET: usize = 9;
+
     // Due to scan_declaration_comment_or_cdata(), peek9 is already checked
     debug_assert!(pos + 8 < input.len());
     debug_assert!(input[pos] == b'<');
@@ -169,7 +172,7 @@ const fn scan_cdata(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(input[pos + 7] == b'A');
     debug_assert!(input[pos + 8] == b'[');
 
-    parser::scan_cd_sect(input, pos, ScanCdataSectionOpts::new_compatible())
+    parser::scan_cd_sect_after_prefix(input, pos + OFFSET, ScanCdataSectionOpts::new_compatible())
 }
 
 /// Scans a slice of bytes from the beginning and attempts to find a token.

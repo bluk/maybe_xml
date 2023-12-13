@@ -744,20 +744,70 @@ impl ScanCdataSectionOpts {
 }
 
 /// Scans for CDATA section
+#[cfg(test)]
 #[must_use]
-pub(crate) const fn scan_cd_sect(
+const fn scan_cd_sect(input: &[u8], pos: usize, opts: ScanCdataSectionOpts) -> Option<usize> {
+    if input.len() <= pos + 8 {
+        return None;
+    }
+    if input[pos] != b'<' {
+        return None;
+    }
+    if input[pos + 1] != b'!' {
+        return None;
+    }
+    if input[pos + 2] != b'[' {
+        return None;
+    }
+    if input[pos + 3] != b'C' {
+        return None;
+    }
+    if input[pos + 4] != b'D' {
+        return None;
+    }
+    if input[pos + 5] != b'A' {
+        return None;
+    }
+    if input[pos + 6] != b'T' {
+        return None;
+    }
+    if input[pos + 7] != b'A' {
+        return None;
+    }
+    if input[pos + 8] != b'[' {
+        return None;
+    }
+
+    scan_cd_sect_after_prefix(input, pos + 9, opts)
+}
+
+#[must_use]
+pub(crate) const fn scan_cd_sect_after_prefix(
     input: &[u8],
     pos: usize,
     opts: ScanCdataSectionOpts,
 ) -> Option<usize> {
-    // TODO: Can optimize because the leading characters may have been peeked at
+    let mut idx = pos;
 
-    let mut idx = expect_ch!(input, pos, '<', '!', '[', 'C', 'D', 'A', 'T', 'A', '[');
+    if opts.allow_all_chars {
+        loop {
+            if input.len() <= idx {
+                return None;
+            }
+            let byte = input[idx];
+
+            if byte == b'>' && pos <= idx - 2 && input[idx - 1] == b']' && input[idx - 2] == b']' {
+                return Some(idx + 1);
+            }
+
+            idx += 1;
+        }
+    }
 
     loop {
         let (ch, peek_idx) = expect_ch!(input, idx);
 
-        if !opts.allow_all_chars && !is_char(ch) {
+        if !is_char(ch) {
             return None;
         }
 
