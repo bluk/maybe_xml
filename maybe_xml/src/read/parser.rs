@@ -11,6 +11,17 @@ const fn next_ch(input: &[u8], pos: usize) -> Option<(char, usize)> {
         return None;
     }
 
+    let (code_pt, idx) = code_pt(input, pos);
+
+    match char::from_u32(code_pt) {
+        Some(ch) => Some((ch, idx)),
+        None => None,
+    }
+}
+
+#[inline]
+#[must_use]
+const fn code_pt(input: &[u8], pos: usize) -> (u32, usize) {
     let mut index = pos;
     macro_rules! next_byte {
         () => {{
@@ -23,10 +34,7 @@ const fn next_ch(input: &[u8], pos: usize) -> Option<(char, usize)> {
     let first = next_byte!();
 
     if first < 0b1000_0000 {
-        match char::from_u32(first as u32) {
-            Some(ch) => return Some((ch, index)),
-            None => return None,
-        }
+        return (first as u32, index);
     }
 
     let second = next_byte!();
@@ -35,10 +43,7 @@ const fn next_ch(input: &[u8], pos: usize) -> Option<(char, usize)> {
 
     if first < 0b1110_0000 {
         let code_pt = (((first & 0b0001_1111) as u32) << 6) | rest;
-        match char::from_u32(code_pt) {
-            Some(ch) => return Some((ch, index)),
-            None => return None,
-        }
+        return (code_pt, index);
     }
 
     let third = next_byte!();
@@ -47,10 +52,7 @@ const fn next_ch(input: &[u8], pos: usize) -> Option<(char, usize)> {
 
     if first < 0b1111_0000 {
         let code_pt = (((first & 0b0001_1111) as u32) << 12) | rest;
-        match char::from_u32(code_pt) {
-            Some(ch) => return Some((ch, index)),
-            None => return None,
-        }
+        return (code_pt, index);
     }
 
     let fourth = next_byte!();
@@ -59,10 +61,7 @@ const fn next_ch(input: &[u8], pos: usize) -> Option<(char, usize)> {
 
     let code_pt = (((first & 0b0000_1111) as u32) << 18) | rest;
 
-    match char::from_u32(code_pt) {
-        Some(ch) => Some((ch, index)),
-        None => None,
-    }
+    (code_pt, index)
 }
 
 /// Peeks if the next character is what is expected and returns the index of the
