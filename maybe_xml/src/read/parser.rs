@@ -191,17 +191,30 @@ const fn is_char(ch: char) -> bool {
 
 #[inline]
 #[must_use]
-const fn is_space(ch: char) -> bool {
+const fn is_space_ch(ch: char) -> bool {
     matches!(ch, '\u{20}' | '\u{9}' | '\u{D}' | '\u{A}')
+}
+
+#[inline]
+#[must_use]
+const fn is_space(byte: u8) -> bool {
+    // matches!(ch, ' ' | '\t' | '\r' | '\n')
+    matches!(byte, 32 | 9 | 13 | 10)
 }
 
 #[must_use]
 const fn scan_space(input: &[u8], pos: usize) -> Option<usize> {
-    let mut idx = expect_ch!(input, pos, is_space);
+    let mut idx = pos;
+    if input.len() <= idx || !is_space(input[idx]) {
+        return None;
+    }
+    idx += 1;
 
     loop {
-        let peek_idx = expect_ch!(input, idx, else Some(idx), is_space);
-        idx = peek_idx;
+        if input.len() <= idx || !is_space(input[idx]) {
+            return Some(idx);
+        }
+        idx += 1;
     }
 }
 
@@ -322,14 +335,14 @@ const fn scan_attribute_value(
 ) -> Option<usize> {
     let (quote_ch, mut idx) = expect_ch!(input, pos);
 
-    debug_assert!(!is_space(quote_ch));
+    debug_assert!(!is_space_ch(quote_ch));
 
     if quote_ch != '"' && quote_ch != '\'' {
         if opts.allow_no_quote {
             loop {
                 let (ch, peek_idx) = expect_ch!(input, idx);
 
-                if is_space(ch) || ch == '>' {
+                if is_space_ch(ch) || ch == '>' {
                     return Some(idx);
                 }
 
@@ -1965,10 +1978,10 @@ mod tests {
 
     #[test]
     const fn test_space() {
-        assert!(is_space(' '));
-        assert!(is_space('\t'));
-        assert!(is_space('\r'));
-        assert!(is_space('\n'));
+        assert!(is_space_ch(' '));
+        assert!(is_space_ch('\t'));
+        assert!(is_space_ch('\r'));
+        assert!(is_space_ch('\n'));
     }
 
     #[test]
