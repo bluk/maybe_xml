@@ -545,7 +545,7 @@ mod tests {
     #[test]
     fn empty_element_tag_with_last_slash_means_start_tag() {
         let input = "<hello/ invalid>";
-        verify_tokenize_all(input, &[Ty::StartTag(StartTag::from_str(input))]);
+        verify_tokenize(input, 0, &[], 0);
     }
 
     #[test]

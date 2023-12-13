@@ -1337,14 +1337,14 @@ const fn scan_content(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> usize
 
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct ScanEmptyTagOpts {
-    pub(crate) allow_slash: bool,
+    pub(crate) allow_space_after_slash: bool,
     pub(crate) attr_opts: ScanAttributeOpts,
 }
 
 impl ScanEmptyTagOpts {
     pub(crate) const fn new_compatible() -> Self {
         Self {
-            allow_slash: true,
+            allow_space_after_slash: true,
             attr_opts: ScanAttributeOpts::new_compatible(),
         }
     }
@@ -1363,31 +1363,12 @@ const fn scan_empty_tag_after_prefix(
 
     debug_assert!(!is_name_ch('/'));
 
-    loop {
-        let mut peek_idx = idx;
-
-        if let Some(peek_space_idx) = scan_space(input, peek_idx) {
-            if let Some(peek_idx) = scan_attribute(input, peek_space_idx, opts.attr_opts) {
-                idx = peek_idx;
-                continue;
-            }
-            peek_idx = peek_space_idx;
+    while let Some(peek_idx) = scan_space(input, idx) {
+        if let Some(peek_idx) = scan_attribute(input, peek_idx, opts.attr_opts) {
+            idx = peek_idx;
+        } else {
+            break;
         }
-
-        if opts.allow_slash {
-            // TODO: In normal parsing, would just emit error here
-            if peek_idx < input.len() && input[peek_idx] == b'/' {
-                let peek_idx = peek_idx + 1;
-                if peek_idx < input.len() && input[peek_idx] == b'>' {
-                    break;
-                }
-
-                idx = peek_idx;
-                continue;
-            }
-        }
-
-        break;
     }
 
     let idx = scan_optional_space(input, idx);
@@ -1399,7 +1380,12 @@ const fn scan_empty_tag_after_prefix(
     if byte != b'/' {
         return None;
     }
-    let idx = idx + 1;
+    let mut idx = idx + 1;
+
+    if opts.allow_space_after_slash {
+        // TODO: In normal parsing, would just emit error here
+        idx = scan_optional_space(input, idx);
+    }
 
     if input.len() <= idx {
         return None;
@@ -1424,31 +1410,12 @@ pub(crate) const fn scan_start_or_empty_tag_after_prefix(
 
     debug_assert!(!is_name_ch('/'));
 
-    loop {
-        let mut peek_idx = idx;
-
-        if let Some(peek_space_idx) = scan_space(input, peek_idx) {
-            if let Some(peek_idx) = scan_attribute(input, peek_space_idx, opts.attr_opts) {
-                idx = peek_idx;
-                continue;
-            }
-            peek_idx = peek_space_idx;
+    while let Some(peek_idx) = scan_space(input, idx) {
+        if let Some(peek_idx) = scan_attribute(input, peek_idx, opts.attr_opts) {
+            idx = peek_idx;
+        } else {
+            break;
         }
-
-        if opts.allow_slash {
-            // TODO: In normal parsing, would just emit error here
-            if peek_idx < input.len() && input[peek_idx] == b'/' {
-                let peek_idx = peek_idx + 1;
-                if peek_idx < input.len() && input[peek_idx] == b'>' {
-                    break;
-                }
-
-                idx = peek_idx;
-                continue;
-            }
-        }
-
-        break;
     }
 
     let idx = scan_optional_space(input, idx);
@@ -1459,7 +1426,13 @@ pub(crate) const fn scan_start_or_empty_tag_after_prefix(
     let byte = input[idx];
 
     if byte == b'/' {
-        let idx = idx + 1;
+        let mut idx = idx + 1;
+
+        if opts.allow_space_after_slash {
+            // TODO: In normal parsing, would just emit error here
+            idx = scan_optional_space(input, idx);
+        }
+
         if input.len() <= idx {
             return None;
         }
@@ -1467,6 +1440,7 @@ pub(crate) const fn scan_start_or_empty_tag_after_prefix(
         if byte != b'>' {
             return None;
         }
+
         Some(idx + 1)
     } else if byte == b'>' {
         Some(idx + 1)
