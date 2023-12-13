@@ -1169,12 +1169,14 @@ const fn scan_element(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Optio
     Some(idx)
 }
 
+#[cfg(test)]
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct ScanStartTagOpts {
     pub(crate) allow_slash: bool,
     pub(crate) attr_opts: ScanAttributeOpts,
 }
 
+#[cfg(test)]
 impl ScanStartTagOpts {
     pub(crate) const fn new_compatible() -> Self {
         Self {
@@ -1198,8 +1200,9 @@ const fn scan_start_tag(input: &[u8], pos: usize, opts: ScanStartTagOpts) -> Opt
     scan_start_tag_after_prefix(input, pos + 1, opts)
 }
 
+#[cfg(test)]
 #[must_use]
-pub(crate) const fn scan_start_tag_after_prefix(
+const fn scan_start_tag_after_prefix(
     input: &[u8],
     pos: usize,
     opts: ScanStartTagOpts,
@@ -1385,8 +1388,9 @@ impl ScanEmptyTagOpts {
     }
 }
 
+#[cfg(test)]
 #[must_use]
-pub(crate) const fn scan_empty_tag_after_prefix(
+const fn scan_empty_tag_after_prefix(
     input: &[u8],
     pos: usize,
     opts: ScanEmptyTagOpts,
@@ -1444,6 +1448,69 @@ pub(crate) const fn scan_empty_tag_after_prefix(
     }
 
     Some(idx + 1)
+}
+
+#[must_use]
+pub(crate) const fn scan_start_or_empty_tag_after_prefix(
+    input: &[u8],
+    pos: usize,
+    opts: ScanEmptyTagOpts,
+) -> Option<usize> {
+    let Some(mut idx) = scan_name(input, pos) else {
+        return None;
+    };
+
+    debug_assert!(!is_name_ch('/'));
+
+    loop {
+        let mut peek_idx = idx;
+
+        if let Some(peek_space_idx) = scan_space(input, peek_idx) {
+            if let Some(peek_idx) = scan_attribute(input, peek_space_idx, opts.attr_opts) {
+                idx = peek_idx;
+                continue;
+            }
+            peek_idx = peek_space_idx;
+        }
+
+        if opts.allow_slash {
+            // TODO: In normal parsing, would just emit error here
+            if peek_idx < input.len() && input[peek_idx] == b'/' {
+                let peek_idx = peek_idx + 1;
+                if peek_idx < input.len() && input[peek_idx] == b'>' {
+                    break;
+                }
+
+                idx = peek_idx;
+                continue;
+            }
+        }
+
+        break;
+    }
+
+    let idx = scan_optional_space(input, idx);
+
+    if input.len() <= idx {
+        return None;
+    }
+    let byte = input[idx];
+
+    if byte == b'/' {
+        let idx = idx + 1;
+        if input.len() <= idx {
+            return None;
+        }
+        let byte = input[idx];
+        if byte != b'>' {
+            return None;
+        }
+        Some(idx + 1)
+    } else if byte == b'>' {
+        Some(idx + 1)
+    } else {
+        None
+    }
 }
 
 #[must_use]

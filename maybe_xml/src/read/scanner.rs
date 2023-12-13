@@ -2,7 +2,7 @@
 
 use crate::read::parser::{
     self, ScanCdataSectionOpts, ScanCharDataOpts, ScanCommentOpts, ScanEmptyTagOpts,
-    ScanMarkupDeclOpts, ScanProcessingInstructionOpts, ScanStartTagOpts,
+    ScanMarkupDeclOpts, ScanProcessingInstructionOpts,
 };
 
 #[inline]
@@ -46,13 +46,11 @@ const fn scan_start_or_empty_element_tag(input: &[u8], pos: usize) -> Option<usi
     debug_assert!(input[pos + 1] != b'?');
     debug_assert!(input[pos + 1] != b'!');
 
-    if let Some(index) =
-        parser::scan_start_tag_after_prefix(input, pos + OFFSET, ScanStartTagOpts::new_compatible())
-    {
-        return Some(index);
-    }
-
-    parser::scan_empty_tag_after_prefix(input, pos + OFFSET, ScanEmptyTagOpts::new_compatible())
+    parser::scan_start_or_empty_tag_after_prefix(
+        input,
+        pos + OFFSET,
+        ScanEmptyTagOpts::new_compatible(),
+    )
 }
 
 #[must_use]
