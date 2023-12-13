@@ -645,18 +645,30 @@ impl ScanProcessingInstructionOpts {
     }
 }
 
+#[must_use]
+const fn scan_pi(input: &[u8], pos: usize, opts: ScanProcessingInstructionOpts) -> Option<usize> {
+    if input.len() <= pos + 1 {
+        return None;
+    }
+    if input[pos] != b'<' {
+        return None;
+    }
+    if input[pos + 1] != b'?' {
+        return None;
+    }
+
+    scan_pi_after_prefix(input, pos + 2, opts)
+}
+
 /// Scans for Processing Instructions
 #[must_use]
-pub(crate) const fn scan_pi(
+pub(crate) const fn scan_pi_after_prefix(
     input: &[u8],
     pos: usize,
     opts: ScanProcessingInstructionOpts,
 ) -> Option<usize> {
-    // TODO: Can optimize because the leading characters may have been peeked at
-    let idx = expect_ch!(input, pos, '<', '?');
-
-    let start_pi_target = idx;
-    let Some(mut idx) = scan_name(input, idx) else {
+    let start_pi_target = pos;
+    let Some(mut idx) = scan_name(input, pos) else {
         return None;
     };
 
@@ -670,13 +682,16 @@ pub(crate) const fn scan_pi(
         return None;
     }
 
+    debug_assert!(!is_name_ch('?'));
+
     if let Some(peek_idx) = scan_space(input, idx) {
         idx = peek_idx;
     } else {
-        if let Some(peek_idx) = peek_ch!(input, idx, '?') {
-            if let Some(peek_idx) = peek_ch!(input, peek_idx, '>') {
-                return Some(peek_idx);
-            };
+        if idx < input.len() && input[idx] == b'?' {
+            let peek_idx = idx + 1;
+            if peek_idx < input.len() && input[peek_idx] == b'>' {
+                return Some(peek_idx + 1);
+            }
         }
 
         if !opts.allow_non_space_after_pi_target {
@@ -684,10 +699,25 @@ pub(crate) const fn scan_pi(
         }
     }
 
+    if opts.allow_all_chars {
+        loop {
+            if input.len() <= idx {
+                return None;
+            }
+            let byte = input[idx];
+
+            if byte == b'>' && pos < idx && input[idx - 1] == b'?' {
+                return Some(idx + 1);
+            }
+
+            idx += 1;
+        }
+    }
+
     loop {
         let (ch, peek_idx) = expect_ch!(input, idx);
 
-        if !opts.allow_all_chars && !is_char(ch) {
+        if !is_char(ch) {
             return None;
         }
 
@@ -2236,6 +2266,26 @@ mod tests {
     #[test]
     fn test_pi() {
         let input = r" <?xml?> ";
+        assert_eq!(
+            None,
+            scan_pi(
+                input.as_bytes(),
+                1,
+                ScanProcessingInstructionOpts::default()
+            )
+        );
+
+        let input = r" <?x?> ";
+        assert_eq!(
+            Some(input.len() - 1),
+            scan_pi(
+                input.as_bytes(),
+                1,
+                ScanProcessingInstructionOpts::default()
+            )
+        );
+
+        let input = r" <?> ";
         assert_eq!(
             None,
             scan_pi(
