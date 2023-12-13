@@ -304,20 +304,20 @@ const fn scan_nm_token(input: &[u8], pos: usize) -> Option<usize> {
 
 #[must_use]
 const fn scan_entity_value(input: &[u8], pos: usize) -> Option<usize> {
-    let (quote_ch, mut idx) = expect_ch!(input, pos);
+    let (quote_byte, mut idx) = expect_byte!(input, pos);
 
-    if quote_ch != '"' && quote_ch != '\'' {
+    if quote_byte != b'"' && quote_byte != b'\'' {
         return None;
     }
 
     loop {
-        let (ch, peek_idx) = expect_ch!(input, pos);
+        let (byte, peek_idx) = expect_byte!(input, idx);
 
-        if ch == quote_ch {
+        if byte == quote_byte {
             return Some(peek_idx);
         }
 
-        if ch == '%' {
+        if byte == b'%' {
             if let Some(peek_idx) = scan_pe_ref(input, idx) {
                 idx = peek_idx;
                 continue;
@@ -326,9 +326,8 @@ const fn scan_entity_value(input: &[u8], pos: usize) -> Option<usize> {
             return None;
         }
 
-        if ch == '&' {
-            debug_assert!(peek_idx == idx + 1);
-            if let Some(peek_idx) = scan_ref_after_ampersand(input, idx + 1) {
+        if byte == b'&' {
+            if let Some(peek_idx) = scan_ref_after_ampersand(input, peek_idx) {
                 idx = peek_idx;
                 continue;
             }
@@ -429,16 +428,16 @@ const fn scan_attribute_value(
 
 #[must_use]
 const fn scan_system_literal(input: &[u8], pos: usize) -> Option<usize> {
-    let (quote_ch, mut idx) = expect_ch!(input, pos);
+    let (quote_byte, mut idx) = expect_byte!(input, pos);
 
-    if quote_ch != '"' && quote_ch != '\'' {
+    if quote_byte != b'"' && quote_byte != b'\'' {
         return None;
     }
 
     loop {
-        let (ch, peek_idx) = expect_ch!(input, idx);
+        let (byte, peek_idx) = expect_byte!(input, idx);
 
-        if ch == quote_ch {
+        if byte == quote_byte {
             return Some(peek_idx);
         }
 
@@ -1706,7 +1705,7 @@ const fn scan_att_type(input: &[u8], pos: usize) -> Option<usize> {
             return Some(peek_idx);
         };
 
-        if let Some(peek_idx) = peek_ch!(input, pos, 'I', 'E', 'S') {
+        if let Some(peek_idx) = peek_ch!(input, peek_idx, 'I', 'E', 'S') {
             return Some(peek_idx);
         };
     }
