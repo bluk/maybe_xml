@@ -540,34 +540,88 @@ impl ScanCommentOpts {
 
 /// Scans for a comment.
 #[must_use]
-pub(crate) const fn scan_comment(input: &[u8], pos: usize, opts: ScanCommentOpts) -> Option<usize> {
-    // TODO: Can optimize because the leading characters may have been peeked at
+const fn scan_comment(input: &[u8], pos: usize, opts: ScanCommentOpts) -> Option<usize> {
+    if input.len() <= pos + 3 {
+        return None;
+    }
 
-    let mut idx = expect_ch!(input, pos, '<', '!', '-', '-');
+    if input[pos] != b'<' {
+        return None;
+    }
+    if input[pos + 1] != b'!' {
+        return None;
+    }
+    if input[pos + 2] != b'-' {
+        return None;
+    }
+    if input[pos + 3] != b'-' {
+        return None;
+    }
 
-    let mut prev_ch = ' ';
+    scan_comment_after_prefix(input, pos + 4, opts)
+}
 
-    loop {
+/// Scans for a comment.
+#[must_use]
+pub(crate) const fn scan_comment_after_prefix(
+    input: &[u8],
+    pos: usize,
+    opts: ScanCommentOpts,
+) -> Option<usize> {
+    let mut idx = pos;
+    if opts.allow_non_chars {
+        let mut prev_byte = b' ';
+
         loop {
-            let (ch, peek_idx) = expect_ch!(input, idx);
+            loop {
+                if input.len() <= idx {
+                    return None;
+                }
+                let byte = input[idx];
 
-            if !opts.allow_non_chars && !is_char(ch) {
+                let is_double_dash = byte == b'-' && prev_byte == b'-';
+                idx += 1;
+                prev_byte = byte;
+
+                if is_double_dash {
+                    break;
+                }
+            }
+
+            if input.len() <= idx {
                 return None;
             }
-
-            let is_double_dash = ch == '-' && prev_ch == '-';
-            idx = peek_idx;
-            prev_ch = ch;
-
-            if is_double_dash {
-                break;
+            if input[idx] == b'>' {
+                return Some(idx + 1);
+            } else if !opts.allow_double_dash {
+                return None;
             }
         }
+    } else {
+        let mut prev_ch = ' ';
 
-        if let Some(peek_idx) = peek_ch!(input, idx, '>') {
-            return Some(peek_idx);
-        } else if !opts.allow_double_dash {
-            return None;
+        loop {
+            loop {
+                let (ch, peek_idx) = expect_ch!(input, idx);
+
+                if !is_char(ch) {
+                    return None;
+                }
+
+                let is_double_dash = ch == '-' && prev_ch == '-';
+                idx = peek_idx;
+                prev_ch = ch;
+
+                if is_double_dash {
+                    break;
+                }
+            }
+
+            if let Some(peek_idx) = peek_ch!(input, idx, '>') {
+                return Some(peek_idx);
+            } else if !opts.allow_double_dash {
+                return None;
+            }
         }
     }
 }
@@ -2096,6 +2150,30 @@ mod tests {
         assert_eq!(
             Some(input.len() - 1),
             scan_comment(input.as_bytes(), 1, ScanCommentOpts::default())
+        );
+
+        let input = " <!----> ";
+        assert_eq!(
+            Some(input.len() - 1),
+            scan_comment(input.as_bytes(), 1, ScanCommentOpts::default())
+        );
+
+        let input = "<!---->";
+        assert_eq!(
+            Some(input.len()),
+            scan_comment(input.as_bytes(), 0, ScanCommentOpts::default())
+        );
+
+        let input = " <!---> ";
+        assert_eq!(
+            None,
+            scan_comment(input.as_bytes(), 1, ScanCommentOpts::default())
+        );
+
+        let input = "<!-";
+        assert_eq!(
+            None,
+            scan_comment(input.as_bytes(), 0, ScanCommentOpts::default())
         );
     }
 

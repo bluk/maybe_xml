@@ -137,6 +137,9 @@ const fn scan_declaration(input: &[u8], pos: usize) -> Option<usize> {
 #[inline]
 #[must_use]
 const fn scan_comment(input: &[u8], pos: usize) -> Option<usize> {
+    // Skip the head '<!--'
+    const OFFSET: usize = 4;
+
     // Due to scan_declaration_comment_or_cdata(), peek4 is already checked
     debug_assert!(pos + 3 < input.len());
     debug_assert!(input[pos] == b'<');
@@ -144,10 +147,7 @@ const fn scan_comment(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(input[pos + 2] == b'-');
     debug_assert!(input[pos + 3] == b'-');
 
-    // Skip OFFSET + 2 because at the minimum, it must be `<!---->`.
-    // It cannot be `<!-->`.
-
-    parser::scan_comment(input, pos, ScanCommentOpts::new_compatible())
+    parser::scan_comment_after_prefix(input, pos + OFFSET, ScanCommentOpts::new_compatible())
 }
 
 #[inline]
