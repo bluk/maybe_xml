@@ -549,27 +549,56 @@ impl ScanCharDataOpts {
 #[must_use]
 pub(crate) const fn scan_char_data(input: &[u8], pos: usize, opts: ScanCharDataOpts) -> usize {
     let mut idx = pos;
-    loop {
-        let (byte, peek_idx) = expect_byte!(input, idx, else idx);
 
-        if byte == b'<' {
-            return idx;
-        }
+    match (opts.allow_ampersand, opts.allow_cdata_section_close) {
+        (false, false) => loop {
+            let (byte, peek_idx) = expect_byte!(input, idx, else idx);
 
-        if !opts.allow_ampersand && byte == b'&' {
-            return idx;
-        }
+            if byte == b'<' {
+                return idx;
+            }
 
-        if !opts.allow_cdata_section_close
-            && byte == b'>'
-            && pos <= idx - 2
-            && input[idx - 1] == b']'
-            && input[idx - 2] == b']'
-        {
-            return idx - 2;
-        }
+            if byte == b'&' {
+                return idx;
+            }
 
-        idx = peek_idx;
+            if byte == b'>' && pos <= idx - 2 && input[idx - 1] == b']' && input[idx - 2] == b']' {
+                return idx - 2;
+            }
+
+            idx = peek_idx;
+        },
+        (true, true) => loop {
+            let (byte, peek_idx) = expect_byte!(input, idx, else idx);
+
+            if byte == b'<' {
+                return idx;
+            }
+
+            idx = peek_idx;
+        },
+        (_, _) => loop {
+            let (byte, peek_idx) = expect_byte!(input, idx, else idx);
+
+            if byte == b'<' {
+                return idx;
+            }
+
+            if !opts.allow_ampersand && byte == b'&' {
+                return idx;
+            }
+
+            if !opts.allow_cdata_section_close
+                && byte == b'>'
+                && pos <= idx - 2
+                && input[idx - 1] == b']'
+                && input[idx - 2] == b']'
+            {
+                return idx - 2;
+            }
+
+            idx = peek_idx;
+        },
     }
 }
 
