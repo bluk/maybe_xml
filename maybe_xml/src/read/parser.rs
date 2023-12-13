@@ -681,7 +681,6 @@ pub(crate) const fn scan_comment_after_prefix(
 pub(crate) struct ScanProcessingInstructionOpts {
     pub(crate) allow_xml_target_name: bool,
     pub(crate) allow_all_chars: bool,
-    pub(crate) allow_non_space_after_pi_target: bool,
 }
 
 impl ScanProcessingInstructionOpts {
@@ -689,7 +688,6 @@ impl ScanProcessingInstructionOpts {
         Self {
             allow_xml_target_name: true,
             allow_all_chars: true,
-            allow_non_space_after_pi_target: true,
         }
     }
 }
@@ -746,9 +744,7 @@ pub(crate) const fn scan_pi_after_prefix(
             }
         }
 
-        if !opts.allow_non_space_after_pi_target {
-            return None;
-        }
+        return None;
     }
 
     if opts.allow_all_chars {

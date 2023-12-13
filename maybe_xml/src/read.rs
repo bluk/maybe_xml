@@ -571,12 +571,7 @@ mod tests {
     #[test]
     fn processing_instruction_with_broken_delimiter() {
         let input = r#"<?test? > a="v"?>"#;
-        verify_tokenize_all(
-            input,
-            &[Ty::ProcessingInstruction(ProcessingInstruction::from_str(
-                input,
-            ))],
-        );
+        verify_tokenize(input, 0, &[], 0);
     }
 
     #[test]
