@@ -7,7 +7,7 @@ const UTF8_CONTINUATION_BYTE_MASK: u8 = 0b0011_1111;
 /// be a complete Unicode scalar value.
 #[must_use]
 const fn next_ch(input: &[u8], pos: usize) -> Option<(char, usize)> {
-    if input.len() <= pos {
+    if input.len() == pos {
         return None;
     }
 
@@ -143,6 +143,48 @@ macro_rules! expect_ch {
     };
 }
 
+macro_rules! expect_byte {
+    ($input:expr, $pos:expr $(,)?) => {
+        expect_byte!($input, $pos, else None)
+    };
+    ($input:expr, $pos:expr, else $else_ret_expr:expr $(,)?) => {
+        {
+            if $input.len() == $pos {
+                return $else_ret_expr;
+            }
+            ($input[$pos], $pos + 1)
+        }
+    };
+    ($input:expr, $pos:expr, $expected:literal $(,)?) => {
+        expect_byte!($input, $pos, else None, $expected)
+    };
+    ($input:expr, $pos:expr, else $else_ret_expr:expr, $expected:literal $(,)?) => {
+        {
+            if $input.len() == $pos {
+                return $else_ret_expr;
+            }
+            if $input[$pos] != $expected {
+                return $else_ret_expr;
+            }
+            $pos + 1
+        }
+    };
+    ($input:expr, $pos:expr, $expected:expr $(,)?) => {
+        expect_byte!($input, $pos, else None, $expected)
+    };
+    ($input:expr, $pos:expr, else $else_ret_expr:expr, $expected:expr $(,)?) => {
+        {
+            if $input.len() == $pos {
+                return $else_ret_expr;
+            }
+            if !$expected($input[$pos]) {
+                return $else_ret_expr;
+            }
+            $pos + 1
+        }
+    };
+}
+
 #[cfg(test)]
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct ScanDocumentOpts {
@@ -199,17 +241,10 @@ const fn is_space(byte: u8) -> bool {
 
 #[must_use]
 const fn scan_space(input: &[u8], pos: usize) -> Option<usize> {
-    let mut idx = pos;
-    if input.len() <= idx || !is_space(input[idx]) {
-        return None;
-    }
-    idx += 1;
+    let mut idx = expect_byte!(input, pos, is_space);
 
     loop {
-        if input.len() <= idx || !is_space(input[idx]) {
-            return Some(idx);
-        }
-        idx += 1;
+        idx = expect_byte!(input, idx, else Some(idx), is_space);
     }
 }
 
@@ -329,23 +364,14 @@ const fn scan_attribute_value(
     pos: usize,
     opts: ScanAttributeValueOpts,
 ) -> Option<usize> {
-    if input.len() <= pos {
-        return None;
-    }
-
-    let quote_byte = input[pos];
-    let mut idx = pos + 1;
+    let (quote_byte, mut idx) = expect_byte!(input, pos);
 
     debug_assert!(!is_space(quote_byte));
 
     if quote_byte != b'"' && quote_byte != b'\'' {
         if opts.allow_no_quote {
             loop {
-                if input.len() <= idx {
-                    return None;
-                }
-                let byte = input[idx];
-                let peek_idx = idx + 1;
+                let (byte, peek_idx) = expect_byte!(input, idx);
 
                 // Need to account for `<name att=val>`` and `<name att=val/>`
 
@@ -358,7 +384,7 @@ const fn scan_attribute_value(
                 }
 
                 if byte == b'&' {
-                    if let Some(peek_idx) = scan_ref_after_ampersand(input, idx + 1) {
+                    if let Some(peek_idx) = scan_ref_after_ampersand(input, peek_idx) {
                         idx = peek_idx;
                         continue;
                     }
@@ -376,11 +402,7 @@ const fn scan_attribute_value(
     }
 
     loop {
-        if input.len() <= idx {
-            return None;
-        }
-        let byte = input[idx];
-        let peek_idx = idx + 1;
+        let (byte, peek_idx) = expect_byte!(input, idx);
 
         if byte == quote_byte {
             return Some(peek_idx);
@@ -391,7 +413,7 @@ const fn scan_attribute_value(
         }
 
         if byte == b'&' {
-            if let Some(peek_idx) = scan_ref_after_ampersand(input, idx + 1) {
+            if let Some(peek_idx) = scan_ref_after_ampersand(input, peek_idx) {
                 idx = peek_idx;
                 continue;
             }
@@ -499,11 +521,7 @@ impl ScanCharDataOpts {
 pub(crate) const fn scan_char_data(input: &[u8], pos: usize, opts: ScanCharDataOpts) -> usize {
     let mut idx = pos;
     loop {
-        if input.len() == idx {
-            return idx;
-        }
-
-        let byte = input[idx];
+        let (byte, peek_idx) = expect_byte!(input, idx, else idx);
 
         if byte == b'<' {
             return idx;
@@ -522,7 +540,7 @@ pub(crate) const fn scan_char_data(input: &[u8], pos: usize, opts: ScanCharDataO
             return idx - 2;
         }
 
-        idx += 1;
+        idx = peek_idx;
     }
 }
 
@@ -571,19 +589,21 @@ pub(crate) const fn scan_comment_after_prefix(
     pos: usize,
     opts: ScanCommentOpts,
 ) -> Option<usize> {
+    debug_assert!(input[pos - 4] == b'<');
+    debug_assert!(input[pos - 3] == b'!');
+    debug_assert!(input[pos - 2] == b'-');
+    debug_assert!(input[pos - 1] == b'-');
+
     let mut idx = pos;
     if opts.allow_non_chars {
         let mut prev_byte = b' ';
 
         loop {
             loop {
-                if input.len() <= idx {
-                    return None;
-                }
-                let byte = input[idx];
+                let (byte, peek_idx) = expect_byte!(input, idx);
 
                 let is_double_dash = byte == b'-' && prev_byte == b'-';
-                idx += 1;
+                idx = peek_idx;
                 prev_byte = byte;
 
                 if is_double_dash {
@@ -591,11 +611,9 @@ pub(crate) const fn scan_comment_after_prefix(
                 }
             }
 
-            if input.len() <= idx {
-                return None;
-            }
-            if input[idx] == b'>' {
-                return Some(idx + 1);
+            let (byte, peek_idx) = expect_byte!(input, idx);
+            if byte == b'>' {
+                return Some(peek_idx);
             } else if !opts.allow_double_dash {
                 return None;
             }
@@ -669,6 +687,9 @@ pub(crate) const fn scan_pi_after_prefix(
     pos: usize,
     opts: ScanProcessingInstructionOpts,
 ) -> Option<usize> {
+    debug_assert!(input[pos - 2] == b'<');
+    debug_assert!(input[pos - 1] == b'?');
+
     let start_pi_target = pos;
     let Some(mut idx) = scan_name(input, pos) else {
         return None;
@@ -703,16 +724,13 @@ pub(crate) const fn scan_pi_after_prefix(
 
     if opts.allow_all_chars {
         loop {
-            if input.len() <= idx {
-                return None;
-            }
-            let byte = input[idx];
+            let (byte, peek_idx) = expect_byte!(input, idx);
 
             if byte == b'>' && pos < idx && input[idx - 1] == b'?' {
-                return Some(idx + 1);
+                return Some(peek_idx);
             }
 
-            idx += 1;
+            idx = peek_idx;
         }
     }
 
@@ -789,20 +807,27 @@ pub(crate) const fn scan_cd_sect_after_prefix(
     pos: usize,
     opts: ScanCdataSectionOpts,
 ) -> Option<usize> {
+    debug_assert!(input[pos - 9] == b'<');
+    debug_assert!(input[pos - 8] == b'!');
+    debug_assert!(input[pos - 7] == b'[');
+    debug_assert!(input[pos - 6] == b'C');
+    debug_assert!(input[pos - 5] == b'D');
+    debug_assert!(input[pos - 4] == b'A');
+    debug_assert!(input[pos - 3] == b'T');
+    debug_assert!(input[pos - 2] == b'A');
+    debug_assert!(input[pos - 1] == b'[');
+
     let mut idx = pos;
 
     if opts.allow_all_chars {
         loop {
-            if input.len() <= idx {
-                return None;
-            }
-            let byte = input[idx];
+            let (byte, peek_idx) = expect_byte!(input, idx);
 
             if byte == b'>' && pos <= idx - 2 && input[idx - 1] == b']' && input[idx - 2] == b']' {
-                return Some(idx + 1);
+                return Some(peek_idx);
             }
 
-            idx += 1;
+            idx = peek_idx;
         }
     }
 
@@ -927,14 +952,8 @@ const fn scan_version_info(input: &[u8], pos: usize) -> Option<usize> {
 #[must_use]
 const fn scan_eq(input: &[u8], pos: usize) -> Option<usize> {
     let idx = scan_optional_space(input, pos);
-
-    if input.len() <= idx {
-        return None;
-    }
-    if input[idx] != b'=' {
-        return None;
-    }
-    let idx = scan_optional_space(input, idx + 1);
+    let idx = expect_byte!(input, idx, b'=');
+    let idx = scan_optional_space(input, idx);
     Some(idx)
 }
 
@@ -1108,14 +1127,7 @@ const fn scan_sd_decl(input: &[u8], pos: usize) -> Option<usize> {
 #[cfg(test)]
 #[must_use]
 const fn scan_element(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Option<usize> {
-    if input.len() <= pos {
-        return None;
-    }
-    let byte = input[pos];
-    if byte != b'<' {
-        return None;
-    }
-    let idx = pos + 1;
+    let idx = expect_byte!(input, pos, b'<');
 
     if let Some(peek_idx) = scan_empty_tag_after_prefix(input, idx, opts.empty_elem) {
         return Some(peek_idx);
@@ -1172,15 +1184,8 @@ const fn scan_element(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Optio
 #[cfg(test)]
 #[must_use]
 const fn scan_start_tag(input: &[u8], pos: usize, opts: ScanAttributeOpts) -> Option<usize> {
-    if input.len() <= pos {
-        return None;
-    }
-    let byte = input[pos];
-    if byte != b'<' {
-        return None;
-    }
-
-    scan_start_tag_after_prefix(input, pos + 1, opts)
+    let idx = expect_byte!(input, pos, b'<');
+    scan_start_tag_after_prefix(input, idx, opts)
 }
 
 #[cfg(test)]
@@ -1190,6 +1195,8 @@ const fn scan_start_tag_after_prefix(
     pos: usize,
     opts: ScanAttributeOpts,
 ) -> Option<usize> {
+    debug_assert!(input[pos - 1] == b'<');
+
     let Some(mut idx) = scan_name(input, pos) else {
         return None;
     };
@@ -1204,15 +1211,7 @@ const fn scan_start_tag_after_prefix(
 
     let idx = scan_optional_space(input, idx);
 
-    if input.len() <= idx {
-        return None;
-    }
-    let byte = input[idx];
-    if byte != b'>' {
-        return None;
-    }
-
-    Some(idx + 1)
+    Some(expect_byte!(input, idx, b'>'))
 }
 
 #[derive(Debug, Default, Clone, Copy)]
@@ -1275,20 +1274,21 @@ pub(crate) const fn scan_end_tag_after_prefix(
     pos: usize,
     allow_more_than_name_and_trailing_space: bool,
 ) -> Option<usize> {
+    debug_assert!(input[pos - 2] == b'<');
+    debug_assert!(input[pos - 1] == b'/');
+
     if allow_more_than_name_and_trailing_space {
         debug_assert!(!is_name_ch('>'));
 
         let mut idx = pos;
         loop {
-            if input.len() == idx {
-                return None;
+            let (byte, peek_idx) = expect_byte!(input, idx);
+
+            if byte == b'>' {
+                return Some(peek_idx);
             }
 
-            if input[idx] == b'>' {
-                return Some(idx + 1);
-            }
-
-            idx += 1;
+            idx = peek_idx;
         }
     }
 
@@ -1298,15 +1298,7 @@ pub(crate) const fn scan_end_tag_after_prefix(
 
     let idx = scan_optional_space(input, idx);
 
-    if input.len() == idx {
-        return None;
-    }
-
-    if input[idx] != b'>' {
-        return None;
-    }
-
-    Some(idx + 1)
+    Some(expect_byte!(input, idx, b'>'))
 }
 
 #[cfg(test)]
@@ -1357,6 +1349,8 @@ const fn scan_empty_tag_after_prefix(
     pos: usize,
     opts: ScanEmptyTagOpts,
 ) -> Option<usize> {
+    debug_assert!(input[pos - 1] == b'<');
+
     let Some(mut idx) = scan_name(input, pos) else {
         return None;
     };
@@ -1373,29 +1367,13 @@ const fn scan_empty_tag_after_prefix(
 
     let idx = scan_optional_space(input, idx);
 
-    if input.len() <= idx {
-        return None;
-    }
-    let byte = input[idx];
-    if byte != b'/' {
-        return None;
-    }
-    let mut idx = idx + 1;
-
+    let mut idx = expect_byte!(input, idx, b'/');
     if opts.allow_space_after_slash {
         // TODO: In normal parsing, would just emit error here
         idx = scan_optional_space(input, idx);
     }
 
-    if input.len() <= idx {
-        return None;
-    }
-    let byte = input[idx];
-    if byte != b'>' {
-        return None;
-    }
-
-    Some(idx + 1)
+    Some(expect_byte!(input, idx, b'>'))
 }
 
 #[must_use]
@@ -1404,6 +1382,8 @@ pub(crate) const fn scan_start_or_empty_tag_after_prefix(
     pos: usize,
     opts: ScanEmptyTagOpts,
 ) -> Option<usize> {
+    debug_assert!(input[pos - 1] == b'<');
+
     let Some(mut idx) = scan_name(input, pos) else {
         return None;
     };
@@ -1420,30 +1400,19 @@ pub(crate) const fn scan_start_or_empty_tag_after_prefix(
 
     let idx = scan_optional_space(input, idx);
 
-    if input.len() <= idx {
-        return None;
-    }
-    let byte = input[idx];
+    let (byte, peek_idx) = expect_byte!(input, idx);
 
     if byte == b'/' {
-        let mut idx = idx + 1;
+        let mut idx = peek_idx;
 
         if opts.allow_space_after_slash {
             // TODO: In normal parsing, would just emit error here
             idx = scan_optional_space(input, idx);
         }
 
-        if input.len() <= idx {
-            return None;
-        }
-        let byte = input[idx];
-        if byte != b'>' {
-            return None;
-        }
-
-        Some(idx + 1)
+        Some(expect_byte!(input, idx, b'>'))
     } else if byte == b'>' {
-        Some(idx + 1)
+        Some(peek_idx)
     } else {
         None
     }
@@ -1862,34 +1831,22 @@ const fn scan_char_ref_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(input[pos - 2] == b'&');
     debug_assert!(input[pos - 1] == b'#');
 
-    if input.len() <= pos {
-        return None;
-    }
-    let byte = input[pos];
-    let mut idx = pos;
+    let (byte, peek_idx) = expect_byte!(input, pos);
 
     if byte == b'x' {
-        idx += 1;
-
-        if input.len() <= idx {
-            return None;
-        }
-        let byte = input[pos];
-
+        let (byte, peek_idx) = expect_byte!(input, peek_idx);
         if !byte.is_ascii_hexdigit() {
             return None;
         }
-        idx += 1;
+
+        let mut idx = peek_idx;
 
         loop {
-            if input.len() <= idx {
-                return None;
-            }
-
-            match input[idx] {
-                b';' => return Some(idx + 1),
+            let (byte, peek_idx) = expect_byte!(input, idx);
+            match byte {
+                b';' => return Some(peek_idx),
                 b if b.is_ascii_hexdigit() => {
-                    idx += 1;
+                    idx = peek_idx;
                 }
                 _ => {
                     return None;
@@ -1900,17 +1857,15 @@ const fn scan_char_ref_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
         if !byte.is_ascii_digit() {
             return None;
         }
-        idx += 1;
+        let mut idx = peek_idx;
 
         loop {
-            if input.len() <= idx {
-                return None;
-            }
+            let (byte, peek_idx) = expect_byte!(input, idx);
 
-            match input[idx] {
-                b';' => return Some(idx + 1),
+            match byte {
+                b';' => return Some(peek_idx),
                 b if b.is_ascii_digit() => {
-                    idx += 1;
+                    idx = peek_idx;
                 }
                 _ => {
                     return None;
@@ -1923,31 +1878,18 @@ const fn scan_char_ref_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
 #[cfg(test)]
 #[must_use]
 const fn scan_ref(input: &[u8], pos: usize) -> Option<usize> {
-    if input.len() <= pos {
-        return None;
-    }
-
-    let byte = input[pos];
-
-    if byte != b'&' {
-        return None;
-    }
-
-    scan_ref_after_ampersand(input, pos + 1)
+    let idx = expect_byte!(input, pos, b'&');
+    scan_ref_after_ampersand(input, idx)
 }
 
 #[must_use]
 const fn scan_ref_after_ampersand(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(input[pos - 1] == b'&');
 
-    if input.len() <= pos {
-        return None;
-    }
-
-    let byte = input[pos];
+    let (byte, peek_idx) = expect_byte!(input, pos);
 
     if byte == b'#' {
-        scan_char_ref_after_prefix(input, pos + 1)
+        scan_char_ref_after_prefix(input, peek_idx)
     } else {
         scan_entity_ref_after_prefix(input, pos)
     }
@@ -1962,13 +1904,7 @@ const fn scan_entity_ref_after_prefix(input: &[u8], pos: usize) -> Option<usize>
         return None;
     };
 
-    if input.len() <= idx {
-        return None;
-    }
-    if input[idx] != b';' {
-        return None;
-    }
-    Some(idx + 1)
+    Some(expect_byte!(input, idx, b';'))
 }
 
 /// Scan parameter-entity reference
