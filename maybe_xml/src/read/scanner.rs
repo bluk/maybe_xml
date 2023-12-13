@@ -36,6 +36,9 @@ const fn scan_markup(input: &[u8], pos: usize) -> Option<usize> {
 #[inline]
 #[must_use]
 const fn scan_start_or_empty_element_tag(input: &[u8], pos: usize) -> Option<usize> {
+    // Skip the head '<'
+    const OFFSET: usize = 1;
+
     // Due to scan_markup(), peek2 is already checked
     debug_assert!(pos + 1 < input.len());
     debug_assert!(input[pos] == b'<');
@@ -47,7 +50,7 @@ const fn scan_start_or_empty_element_tag(input: &[u8], pos: usize) -> Option<usi
         return Some(index);
     }
 
-    parser::scan_empty_tag(input, pos, ScanEmptyTagOpts::new_compatible())
+    parser::scan_empty_tag_after_prefix(input, pos + OFFSET, ScanEmptyTagOpts::new_compatible())
 }
 
 #[must_use]

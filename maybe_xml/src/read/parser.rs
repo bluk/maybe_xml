@@ -347,7 +347,9 @@ const fn scan_attribute_value(
                 let byte = input[idx];
                 let peek_idx = idx + 1;
 
-                if is_space(byte) || byte == b'>' {
+                // Need to account for `<name att=val>`` and `<name att=val/>`
+
+                if is_space(byte) || byte == b'>' || byte == b'/' {
                     return Some(idx);
                 }
 
@@ -1106,7 +1108,16 @@ const fn scan_sd_decl(input: &[u8], pos: usize) -> Option<usize> {
 #[cfg(test)]
 #[must_use]
 const fn scan_element(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Option<usize> {
-    if let Some(peek_idx) = scan_empty_tag(input, pos, opts.empty_elem) {
+    if input.len() <= pos {
+        return None;
+    }
+    let byte = input[pos];
+    if byte != b'<' {
+        return None;
+    }
+    let idx = pos + 1;
+
+    if let Some(peek_idx) = scan_empty_tag_after_prefix(input, idx, opts.empty_elem) {
         return Some(peek_idx);
     }
 
@@ -1355,17 +1366,16 @@ impl ScanEmptyTagOpts {
 }
 
 #[must_use]
-pub(crate) const fn scan_empty_tag(
+pub(crate) const fn scan_empty_tag_after_prefix(
     input: &[u8],
     pos: usize,
     opts: ScanEmptyTagOpts,
 ) -> Option<usize> {
-    // TODO: Can optimize because the leading character may have been peeked at
-
-    let idx = expect_ch!(input, pos, '<');
-    let Some(mut idx) = scan_name(input, idx) else {
+    let Some(mut idx) = scan_name(input, pos) else {
         return None;
     };
+
+    debug_assert!(!is_name_ch('/'));
 
     loop {
         let mut peek_idx = idx;
@@ -1380,8 +1390,9 @@ pub(crate) const fn scan_empty_tag(
 
         if opts.allow_slash {
             // TODO: In normal parsing, would just emit error here
-            if let Some(peek_idx) = peek_ch!(input, peek_idx, '/') {
-                if peek_ch!(input, peek_idx, '>').is_some() {
+            if peek_idx < input.len() && input[peek_idx] == b'/' {
+                let peek_idx = peek_idx + 1;
+                if peek_idx < input.len() && input[peek_idx] == b'>' {
                     break;
                 }
 
@@ -1395,7 +1406,24 @@ pub(crate) const fn scan_empty_tag(
 
     let idx = scan_optional_space(input, idx);
 
-    Some(expect_ch!(input, idx, '/', '>'))
+    if input.len() <= idx {
+        return None;
+    }
+    let byte = input[idx];
+    if byte != b'/' {
+        return None;
+    }
+    let idx = idx + 1;
+
+    if input.len() <= idx {
+        return None;
+    }
+    let byte = input[idx];
+    if byte != b'>' {
+        return None;
+    }
+
+    Some(idx + 1)
 }
 
 #[must_use]
