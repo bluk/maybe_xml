@@ -1438,14 +1438,12 @@ const fn scan_content(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> usize
 
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct ScanEmptyTagOpts {
-    pub(crate) allow_space_after_slash: bool,
     pub(crate) attr_opts: ScanAttributeOpts,
 }
 
 impl ScanEmptyTagOpts {
     pub(crate) const fn new_compatible() -> Self {
         Self {
-            allow_space_after_slash: true,
             attr_opts: ScanAttributeOpts::new_compatible(),
         }
     }
@@ -1476,12 +1474,7 @@ const fn scan_empty_tag_after_prefix(
 
     let idx = scan_optional_space(input, idx);
 
-    let mut idx = expect_byte!(input, idx, b'/');
-    if opts.allow_space_after_slash {
-        // TODO: In normal parsing, would just emit error here
-        idx = scan_optional_space(input, idx);
-    }
-
+    let idx = expect_byte!(input, idx, b'/');
     Some(expect_byte!(input, idx, b'>'))
 }
 
@@ -1512,13 +1505,7 @@ pub(crate) const fn scan_start_or_empty_tag_after_prefix(
     let (byte, peek_idx) = expect_byte!(input, idx);
 
     if byte == b'/' {
-        let mut idx = peek_idx;
-
-        if opts.allow_space_after_slash {
-            // TODO: In normal parsing, would just emit error here
-            idx = scan_optional_space(input, idx);
-        }
-
+        let idx = peek_idx;
         Some(expect_byte!(input, idx, b'>'))
     } else if byte == b'>' {
         Some(peek_idx)
