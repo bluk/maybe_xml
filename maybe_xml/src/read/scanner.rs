@@ -46,7 +46,9 @@ const fn scan_start_or_empty_element_tag(input: &[u8], pos: usize) -> Option<usi
     debug_assert!(input[pos + 1] != b'?');
     debug_assert!(input[pos + 1] != b'!');
 
-    if let Some(index) = parser::scan_start_tag(input, pos, ScanStartTagOpts::new_compatible()) {
+    if let Some(index) =
+        parser::scan_start_tag_after_prefix(input, pos + OFFSET, ScanStartTagOpts::new_compatible())
+    {
         return Some(index);
     }
 

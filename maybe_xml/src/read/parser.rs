@@ -1123,7 +1123,7 @@ const fn scan_element(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Optio
 
     // Or...
 
-    let Some(mut idx) = scan_start_tag(input, pos, opts.start_tag) else {
+    let Some(mut idx) = scan_start_tag_after_prefix(input, idx, opts.start_tag) else {
         return None;
     };
 
@@ -1184,24 +1184,35 @@ impl ScanStartTagOpts {
     }
 }
 
-// XXX: Skip 39
-
-#[allow(clippy::fn_params_excessive_bools)]
+#[cfg(test)]
 #[must_use]
-pub(crate) const fn scan_start_tag(
+const fn scan_start_tag(input: &[u8], pos: usize, opts: ScanStartTagOpts) -> Option<usize> {
+    if input.len() <= pos {
+        return None;
+    }
+    let byte = input[pos];
+    if byte != b'<' {
+        return None;
+    }
+
+    scan_start_tag_after_prefix(input, pos + 1, opts)
+}
+
+#[must_use]
+pub(crate) const fn scan_start_tag_after_prefix(
     input: &[u8],
     pos: usize,
     opts: ScanStartTagOpts,
 ) -> Option<usize> {
-    // TODO: Can optimize because the leading character may have been peeked at
-    let idx = expect_ch!(input, pos, '<');
-
-    let Some(mut idx) = scan_name(input, idx) else {
+    let Some(mut idx) = scan_name(input, pos) else {
         return None;
     };
 
+    debug_assert!(!is_name_ch('/'));
+
     loop {
         let mut peek_idx = idx;
+
         if let Some(peek_space_idx) = scan_space(input, peek_idx) {
             if let Some(peek_idx) = scan_attribute(input, peek_space_idx, opts.attr_opts) {
                 idx = peek_idx;
@@ -1212,8 +1223,9 @@ pub(crate) const fn scan_start_tag(
 
         if opts.allow_slash {
             // TODO: In normal parsing, would just emit error here
-            if let Some(peek_idx) = peek_ch!(input, peek_idx, '/') {
-                if peek_ch!(input, peek_idx, '>').is_some() {
+            if peek_idx < input.len() && input[peek_idx] == b'/' {
+                let peek_idx = peek_idx + 1;
+                if peek_idx < input.len() && input[peek_idx] == b'>' {
                     return None;
                 }
 
@@ -1227,7 +1239,15 @@ pub(crate) const fn scan_start_tag(
 
     let idx = scan_optional_space(input, idx);
 
-    Some(expect_ch!(input, idx, '>'))
+    if input.len() <= idx {
+        return None;
+    }
+    let byte = input[idx];
+    if byte != b'>' {
+        return None;
+    }
+
+    Some(idx + 1)
 }
 
 #[derive(Debug, Default, Clone, Copy)]
