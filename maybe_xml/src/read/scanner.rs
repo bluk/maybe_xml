@@ -7,11 +7,16 @@ use crate::read::parser::{
 
 #[inline]
 #[must_use]
-const fn scan_text_content(input: &[u8], pos: usize) -> usize {
+const fn scan_text_content(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(pos < input.len());
     debug_assert!(input[pos] != b'<');
 
-    parser::scan_char_data(input, pos + 1, ScanCharDataOpts::new_compatible())
+    let end = parser::scan_char_data(input, pos, ScanCharDataOpts::new_compatible());
+    if pos == end {
+        None
+    } else {
+        Some(end)
+    }
 }
 
 #[inline]
@@ -207,6 +212,6 @@ const fn scan_cdata(input: &[u8], pos: usize) -> Option<usize> {
 pub(super) const fn scan(input: &[u8], pos: usize) -> Option<usize> {
     match input[pos] {
         b'<' => scan_markup(input, pos),
-        _ => Some(scan_text_content(input, pos)),
+        _ => scan_text_content(input, pos),
     }
 }

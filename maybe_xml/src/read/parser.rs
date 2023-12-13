@@ -599,7 +599,7 @@ pub(crate) const fn scan_char_data(input: &[u8], pos: usize, opts: ScanCharDataO
                 return idx;
             }
 
-            if byte == b'>' && pos <= idx - 2 && input[idx - 1] == b']' && input[idx - 2] == b']' {
+            if byte == b'>' && 2 <= idx && input[idx - 1] == b']' && input[idx - 2] == b']' {
                 return idx - 2;
             }
 
@@ -627,7 +627,7 @@ pub(crate) const fn scan_char_data(input: &[u8], pos: usize, opts: ScanCharDataO
 
             if !opts.allow_cdata_section_close
                 && byte == b'>'
-                && pos <= idx - 2
+                && 2 <= idx
                 && input[idx - 1] == b']'
                 && input[idx - 2] == b']'
             {
