@@ -845,8 +845,14 @@ const fn scan_version_info(input: &[u8], pos: usize) -> Option<usize> {
 #[must_use]
 const fn scan_eq(input: &[u8], pos: usize) -> Option<usize> {
     let idx = scan_optional_space(input, pos);
-    let idx = expect_ch!(input, idx, '=');
-    let idx = scan_optional_space(input, idx);
+
+    if input.len() <= idx {
+        return None;
+    }
+    if input[idx] != b'=' {
+        return None;
+    }
+    let idx = scan_optional_space(input, idx + 1);
     Some(idx)
 }
 
