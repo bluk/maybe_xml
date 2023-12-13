@@ -979,15 +979,60 @@ const fn scan_misc(input: &[u8], pos: usize, opts: ScanMiscOpts) -> Option<usize
     scan_space(input, pos)
 }
 
+#[cfg(test)]
 #[must_use]
 pub(crate) const fn scan_doctype_decl(
     input: &[u8],
     pos: usize,
     opts: ScanMarkupDeclOpts,
 ) -> Option<usize> {
-    // TODO: Can optimize because the leading characters may have been peeked at
+    if input.len() <= pos + 1 {
+        return None;
+    }
+    if input[pos] != b'<' {
+        return None;
+    }
+    if input[pos + 1] != b'!' {
+        return None;
+    }
+    scan_doctype_decl_after_prefix(input, pos + 2, opts)
+}
 
-    let idx = expect_ch!(input, pos, '<', '!', 'D', 'O', 'C', 'T', 'Y', 'P', 'E');
+#[must_use]
+pub(crate) const fn scan_doctype_decl_after_prefix(
+    input: &[u8],
+    pos: usize,
+    opts: ScanMarkupDeclOpts,
+) -> Option<usize> {
+    debug_assert!(input[pos - 2] == b'<');
+    debug_assert!(input[pos - 1] == b'!');
+
+    if input.len() <= pos + 6 {
+        return None;
+    }
+    if input[pos] != b'D' {
+        return None;
+    }
+    if input[pos + 1] != b'O' {
+        return None;
+    }
+    if input[pos + 2] != b'C' {
+        return None;
+    }
+    if input[pos + 3] != b'T' {
+        return None;
+    }
+    if input[pos + 4] != b'Y' {
+        return None;
+    }
+    if input[pos + 5] != b'P' {
+        return None;
+    }
+    if input[pos + 6] != b'E' {
+        return None;
+    }
+
+    let idx = pos + 7;
 
     let Some(idx) = scan_space(input, idx) else {
         return None;
@@ -1005,13 +1050,18 @@ pub(crate) const fn scan_doctype_decl(
         }
     }
 
-    if let Some(peek_idx) = peek_ch!(input, idx, '[') {
-        idx = scan_int_subset(input, peek_idx, opts);
-        let peek_idx = expect_ch!(input, idx, ']');
+    if input.len() == idx {
+        return None;
+    }
+
+    if input[idx] == b'[' {
+        idx += 1;
+        idx = scan_int_subset(input, idx, opts);
+        let peek_idx = expect_byte!(input, idx, b']');
         idx = scan_optional_space(input, peek_idx);
     }
 
-    Some(expect_ch!(input, idx, '>'))
+    Some(expect_byte!(input, idx, b'>'))
 }
 
 #[inline]

@@ -133,12 +133,19 @@ const fn scan_declaration_comment_or_cdata(input: &[u8], pos: usize) -> Option<u
 #[inline]
 #[must_use]
 const fn scan_declaration(input: &[u8], pos: usize) -> Option<usize> {
+    // Skip the head '<!'
+    const OFFSET: usize = 2;
+
     // Due to scan_declaration_comment_or_cdata(), peek3 is already checked
     debug_assert!(pos + 2 < input.len());
     debug_assert!(input[pos] == b'<');
     debug_assert!(input[pos + 1] == b'!');
 
-    parser::scan_doctype_decl(input, pos, ScanMarkupDeclOpts::new_compatible())
+    parser::scan_doctype_decl_after_prefix(
+        input,
+        pos + OFFSET,
+        ScanMarkupDeclOpts::new_compatible(),
+    )
 }
 
 #[inline]
