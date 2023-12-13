@@ -652,33 +652,11 @@ pub(crate) const fn scan_comment_after_prefix(
     debug_assert!(input[pos - 1] == b'-');
 
     let mut idx = pos;
-    if opts.allow_non_chars {
-        let mut prev_byte = b' ';
 
-        loop {
-            loop {
-                let (byte, peek_idx) = expect_byte!(input, idx);
+    match (opts.allow_non_chars, opts.allow_double_dash) {
+        (false, false) => {
+            let mut prev_ch = ' ';
 
-                let is_double_dash = byte == b'-' && prev_byte == b'-';
-                idx = peek_idx;
-                prev_byte = byte;
-
-                if is_double_dash {
-                    break;
-                }
-            }
-
-            let (byte, peek_idx) = expect_byte!(input, idx);
-            if byte == b'>' {
-                return Some(peek_idx);
-            } else if !opts.allow_double_dash {
-                return None;
-            }
-        }
-    } else {
-        let mut prev_ch = ' ';
-
-        loop {
             loop {
                 let (ch, peek_idx) = expect_ch!(input, idx);
 
@@ -697,8 +675,42 @@ pub(crate) const fn scan_comment_after_prefix(
 
             if let Some(peek_idx) = peek_ch!(input, idx, '>') {
                 return Some(peek_idx);
-            } else if !opts.allow_double_dash {
-                return None;
+            }
+            None
+        }
+        (true, true) => loop {
+            let (byte, peek_idx) = expect_byte!(input, idx);
+
+            if byte == b'>' && pos <= idx - 2 && input[idx - 1] == b'-' && input[idx - 2] == b'-' {
+                return Some(peek_idx);
+            }
+
+            idx = peek_idx;
+        },
+        (_, _) => {
+            let mut prev_ch = ' ';
+            loop {
+                loop {
+                    let (ch, peek_idx) = expect_ch!(input, idx);
+
+                    if !opts.allow_non_chars && !is_char(ch) {
+                        return None;
+                    }
+
+                    let is_double_dash = ch == '-' && prev_ch == '-';
+                    idx = peek_idx;
+                    prev_ch = ch;
+
+                    if is_double_dash {
+                        break;
+                    }
+                }
+
+                if let Some(peek_idx) = peek_ch!(input, idx, '>') {
+                    return Some(peek_idx);
+                } else if !opts.allow_double_dash {
+                    return None;
+                }
             }
         }
     }
