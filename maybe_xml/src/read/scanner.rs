@@ -1,7 +1,7 @@
 //! Scans byte sequences for tokens.
 
 use crate::read::parser::{
-    self, ScanCdataSectionOpts, ScanCharDataOpts, ScanCommentOpts, ScanEmptyTagOpts,
+    self, ScanAttributeOpts, ScanCdataSectionOpts, ScanCharDataOpts, ScanCommentOpts,
     ScanMarkupDeclOpts, ScanProcessingInstructionOpts,
 };
 
@@ -49,7 +49,7 @@ const fn scan_start_or_empty_element_tag(input: &[u8], pos: usize) -> Option<usi
     parser::scan_start_or_empty_tag_after_prefix(
         input,
         pos + OFFSET,
-        ScanEmptyTagOpts::new_compatible(),
+        ScanAttributeOpts::new_compatible(),
     )
 }
 

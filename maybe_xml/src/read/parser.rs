@@ -188,7 +188,6 @@ macro_rules! expect_byte {
 #[cfg(test)]
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct ScanDocumentOpts {
-    pub(crate) empty_elem: ScanEmptyTagOpts,
     pub(crate) attrs: ScanAttributeOpts,
     pub(crate) attr_value: ScanAttributeValueOpts,
     pub(crate) cd_sect: ScanCdataSectionOpts,
@@ -1238,7 +1237,7 @@ const fn scan_sd_decl(input: &[u8], pos: usize) -> Option<usize> {
 const fn scan_element(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Option<usize> {
     let idx = expect_byte!(input, pos, b'<');
 
-    if let Some(peek_idx) = scan_empty_tag_after_prefix(input, idx, opts.empty_elem) {
+    if let Some(peek_idx) = scan_empty_tag_after_prefix(input, idx, opts.attrs) {
         return Some(peek_idx);
     }
 
@@ -1436,25 +1435,12 @@ const fn scan_content(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> usize
     idx
 }
 
-#[derive(Debug, Default, Clone, Copy)]
-pub(crate) struct ScanEmptyTagOpts {
-    pub(crate) attr_opts: ScanAttributeOpts,
-}
-
-impl ScanEmptyTagOpts {
-    pub(crate) const fn new_compatible() -> Self {
-        Self {
-            attr_opts: ScanAttributeOpts::new_compatible(),
-        }
-    }
-}
-
 #[cfg(test)]
 #[must_use]
 const fn scan_empty_tag_after_prefix(
     input: &[u8],
     pos: usize,
-    opts: ScanEmptyTagOpts,
+    opts: ScanAttributeOpts,
 ) -> Option<usize> {
     debug_assert!(input[pos - 1] == b'<');
 
@@ -1465,7 +1451,7 @@ const fn scan_empty_tag_after_prefix(
     debug_assert!(!is_name_ch('/'));
 
     while let Some(peek_idx) = scan_space(input, idx) {
-        if let Some(peek_idx) = scan_attribute(input, peek_idx, opts.attr_opts) {
+        if let Some(peek_idx) = scan_attribute(input, peek_idx, opts) {
             idx = peek_idx;
         } else {
             break;
@@ -1483,7 +1469,7 @@ const fn scan_empty_tag_after_prefix(
 pub(crate) const fn scan_start_or_empty_tag_after_prefix(
     input: &[u8],
     pos: usize,
-    opts: ScanEmptyTagOpts,
+    opts: ScanAttributeOpts,
 ) -> Option<usize> {
     debug_assert!(input[pos - 1] == b'<');
 
@@ -1494,7 +1480,7 @@ pub(crate) const fn scan_start_or_empty_tag_after_prefix(
     debug_assert!(!is_name_ch('/'));
 
     while let Some(peek_idx) = scan_space(input, idx) {
-        if let Some(peek_idx) = scan_attribute(input, peek_idx, opts.attr_opts) {
+        if let Some(peek_idx) = scan_attribute(input, peek_idx, opts) {
             idx = peek_idx;
         } else {
             idx = peek_idx;
