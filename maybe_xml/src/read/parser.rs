@@ -1674,32 +1674,57 @@ const fn scan_seq(input: &[u8], pos: usize) -> Option<usize> {
     Some(expect_ch!(input, idx, ')'))
 }
 
+#[inline]
 #[must_use]
 const fn scan_mixed(input: &[u8], pos: usize) -> Option<usize> {
     // TODO: Could optimize if the leading character is peaked?
 
-    let idx = expect_ch!(input, pos, '(');
-
+    let idx = expect_byte!(input, pos, b'(');
     let idx = scan_optional_space(input, idx);
 
-    let idx = expect_ch!(input, idx, '#', 'P', 'C', 'D', 'A', 'T', 'A');
+    if input.len() <= idx + 6 {
+        return None;
+    }
+    if input[idx] != b'#' {
+        return None;
+    }
+    if input[idx + 1] != b'P' {
+        return None;
+    }
+    if input[idx + 2] != b'C' {
+        return None;
+    }
+    if input[idx + 3] != b'D' {
+        return None;
+    }
+    if input[idx + 4] != b'A' {
+        return None;
+    }
+    if input[idx + 5] != b'T' {
+        return None;
+    }
+    if input[idx + 6] != b'A' {
+        return None;
+    }
+
+    let idx = idx + 7;
 
     let idx = scan_optional_space(input, idx);
 
     // Check for an early exit
 
-    let (ch, idx) = expect_ch!(input, idx);
-    if ch == ')' {
-        let (ch, peek_idx) = expect_ch!(input, idx, else Some(idx));
+    let (byte, idx) = expect_byte!(input, idx);
+    if byte == b')' {
+        let (byte, peek_idx) = expect_byte!(input, idx, else Some(idx));
 
-        if ch == '*' {
+        if byte == b'*' {
             return Some(peek_idx);
         }
 
         return Some(idx);
     }
 
-    if ch != '|' {
+    if byte != b'|' {
         return None;
     }
 
@@ -1712,18 +1737,13 @@ const fn scan_mixed(input: &[u8], pos: usize) -> Option<usize> {
     loop {
         idx = scan_optional_space(input, idx);
 
-        let (ch, peek_idx) = expect_ch!(input, idx);
-        if ch == ')' {
-            let (ch, peek_2_idx) = expect_ch!(input, peek_idx);
-
-            if ch != '*' {
-                return None;
-            }
-
+        let (byte, peek_idx) = expect_byte!(input, idx);
+        if byte == b')' {
+            let peek_2_idx = expect_byte!(input, peek_idx, b'*');
             return Some(peek_2_idx);
         }
 
-        if ch != '|' {
+        if byte != b'|' {
             return None;
         }
         idx = peek_idx;
