@@ -147,7 +147,7 @@ macro_rules! expect_ch {
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct ScanDocumentOpts {
     pub(crate) empty_elem: ScanEmptyTagOpts,
-    pub(crate) start_tag: ScanStartTagOpts,
+    pub(crate) attrs: ScanAttributeOpts,
     pub(crate) attr_value: ScanAttributeValueOpts,
     pub(crate) cd_sect: ScanCdataSectionOpts,
     pub(crate) char_data: ScanCharDataOpts,
@@ -1123,7 +1123,7 @@ const fn scan_element(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Optio
 
     // Or...
 
-    let Some(mut idx) = scan_start_tag_after_prefix(input, idx, opts.start_tag) else {
+    let Some(mut idx) = scan_start_tag_after_prefix(input, idx, opts.attrs) else {
         return None;
     };
 
@@ -1170,25 +1170,8 @@ const fn scan_element(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Optio
 }
 
 #[cfg(test)]
-#[derive(Debug, Default, Clone, Copy)]
-pub(crate) struct ScanStartTagOpts {
-    pub(crate) allow_slash: bool,
-    pub(crate) attr_opts: ScanAttributeOpts,
-}
-
-#[cfg(test)]
-impl ScanStartTagOpts {
-    pub(crate) const fn new_compatible() -> Self {
-        Self {
-            allow_slash: true,
-            attr_opts: ScanAttributeOpts::new_compatible(),
-        }
-    }
-}
-
-#[cfg(test)]
 #[must_use]
-const fn scan_start_tag(input: &[u8], pos: usize, opts: ScanStartTagOpts) -> Option<usize> {
+const fn scan_start_tag(input: &[u8], pos: usize, opts: ScanAttributeOpts) -> Option<usize> {
     if input.len() <= pos {
         return None;
     }
@@ -1205,39 +1188,18 @@ const fn scan_start_tag(input: &[u8], pos: usize, opts: ScanStartTagOpts) -> Opt
 const fn scan_start_tag_after_prefix(
     input: &[u8],
     pos: usize,
-    opts: ScanStartTagOpts,
+    opts: ScanAttributeOpts,
 ) -> Option<usize> {
     let Some(mut idx) = scan_name(input, pos) else {
         return None;
     };
 
-    debug_assert!(!is_name_ch('/'));
-
-    loop {
-        let mut peek_idx = idx;
-
-        if let Some(peek_space_idx) = scan_space(input, peek_idx) {
-            if let Some(peek_idx) = scan_attribute(input, peek_space_idx, opts.attr_opts) {
-                idx = peek_idx;
-                continue;
-            }
-            peek_idx = peek_space_idx;
+    while let Some(peek_idx) = scan_space(input, idx) {
+        if let Some(peek_idx) = scan_attribute(input, peek_idx, opts) {
+            idx = peek_idx;
+        } else {
+            break;
         }
-
-        if opts.allow_slash {
-            // TODO: In normal parsing, would just emit error here
-            if peek_idx < input.len() && input[peek_idx] == b'/' {
-                let peek_idx = peek_idx + 1;
-                if peek_idx < input.len() && input[peek_idx] == b'>' {
-                    return None;
-                }
-
-                idx = peek_idx;
-                continue;
-            }
-        }
-
-        break;
     }
 
     let idx = scan_optional_space(input, idx);
@@ -2424,7 +2386,7 @@ mod tests {
         let input = r#"<id attr="1" id=test>"#;
         assert_eq!(
             Some(input.len()),
-            scan_start_tag(input.as_bytes(), 0, ScanStartTagOpts::new_compatible())
+            scan_start_tag(input.as_bytes(), 0, ScanAttributeOpts::new_compatible())
         );
     }
 
