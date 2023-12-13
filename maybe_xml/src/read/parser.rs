@@ -318,7 +318,7 @@ const fn scan_entity_value(input: &[u8], pos: usize) -> Option<usize> {
         }
 
         if byte == b'%' {
-            if let Some(peek_idx) = scan_pe_ref(input, idx) {
+            if let Some(peek_idx) = scan_pe_ref_after_prefix(input, peek_idx) {
                 idx = peek_idx;
                 continue;
             }
@@ -1014,15 +1014,19 @@ pub(crate) const fn scan_doctype_decl(
     Some(expect_ch!(input, idx, '>'))
 }
 
+#[inline]
 #[must_use]
 const fn scan_decl_sep(input: &[u8], pos: usize) -> Option<usize> {
-    // TODO: Should peek at the first character and decide what to do
+    let (byte, peek_idx) = expect_byte!(input, pos);
 
-    if let Some(idx) = scan_pe_ref(input, pos) {
-        return Some(idx);
+    match byte {
+        b'%' => scan_pe_ref_after_prefix(input, peek_idx),
+        b if is_space(b) => {
+            // Already scanned a required space
+            Some(scan_optional_space(input, peek_idx))
+        }
+        _ => None,
     }
-
-    scan_space(input, pos)
 }
 
 #[must_use]
@@ -1908,15 +1912,14 @@ const fn scan_entity_ref_after_prefix(input: &[u8], pos: usize) -> Option<usize>
 
 /// Scan parameter-entity reference
 #[must_use]
-const fn scan_pe_ref(input: &[u8], pos: usize) -> Option<usize> {
-    // TODO: Can optimize because the first character may have been peeked at
+const fn scan_pe_ref_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
+    debug_assert!(input[pos - 1] == b'%');
 
-    let idx = expect_ch!(input, pos, '%');
-    let Some(idx) = scan_name(input, idx) else {
+    let Some(idx) = scan_name(input, pos) else {
         return None;
     };
 
-    Some(expect_ch!(input, idx, ';'))
+    Some(expect_byte!(input, idx, b';'))
 }
 
 #[must_use]
