@@ -153,7 +153,7 @@ impl<'a> Attributes<'a> {
     /// ```
     /// use maybe_xml::{Reader, token::{Ty, prop::Attributes}};
     ///
-    /// let xml = r#"<id attr="1" id=test>"#;
+    /// let xml = r#"<id attr="1" id='test'>"#;
     /// # let reader = Reader::from_str(xml);
     /// # let token = reader.parse(0);
     /// #
