@@ -2423,8 +2423,27 @@ mod tests {
             input.len() - 3,
             scan_char_data(input.as_bytes(), 0, ScanCharDataOpts::default())
         );
+
+        let input = "]]>Content";
+        assert_eq!(
+            0,
+            scan_char_data(input.as_bytes(), 0, ScanCharDataOpts::default())
+        );
+
+        let input = "]>Content";
+        assert_eq!(
+            input.len(),
+            scan_char_data(input.as_bytes(), 0, ScanCharDataOpts::default())
+        );
+
+        let input = ">Content";
+        assert_eq!(
+            input.len(),
+            scan_char_data(input.as_bytes(), 0, ScanCharDataOpts::default())
+        );
     }
 
+    #[allow(clippy::too_many_lines)]
     #[test]
     fn test_scan_comment() {
         let input = "<!--a--> ";
@@ -2522,6 +2541,48 @@ mod tests {
             None,
             scan_comment(input.as_bytes(), 0, ScanCommentOpts::default())
         );
+
+        let input = r#"<!--goodbye a="--"#;
+        assert_eq!(
+            None,
+            scan_comment(input.as_bytes(), 0, ScanCommentOpts::default())
+        );
+
+        let input = r#"<!--goodbye a="--val-->"-- test -->Content"#;
+        assert_eq!(
+            None,
+            scan_comment(input.as_bytes(), 0, ScanCommentOpts::default())
+        );
+
+        let input = r#"<!--goodbye a="--val-->"-- test -->Content"#;
+        assert_eq!(
+            Some(r#"<!--goodbye a="--val-->"#.len()),
+            scan_comment(input.as_bytes(), 0, ScanCommentOpts::new_compatible())
+        );
+
+        let input = r#"<!--goodbye a="--"#;
+        assert_eq!(
+            None,
+            scan_comment(input.as_bytes(), 0, ScanCommentOpts::new())
+        );
+
+        let input = r#"<!--goodbye a="--val--" test ->Content"#;
+        assert_eq!(
+            None,
+            scan_comment(input.as_bytes(), 0, ScanCommentOpts::new())
+        );
+
+        let input = r#"<!--goodbye a="--val--" test ->Content"#;
+        assert_eq!(
+            None,
+            scan_comment(input.as_bytes(), 0, ScanCommentOpts::new_compatible())
+        );
+
+        let input = r#"<!--goodbye a="--val--" test ->ContentMore -->Real Content"#;
+        assert_eq!(
+            Some(r#"<!--goodbye a="--val--" test ->ContentMore -->"#.len()),
+            scan_comment(input.as_bytes(), 0, ScanCommentOpts::new_compatible())
+        );
     }
 
     #[test]
@@ -2594,6 +2655,18 @@ mod tests {
         assert_eq!(
             Some(input.len() - 1),
             scan_cd_sect(input.as_bytes(), 1, ScanCdataSectionOpts::default())
+        );
+
+        let input = "<![CDATA[ Content ']]>']]>Unused Content";
+        assert_eq!(
+            Some("<![CDATA[ Content ']]>".len()),
+            scan_cd_sect(input.as_bytes(), 0, ScanCdataSectionOpts::default())
+        );
+
+        let input = r#"<![CDATA[ goodbye a="]]>"]]>Content"#;
+        assert_eq!(
+            Some(r#"<![CDATA[ goodbye a="]]>"#.len()),
+            scan_cd_sect(input.as_bytes(), 0, ScanCdataSectionOpts::default())
         );
     }
 

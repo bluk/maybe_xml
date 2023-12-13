@@ -697,41 +697,6 @@ mod tests {
     }
 
     #[test]
-    fn comment_with_double_dash_inside() {
-        let input = r#"<!--goodbye a="--"#;
-        verify_tokenize(input, 0, &[], 0);
-
-        let input = r#"<!--goodbye a="--val-->"-- test -->Content"#;
-        verify_tokenize_all(
-            input,
-            &[
-                Ty::Comment(Comment::from_str("<!--goodbye a=\"--val-->")),
-                Ty::Characters(Characters::from_str("\"-- test -->Content")),
-            ],
-        );
-    }
-
-    #[test]
-    fn comment_with_single_dash() {
-        let input = r#"<!--goodbye a="--"#;
-        verify_tokenize(input, 0, &[], 0);
-
-        let input = r#"<!--goodbye a="--val--" test ->Content"#;
-        verify_tokenize(input, 0, &[], 0);
-
-        let input = r#"<!--goodbye a="--val--" test ->ContentMore -->Real Content"#;
-        verify_tokenize_all(
-            input,
-            &[
-                Ty::Comment(Comment::from_str(
-                    r#"<!--goodbye a="--val--" test ->ContentMore -->"#,
-                )),
-                Ty::Characters(Characters::from_str("Real Content")),
-            ],
-        );
-    }
-
-    #[test]
     fn comment_not_reused_dashes() {
         let input = "<!-->-->";
         verify_tokenize_all(input, &[Ty::Comment(Comment::from_str(input))]);
@@ -775,31 +740,6 @@ mod tests {
             &[
                 Ty::Cdata(Cdata::from_str("<![CDATA[ Content ]]>")),
                 Ty::Characters(Characters::from_str("Content")),
-            ],
-        );
-    }
-
-    #[test]
-    fn cdata_with_single_quotes() {
-        // The single quote does not escape here
-        let input = "<![CDATA[ Content ']]>']]>Unused Content";
-        verify_tokenize_all(
-            input,
-            &[
-                Ty::Cdata(Cdata::from_str("<![CDATA[ Content ']]>")),
-                Ty::Characters(Characters::from_str("']]>Unused Content")),
-            ],
-        );
-    }
-
-    #[test]
-    fn cdata_with_double_quotes() {
-        let input = r#"<![CDATA[ goodbye a="]]>"]]>Content"#;
-        verify_tokenize_all(
-            input,
-            &[
-                Ty::Cdata(Cdata::from_str(r#"<![CDATA[ goodbye a="]]>"#)),
-                Ty::Characters(Characters::from_str("\"]]>Content")),
             ],
         );
     }
