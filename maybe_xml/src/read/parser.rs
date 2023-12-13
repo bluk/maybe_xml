@@ -357,6 +357,7 @@ impl ScanAttributeValueOpts {
     }
 }
 
+#[inline]
 #[must_use]
 const fn scan_attribute_value(
     input: &[u8],
@@ -378,19 +379,17 @@ const fn scan_attribute_value(
                     return Some(idx);
                 }
 
-                if byte == b'<' && !opts.allow_less_than {
+                if !opts.allow_less_than && byte == b'<' {
                     return None;
                 }
 
-                if byte == b'&' {
+                if !opts.allow_ampersand && byte == b'&' {
                     if let Some(peek_idx) = scan_ref_after_ampersand(input, peek_idx) {
                         idx = peek_idx;
                         continue;
                     }
 
-                    if !opts.allow_ampersand {
-                        return None;
-                    }
+                    return None;
                 }
 
                 idx = peek_idx;
@@ -400,29 +399,60 @@ const fn scan_attribute_value(
         return None;
     }
 
-    loop {
-        let (byte, peek_idx) = expect_byte!(input, idx);
+    match (opts.allow_less_than, opts.allow_ampersand) {
+        (false, false) => loop {
+            let (byte, peek_idx) = expect_byte!(input, idx);
 
-        if byte == quote_byte {
-            return Some(peek_idx);
-        }
-
-        if byte == b'<' && !opts.allow_less_than {
-            return None;
-        }
-
-        if byte == b'&' {
-            if let Some(peek_idx) = scan_ref_after_ampersand(input, peek_idx) {
-                idx = peek_idx;
-                continue;
+            if byte == quote_byte {
+                return Some(peek_idx);
             }
 
-            if !opts.allow_ampersand {
+            if byte == b'<' {
                 return None;
             }
-        }
 
-        idx = peek_idx;
+            if byte == b'&' {
+                if let Some(peek_idx) = scan_ref_after_ampersand(input, peek_idx) {
+                    idx = peek_idx;
+                    continue;
+                }
+
+                return None;
+            }
+
+            idx = peek_idx;
+        },
+        (true, true) => loop {
+            let (byte, peek_idx) = expect_byte!(input, idx);
+
+            if byte == quote_byte {
+                return Some(peek_idx);
+            }
+
+            idx = peek_idx;
+        },
+        (_, _) => loop {
+            let (byte, peek_idx) = expect_byte!(input, idx);
+
+            if byte == quote_byte {
+                return Some(peek_idx);
+            }
+
+            if !opts.allow_less_than && byte == b'<' {
+                return None;
+            }
+
+            if !opts.allow_ampersand && byte == b'&' {
+                if let Some(peek_idx) = scan_ref_after_ampersand(input, peek_idx) {
+                    idx = peek_idx;
+                    continue;
+                }
+
+                return None;
+            }
+
+            idx = peek_idx;
+        },
     }
 }
 
@@ -948,6 +978,7 @@ const fn scan_version_info(input: &[u8], pos: usize) -> Option<usize> {
     }
 }
 
+#[inline]
 #[must_use]
 const fn scan_eq(input: &[u8], pos: usize) -> Option<usize> {
     let idx = scan_optional_space(input, pos);
@@ -1258,11 +1289,10 @@ const fn scan_start_tag_after_prefix(
         if let Some(peek_idx) = scan_attribute(input, peek_idx, opts) {
             idx = peek_idx;
         } else {
+            idx = peek_idx;
             break;
         }
     }
-
-    let idx = scan_optional_space(input, idx);
 
     Some(expect_byte!(input, idx, b'>'))
 }
@@ -1282,6 +1312,7 @@ impl ScanAttributeOpts {
     }
 }
 
+#[inline]
 #[must_use]
 const fn scan_attribute(input: &[u8], pos: usize, opts: ScanAttributeOpts) -> Option<usize> {
     let Some(idx) = scan_name(input, pos) else {
@@ -1429,6 +1460,7 @@ const fn scan_empty_tag_after_prefix(
     Some(expect_byte!(input, idx, b'>'))
 }
 
+#[inline]
 #[must_use]
 pub(crate) const fn scan_start_or_empty_tag_after_prefix(
     input: &[u8],
@@ -1447,11 +1479,10 @@ pub(crate) const fn scan_start_or_empty_tag_after_prefix(
         if let Some(peek_idx) = scan_attribute(input, peek_idx, opts.attr_opts) {
             idx = peek_idx;
         } else {
+            idx = peek_idx;
             break;
         }
     }
-
-    let idx = scan_optional_space(input, idx);
 
     let (byte, peek_idx) = expect_byte!(input, idx);
 
