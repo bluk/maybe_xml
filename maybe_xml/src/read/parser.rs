@@ -999,7 +999,6 @@ const fn scan_version_info(input: &[u8], pos: usize) -> Option<usize> {
     let (quote_ch, mut idx) = expect_ch!(input, idx);
 
     if quote_ch != '"' && quote_ch != '\'' {
-        // TODO: Add no quotes option?
         return None;
     }
 
@@ -1224,23 +1223,51 @@ const fn scan_sd_decl(input: &[u8], pos: usize) -> Option<usize> {
     let Some(idx) = scan_eq(input, idx) else {
         return None;
     };
-    let (quote_ch, mut idx) = expect_ch!(input, idx);
+    let (quote_byte, mut idx) = expect_byte!(input, idx);
 
-    if quote_ch != '"' && quote_ch != '\'' {
-        // TODO: Add no quotes option?
+    if quote_byte != b'"' && quote_byte != b'\'' {
         return None;
     }
 
+    let start_value = idx;
+
     loop {
-        let (ch, peek_idx) = expect_ch!(input, idx);
-
-        // TODO: Be stricter and only allow ('yes' | 'no')?
-
-        if ch == quote_ch {
-            return Some(peek_idx);
-        }
+        let (byte, peek_idx) = expect_byte!(input, idx);
 
         idx = peek_idx;
+
+        if byte == quote_byte {
+            break;
+        }
+    }
+
+    let end_value = idx;
+
+    let len = end_value - start_value;
+    // len includes the quote_ch
+    match len {
+        3 => {
+            if input[start_value] != b'n' {
+                return None;
+            }
+            if input[start_value + 1] != b'o' {
+                return None;
+            }
+            Some(idx)
+        }
+        4 => {
+            if input[start_value] != b'y' {
+                return None;
+            }
+            if input[start_value + 1] != b'e' {
+                return None;
+            }
+            if input[start_value + 2] != b's' {
+                return None;
+            }
+            Some(idx)
+        }
+        _ => None,
     }
 }
 
