@@ -191,14 +191,9 @@ const fn is_char(ch: char) -> bool {
 
 #[inline]
 #[must_use]
-const fn is_space_ch(ch: char) -> bool {
-    matches!(ch, '\u{20}' | '\u{9}' | '\u{D}' | '\u{A}')
-}
-
-#[inline]
-#[must_use]
 const fn is_space(byte: u8) -> bool {
     // matches!(ch, ' ' | '\t' | '\r' | '\n')
+    // matches!(ch, '\u{20}' | '\u{9}' | '\u{D}' | '\u{A}')
     matches!(byte, 32 | 9 | 13 | 10)
 }
 
@@ -333,24 +328,33 @@ const fn scan_attribute_value(
     pos: usize,
     opts: ScanAttributeValueOpts,
 ) -> Option<usize> {
-    let (quote_ch, mut idx) = expect_ch!(input, pos);
+    if input.len() <= pos {
+        return None;
+    }
 
-    debug_assert!(!is_space_ch(quote_ch));
+    let quote_byte = input[pos];
+    let mut idx = pos + 1;
 
-    if quote_ch != '"' && quote_ch != '\'' {
+    debug_assert!(!is_space(quote_byte));
+
+    if quote_byte != b'"' && quote_byte != b'\'' {
         if opts.allow_no_quote {
             loop {
-                let (ch, peek_idx) = expect_ch!(input, idx);
+                if input.len() <= idx {
+                    return None;
+                }
+                let byte = input[idx];
+                let peek_idx = idx + 1;
 
-                if is_space_ch(ch) || ch == '>' {
+                if is_space(byte) || byte == b'>' {
                     return Some(idx);
                 }
 
-                if ch == '<' && !opts.allow_less_than {
+                if byte == b'<' && !opts.allow_less_than {
                     return None;
                 }
 
-                if ch == '&' {
+                if byte == b'&' {
                     if let Some(peek_idx) = scan_ref(input, idx) {
                         idx = peek_idx;
                         continue;
@@ -369,17 +373,21 @@ const fn scan_attribute_value(
     }
 
     loop {
-        let (ch, peek_idx) = expect_ch!(input, idx);
+        if input.len() <= idx {
+            return None;
+        }
+        let byte = input[idx];
+        let peek_idx = idx + 1;
 
-        if ch == quote_ch {
+        if byte == quote_byte {
             return Some(peek_idx);
         }
 
-        if ch == '<' && !opts.allow_less_than {
+        if byte == b'<' && !opts.allow_less_than {
             return None;
         }
 
-        if ch == '&' {
+        if byte == b'&' {
             if let Some(peek_idx) = scan_ref(input, idx) {
                 idx = peek_idx;
                 continue;
@@ -1974,14 +1982,6 @@ mod tests {
             let actual = next_ch(&buf, 0);
             assert_eq!(Some((expected, expected_len)), actual);
         }
-    }
-
-    #[test]
-    const fn test_space() {
-        assert!(is_space_ch(' '));
-        assert!(is_space_ch('\t'));
-        assert!(is_space_ch('\r'));
-        assert!(is_space_ch('\n'));
     }
 
     #[test]
