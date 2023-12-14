@@ -316,7 +316,7 @@ const fn is_name_start_char(ch: char) -> bool {
 }
 
 #[must_use]
-const fn is_name_ch(ch: char) -> bool {
+const fn is_name_char(ch: char) -> bool {
     is_name_start_char(ch)
         || matches!(ch, '-' | '.' | '0'..='9' | '\u{B7}' | '\u{0300}'..='\u{036F}' | '\u{203F}'..='\u{2040}' )
 }
@@ -326,16 +326,16 @@ const fn scan_name(input: &[u8], pos: usize) -> Option<usize> {
     let mut idx = expect_ch!(input, pos, is_name_start_char);
 
     loop {
-        idx = expect_ch!(input, idx, else Some(idx), is_name_ch);
+        idx = expect_ch!(input, idx, else Some(idx), is_name_char);
     }
 }
 
 #[must_use]
 const fn scan_nm_token(input: &[u8], pos: usize) -> Option<usize> {
-    let mut idx = expect_ch!(input, pos, is_name_ch);
+    let mut idx = expect_ch!(input, pos, is_name_char);
 
     loop {
-        idx = expect_ch!(input, idx, else Some(idx), is_name_ch);
+        idx = expect_ch!(input, idx, else Some(idx), is_name_char);
     }
 }
 
@@ -355,7 +355,7 @@ const fn scan_entity_value(input: &[u8], pos: usize) -> Option<usize> {
         }
 
         if byte == b'%' {
-            if let Some(peek_idx) = scan_pe_ref_after_prefix(input, peek_idx) {
+            if let Some(peek_idx) = scan_pe_reference_after_prefix(input, peek_idx) {
                 idx = peek_idx;
                 continue;
             }
@@ -364,7 +364,7 @@ const fn scan_entity_value(input: &[u8], pos: usize) -> Option<usize> {
         }
 
         if byte == b'&' {
-            if let Some(peek_idx) = scan_ref_after_ampersand(input, peek_idx) {
+            if let Some(peek_idx) = scan_reference_after_ampersand(input, peek_idx) {
                 idx = peek_idx;
                 continue;
             }
@@ -398,11 +398,7 @@ impl ScanAttributeValueOpts {
 
 #[inline]
 #[must_use]
-const fn scan_attribute_value(
-    input: &[u8],
-    pos: usize,
-    opts: ScanAttributeValueOpts,
-) -> Option<usize> {
+const fn scan_att_value(input: &[u8], pos: usize, opts: ScanAttributeValueOpts) -> Option<usize> {
     let (quote_byte, mut idx) = expect_byte!(input, pos);
 
     debug_assert!(!is_space(quote_byte));
@@ -423,7 +419,7 @@ const fn scan_attribute_value(
                 }
 
                 if !opts.allow_ampersand && byte == b'&' {
-                    if let Some(peek_idx) = scan_ref_after_ampersand(input, peek_idx) {
+                    if let Some(peek_idx) = scan_reference_after_ampersand(input, peek_idx) {
                         idx = peek_idx;
                         continue;
                     }
@@ -451,7 +447,7 @@ const fn scan_attribute_value(
             }
 
             if byte == b'&' {
-                if let Some(peek_idx) = scan_ref_after_ampersand(input, peek_idx) {
+                if let Some(peek_idx) = scan_reference_after_ampersand(input, peek_idx) {
                     idx = peek_idx;
                     continue;
                 }
@@ -482,7 +478,7 @@ const fn scan_attribute_value(
             }
 
             if !opts.allow_ampersand && byte == b'&' {
-                if let Some(peek_idx) = scan_ref_after_ampersand(input, peek_idx) {
+                if let Some(peek_idx) = scan_reference_after_ampersand(input, peek_idx) {
                     idx = peek_idx;
                     continue;
                 }
@@ -515,7 +511,7 @@ const fn scan_system_literal(input: &[u8], pos: usize) -> Option<usize> {
 }
 
 #[must_use]
-const fn scan_pub_id_literal(input: &[u8], pos: usize) -> Option<usize> {
+const fn scan_pubid_literal(input: &[u8], pos: usize) -> Option<usize> {
     let (quote_ch, mut idx) = expect_ch!(input, pos);
 
     if quote_ch != '"' && quote_ch != '\'' {
@@ -529,7 +525,7 @@ const fn scan_pub_id_literal(input: &[u8], pos: usize) -> Option<usize> {
             return Some(peek_idx);
         }
 
-        if !is_pub_id_char(ch) {
+        if !is_pubid_char(ch) {
             return None;
         }
 
@@ -538,7 +534,7 @@ const fn scan_pub_id_literal(input: &[u8], pos: usize) -> Option<usize> {
 }
 
 #[must_use]
-const fn is_pub_id_char(ch: char) -> bool {
+const fn is_pubid_char(ch: char) -> bool {
     matches!(ch,
     '\u{20}'
     | '\u{D}'
@@ -828,7 +824,8 @@ pub(crate) const fn scan_pi_after_prefix(
         return None;
     }
 
-    debug_assert!(!is_name_ch('?'));
+    debug_assert!(!is_name_char('?'));
+    debug_assert!(!is_name_char('>'));
 
     if let Some(peek_idx) = scan_space(input, idx) {
         idx = peek_idx;
@@ -990,7 +987,7 @@ const fn scan_prolog(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Option
         idx = peek_idx;
     }
 
-    if let Some(peek_idx) = scan_doctype_decl(
+    if let Some(peek_idx) = scan_doctypedecl(
         input,
         idx,
         ScanMarkupDeclOpts {
@@ -1105,7 +1102,7 @@ const fn scan_misc(input: &[u8], pos: usize, opts: ScanMiscOpts) -> Option<usize
 
 #[cfg(test)]
 #[must_use]
-const fn scan_doctype_decl(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) -> Option<usize> {
+const fn scan_doctypedecl(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) -> Option<usize> {
     if input.len() <= pos + 1 {
         return None;
     }
@@ -1115,11 +1112,11 @@ const fn scan_doctype_decl(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) -
     if input[pos + 1] != b'!' {
         return None;
     }
-    scan_doctype_decl_after_prefix(input, pos + 2, opts)
+    scan_doctypedecl_after_prefix(input, pos + 2, opts)
 }
 
 #[must_use]
-pub(crate) const fn scan_doctype_decl_after_prefix(
+pub(crate) const fn scan_doctypedecl_after_prefix(
     input: &[u8],
     pos: usize,
     opts: ScanMarkupDeclOpts,
@@ -1190,7 +1187,7 @@ const fn scan_decl_sep(input: &[u8], pos: usize) -> Option<usize> {
     let (byte, peek_idx) = expect_byte!(input, pos);
 
     match byte {
-        b'%' => scan_pe_ref_after_prefix(input, peek_idx),
+        b'%' => scan_pe_reference_after_prefix(input, peek_idx),
         b if is_space(b) => {
             // Already scanned a required space
             Some(scan_optional_space(input, peek_idx))
@@ -1205,7 +1202,7 @@ const fn scan_int_subset(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) -> 
     let mut idx = pos;
 
     loop {
-        if let Some(peek_idx) = scan_markup_decl(input, idx, opts) {
+        if let Some(peek_idx) = scan_markupdecl(input, idx, opts) {
             idx = peek_idx;
         } else if let Some(peek_idx) = scan_decl_sep(input, idx) {
             idx = peek_idx;
@@ -1237,13 +1234,13 @@ impl ScanMarkupDeclOpts {
 }
 
 #[must_use]
-const fn scan_markup_decl(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) -> Option<usize> {
+const fn scan_markupdecl(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) -> Option<usize> {
     // TODO: Should peek at the first character and decide what to do
-    if let Some(idx) = scan_element_decl(input, pos) {
+    if let Some(idx) = scan_elementdecl(input, pos) {
         return Some(idx);
     }
 
-    if let Some(idx) = scan_att_list_decl(input, pos, opts.attr_value) {
+    if let Some(idx) = scan_attlist_decl(input, pos, opts.attr_value) {
         return Some(idx);
     }
 
@@ -1265,8 +1262,6 @@ const fn scan_markup_decl(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) ->
 
     None
 }
-
-// XXX: Missing 30, 31
 
 #[cfg(test)]
 #[must_use]
@@ -1332,13 +1327,13 @@ const fn scan_sd_decl(input: &[u8], pos: usize) -> Option<usize> {
 const fn scan_element(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Option<usize> {
     let idx = expect_byte!(input, pos, b'<');
 
-    if let Some(peek_idx) = scan_empty_tag_after_prefix(input, idx, opts.attrs) {
+    if let Some(peek_idx) = scan_empty_elem_tag_after_prefix(input, idx, opts.attrs) {
         return Some(peek_idx);
     }
 
     // Or...
 
-    let Some(mut idx) = scan_start_tag_after_prefix(input, idx, opts.attrs) else {
+    let Some(mut idx) = scan_s_tag_after_prefix(input, idx, opts.attrs) else {
         return None;
     };
 
@@ -1352,7 +1347,7 @@ const fn scan_element(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Optio
 
     let end_tag_start = idx;
 
-    let Some(idx) = scan_end_tag(input, idx, false) else {
+    let Some(idx) = scan_e_tag(input, idx, false) else {
         return None;
     };
 
@@ -1386,14 +1381,14 @@ const fn scan_element(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Optio
 
 #[cfg(test)]
 #[must_use]
-const fn scan_start_tag(input: &[u8], pos: usize, opts: ScanAttributeOpts) -> Option<usize> {
+const fn scan_s_tag(input: &[u8], pos: usize, opts: ScanAttributeOpts) -> Option<usize> {
     let idx = expect_byte!(input, pos, b'<');
-    scan_start_tag_after_prefix(input, idx, opts)
+    scan_s_tag_after_prefix(input, idx, opts)
 }
 
 #[cfg(test)]
 #[must_use]
-const fn scan_start_tag_after_prefix(
+const fn scan_s_tag_after_prefix(
     input: &[u8],
     pos: usize,
     opts: ScanAttributeOpts,
@@ -1448,13 +1443,13 @@ const fn scan_attribute(input: &[u8], pos: usize, opts: ScanAttributeOpts) -> Op
         return None;
     };
 
-    scan_attribute_value(input, idx, opts.attr_value_opts)
+    scan_att_value(input, idx, opts.attr_value_opts)
 }
 
 #[cfg(test)]
 #[inline]
 #[must_use]
-const fn scan_end_tag(
+const fn scan_e_tag(
     input: &[u8],
     pos: usize,
     allow_more_than_name_and_trailing_space: bool,
@@ -1469,12 +1464,12 @@ const fn scan_end_tag(
         return None;
     }
 
-    scan_end_tag_after_prefix(input, pos + 2, allow_more_than_name_and_trailing_space)
+    scan_e_tag_after_prefix(input, pos + 2, allow_more_than_name_and_trailing_space)
 }
 
 #[inline]
 #[must_use]
-pub(crate) const fn scan_end_tag_after_prefix(
+pub(crate) const fn scan_e_tag_after_prefix(
     input: &[u8],
     pos: usize,
     allow_more_than_name_and_trailing_space: bool,
@@ -1483,7 +1478,7 @@ pub(crate) const fn scan_end_tag_after_prefix(
     debug_assert!(input[pos - 1] == b'/');
 
     if allow_more_than_name_and_trailing_space {
-        debug_assert!(!is_name_ch('>'));
+        debug_assert!(!is_name_char('>'));
 
         let mut idx = pos;
         loop {
@@ -1514,7 +1509,7 @@ const fn scan_content(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> usize
     loop {
         if let Some(peek_idx) = scan_element(input, idx, opts) {
             idx = peek_idx;
-        } else if let Some(peek_idx) = scan_ref(input, idx) {
+        } else if let Some(peek_idx) = scan_reference(input, idx) {
             idx = peek_idx;
         } else if let Some(peek_idx) = scan_cd_sect(input, idx, opts.cd_sect) {
             idx = peek_idx;
@@ -1534,7 +1529,7 @@ const fn scan_content(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> usize
 
 #[cfg(test)]
 #[must_use]
-const fn scan_empty_tag_after_prefix(
+const fn scan_empty_elem_tag_after_prefix(
     input: &[u8],
     pos: usize,
     opts: ScanAttributeOpts,
@@ -1545,17 +1540,16 @@ const fn scan_empty_tag_after_prefix(
         return None;
     };
 
-    debug_assert!(!is_name_ch('/'));
+    debug_assert!(!is_name_char('/'));
 
     while let Some(peek_idx) = scan_space(input, idx) {
         if let Some(peek_idx) = scan_attribute(input, peek_idx, opts) {
             idx = peek_idx;
         } else {
+            idx = peek_idx;
             break;
         }
     }
-
-    let idx = scan_optional_space(input, idx);
 
     let idx = expect_byte!(input, idx, b'/');
     Some(expect_byte!(input, idx, b'>'))
@@ -1563,7 +1557,7 @@ const fn scan_empty_tag_after_prefix(
 
 #[inline]
 #[must_use]
-pub(crate) const fn scan_start_or_empty_tag_after_prefix(
+pub(crate) const fn scan_s_or_empty_elem_tag_after_prefix(
     input: &[u8],
     pos: usize,
     opts: ScanAttributeOpts,
@@ -1574,7 +1568,7 @@ pub(crate) const fn scan_start_or_empty_tag_after_prefix(
         return None;
     };
 
-    debug_assert!(!is_name_ch('/'));
+    debug_assert!(!is_name_char('/'));
 
     while let Some(peek_idx) = scan_space(input, idx) {
         if let Some(peek_idx) = scan_attribute(input, peek_idx, opts) {
@@ -1598,7 +1592,7 @@ pub(crate) const fn scan_start_or_empty_tag_after_prefix(
 }
 
 #[must_use]
-const fn scan_element_decl(input: &[u8], pos: usize) -> Option<usize> {
+const fn scan_elementdecl(input: &[u8], pos: usize) -> Option<usize> {
     // TODO: Can optimize because the leading characters may have been peeked at
     let idx = expect_ch!(input, pos, '<', '!', 'E', 'L', 'E', 'M', 'E', 'N', 'T');
     let Some(idx) = scan_space(input, idx) else {
@@ -1611,7 +1605,7 @@ const fn scan_element_decl(input: &[u8], pos: usize) -> Option<usize> {
         return None;
     };
 
-    let Some(idx) = scan_content_spec(input, idx) else {
+    let Some(idx) = scan_contentspec(input, idx) else {
         return None;
     };
 
@@ -1621,7 +1615,7 @@ const fn scan_element_decl(input: &[u8], pos: usize) -> Option<usize> {
 }
 
 #[must_use]
-const fn scan_content_spec(input: &[u8], pos: usize) -> Option<usize> {
+const fn scan_contentspec(input: &[u8], pos: usize) -> Option<usize> {
     // TODO: Should peek to decide which branch
 
     if let Some(idx) = peek_ch!(input, pos, 'E', 'M', 'P', 'T', 'Y') {
@@ -1841,7 +1835,7 @@ const fn scan_mixed(input: &[u8], pos: usize) -> Option<usize> {
 }
 
 #[must_use]
-const fn scan_att_list_decl(
+const fn scan_attlist_decl(
     input: &[u8],
     pos: usize,
     opts: ScanAttributeValueOpts,
@@ -2022,7 +2016,7 @@ const fn scan_default_decl(
         idx = peek_idx;
     }
 
-    scan_attribute_value(input, idx, opts)
+    scan_att_value(input, idx, opts)
 }
 
 #[must_use]
@@ -2076,13 +2070,13 @@ const fn scan_char_ref_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
 
 #[cfg(test)]
 #[must_use]
-const fn scan_ref(input: &[u8], pos: usize) -> Option<usize> {
+const fn scan_reference(input: &[u8], pos: usize) -> Option<usize> {
     let idx = expect_byte!(input, pos, b'&');
-    scan_ref_after_ampersand(input, idx)
+    scan_reference_after_ampersand(input, idx)
 }
 
 #[must_use]
-const fn scan_ref_after_ampersand(input: &[u8], pos: usize) -> Option<usize> {
+const fn scan_reference_after_ampersand(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(input[pos - 1] == b'&');
 
     let (byte, peek_idx) = expect_byte!(input, pos);
@@ -2108,7 +2102,7 @@ const fn scan_entity_ref_after_prefix(input: &[u8], pos: usize) -> Option<usize>
 
 /// Scan parameter-entity reference
 #[must_use]
-const fn scan_pe_ref_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
+const fn scan_pe_reference_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(input[pos - 1] == b'%');
 
     let Some(idx) = scan_name(input, pos) else {
@@ -2189,7 +2183,7 @@ const fn scan_entity_def(input: &[u8], pos: usize) -> Option<usize> {
         return None;
     };
 
-    if let Some(peek_idx) = scan_ndata_decl(input, idx) {
+    if let Some(peek_idx) = scan_n_data_decl(input, idx) {
         return Some(peek_idx);
     }
 
@@ -2222,7 +2216,7 @@ const fn scan_external_id(input: &[u8], pos: usize) -> Option<usize> {
         let Some(peek_idx) = scan_space(input, peek_idx) else {
             return None;
         };
-        let Some(peek_idx) = scan_pub_id_literal(input, peek_idx) else {
+        let Some(peek_idx) = scan_pubid_literal(input, peek_idx) else {
             return None;
         };
         let Some(peek_idx) = scan_space(input, peek_idx) else {
@@ -2235,7 +2229,7 @@ const fn scan_external_id(input: &[u8], pos: usize) -> Option<usize> {
 }
 
 #[must_use]
-const fn scan_ndata_decl(input: &[u8], pos: usize) -> Option<usize> {
+const fn scan_n_data_decl(input: &[u8], pos: usize) -> Option<usize> {
     let Some(idx) = scan_space(input, pos) else {
         return None;
     };
@@ -2329,7 +2323,7 @@ const fn scan_public_id(input: &[u8], pos: usize) -> Option<usize> {
         return None;
     };
 
-    scan_pub_id_literal(input, idx)
+    scan_pubid_literal(input, idx)
 }
 
 #[cfg(test)]
@@ -2576,7 +2570,7 @@ mod tests {
         let input = r#"<id attr="1" id=test>"#;
         assert_eq!(
             Some(input.len()),
-            scan_start_tag(
+            scan_s_tag(
                 input.as_bytes(),
                 0,
                 ScanAttributeOpts {
@@ -2682,50 +2676,32 @@ mod tests {
     #[test]
     fn test_element_decl() {
         let input = r" <!ELEMENT example EMPTY> ";
-        assert_eq!(
-            Some(input.len() - 1),
-            scan_element_decl(input.as_bytes(), 1)
-        );
+        assert_eq!(Some(input.len() - 1), scan_elementdecl(input.as_bytes(), 1));
 
         let input = r" <!ELEMENT example ANY> ";
-        assert_eq!(
-            Some(input.len() - 1),
-            scan_element_decl(input.as_bytes(), 1)
-        );
+        assert_eq!(Some(input.len() - 1), scan_elementdecl(input.as_bytes(), 1));
 
         let input = r" <!ELEMENT test (#PCDATA)> ";
-        assert_eq!(
-            Some(input.len() - 1),
-            scan_element_decl(input.as_bytes(), 1)
-        );
+        assert_eq!(Some(input.len() - 1), scan_elementdecl(input.as_bytes(), 1));
 
         let input = r" <!ELEMENT x (#PCDATA|abcd)* > ";
-        assert_eq!(
-            Some(input.len() - 1),
-            scan_element_decl(input.as_bytes(), 1)
-        );
+        assert_eq!(Some(input.len() - 1), scan_elementdecl(input.as_bytes(), 1));
 
         let input = r" <!ELEMENT x (a, b, cdef?)> ";
-        assert_eq!(
-            Some(input.len() - 1),
-            scan_element_decl(input.as_bytes(), 1)
-        );
+        assert_eq!(Some(input.len() - 1), scan_elementdecl(input.as_bytes(), 1));
 
         let input = r" <!ELEMENT x (a, (b | c | d)*, efg*)> ";
-        assert_eq!(
-            Some(input.len() - 1),
-            scan_element_decl(input.as_bytes(), 1)
-        );
+        assert_eq!(Some(input.len() - 1), scan_elementdecl(input.as_bytes(), 1));
 
         // The parameter entity references are not allowed in internal (inline)
         // declaration
         let input = r" <!ELEMENT %nm.parm; %cnt.p; > ";
-        assert_eq!(None, scan_element_decl(input.as_bytes(), 1));
+        assert_eq!(None, scan_elementdecl(input.as_bytes(), 1));
 
         // The parameter entity references are not allowed in internal (inline)
         // declaration
         let input = r" <!ELEMENT x (%a.b; | %c.d;)*> ";
-        assert_eq!(None, scan_element_decl(input.as_bytes(), 1));
+        assert_eq!(None, scan_elementdecl(input.as_bytes(), 1));
     }
 
     #[test]

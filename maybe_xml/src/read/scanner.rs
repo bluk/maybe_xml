@@ -51,7 +51,7 @@ const fn scan_start_or_empty_element_tag(input: &[u8], pos: usize) -> Option<usi
     debug_assert!(input[pos + 1] != b'?');
     debug_assert!(input[pos + 1] != b'!');
 
-    parser::scan_start_or_empty_tag_after_prefix(input, pos + OFFSET, ScanAttributeOpts::new())
+    parser::scan_s_or_empty_elem_tag_after_prefix(input, pos + OFFSET, ScanAttributeOpts::new())
 }
 
 #[must_use]
@@ -64,7 +64,7 @@ const fn scan_end_tag(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(input[pos] == b'<');
     debug_assert!(input[pos + 1] == b'/');
 
-    parser::scan_end_tag_after_prefix(input, pos + OFFSET, false)
+    parser::scan_e_tag_after_prefix(input, pos + OFFSET, false)
 }
 
 #[inline]
@@ -145,7 +145,7 @@ const fn scan_declaration(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(input[pos] == b'<');
     debug_assert!(input[pos + 1] == b'!');
 
-    parser::scan_doctype_decl_after_prefix(input, pos + OFFSET, ScanMarkupDeclOpts::new())
+    parser::scan_doctypedecl_after_prefix(input, pos + OFFSET, ScanMarkupDeclOpts::new())
 }
 
 #[inline]
