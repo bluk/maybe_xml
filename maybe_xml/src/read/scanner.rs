@@ -1,8 +1,8 @@
 //! Scans byte sequences for tokens.
 
 use crate::read::parser::{
-    self, ScanAttributeOpts, ScanCdataSectionOpts, ScanCharDataOpts, ScanCommentOpts,
-    ScanMarkupDeclOpts, ScanProcessingInstructionOpts,
+    self, ScanCdataSectionOpts, ScanCharDataOpts, ScanCommentOpts, ScanMarkupDeclOpts,
+    ScanProcessingInstructionOpts, ScanTagOpts,
 };
 
 #[inline]
@@ -11,7 +11,14 @@ const fn scan_text_content(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(pos < input.len());
     debug_assert!(input[pos] != b'<');
 
-    let end = parser::scan_char_data(input, pos, ScanCharDataOpts::new_compatible());
+    let end = parser::scan_char_data(
+        input,
+        pos,
+        ScanCharDataOpts {
+            allow_ampersand: true,
+            allow_cdata_section_close: true,
+        },
+    );
     if pos == end {
         None
     } else {
@@ -51,12 +58,7 @@ const fn scan_start_or_empty_element_tag(input: &[u8], pos: usize) -> Option<usi
     debug_assert!(input[pos + 1] != b'?');
     debug_assert!(input[pos + 1] != b'!');
 
-    parser::scan_s_or_empty_elem_tag_after_prefix(
-        input,
-        pos + OFFSET,
-        ScanAttributeOpts::new(),
-        false,
-    )
+    parser::scan_s_or_empty_elem_tag_after_prefix(input, pos + OFFSET, ScanTagOpts::new())
 }
 
 #[must_use]
@@ -69,7 +71,7 @@ const fn scan_end_tag(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(input[pos] == b'<');
     debug_assert!(input[pos + 1] == b'/');
 
-    parser::scan_e_tag_after_prefix(input, pos + OFFSET, false)
+    parser::scan_e_tag_after_prefix(input, pos + OFFSET, ScanTagOpts::new())
 }
 
 #[inline]

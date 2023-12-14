@@ -209,9 +209,12 @@ macro_rules! expect_byte {
     };
 }
 
-#[cfg(test)]
+/// Options for scanning a document.
+#[cfg(any(test, feature = "internal_unstable"))]
 #[derive(Debug, Clone, Copy)]
-struct ScanDocumentOpts {
+pub struct ScanDocumentOpts {
+    assume_valid_xml: bool,
+
     attrs: ScanAttributeOpts,
     cd_sect: ScanCdataSectionOpts,
     char_data: ScanCharDataOpts,
@@ -219,12 +222,14 @@ struct ScanDocumentOpts {
     comment: ScanCommentOpts,
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "internal_unstable"))]
 impl ScanDocumentOpts {
+    /// Strict parsing options which follow the spec.
     #[inline]
     #[must_use]
-    const fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
+            assume_valid_xml: false,
             attrs: ScanAttributeOpts::new(),
             cd_sect: ScanCdataSectionOpts::new(),
             char_data: ScanCharDataOpts::new(),
@@ -232,11 +237,81 @@ impl ScanDocumentOpts {
             comment: ScanCommentOpts::new(),
         }
     }
+
+    /// Relaxed parsing options.
+    #[inline]
+    #[must_use]
+    pub const fn relaxed() -> Self {
+        Self {
+            assume_valid_xml: false,
+
+            attrs: ScanAttributeOpts {
+                allow_no_value: true,
+                attr_value_opts: ScanAttributeValueOpts {
+                    allow_less_than: true,
+                    allow_ampersand: true,
+                    allow_no_quote: true,
+                },
+            },
+            cd_sect: ScanCdataSectionOpts {
+                allow_all_chars: true,
+            },
+            char_data: ScanCharDataOpts {
+                allow_ampersand: true,
+                allow_cdata_section_close: true,
+            },
+            pi: ScanProcessingInstructionOpts {
+                allow_xml_target_name: true,
+                allow_all_chars: true,
+            },
+            comment: ScanCommentOpts {
+                allow_double_dash: true,
+                allow_non_chars: true,
+            },
+        }
+    }
+
+    /// Allow any and all fast parsing options.
+    #[inline]
+    #[must_use]
+    pub const fn assume_valid_xml() -> Self {
+        Self {
+            assume_valid_xml: true,
+
+            attrs: ScanAttributeOpts {
+                allow_no_value: false,
+                attr_value_opts: ScanAttributeValueOpts {
+                    allow_less_than: false,
+                    allow_ampersand: false,
+                    allow_no_quote: false,
+                },
+            },
+            cd_sect: ScanCdataSectionOpts {
+                allow_all_chars: false,
+            },
+            char_data: ScanCharDataOpts {
+                allow_ampersand: false,
+                allow_cdata_section_close: false,
+            },
+            pi: ScanProcessingInstructionOpts {
+                allow_xml_target_name: false,
+                allow_all_chars: false,
+            },
+            comment: ScanCommentOpts {
+                allow_double_dash: false,
+                allow_non_chars: false,
+            },
+        }
+    }
 }
 
-#[cfg(test)]
+/// Scans a document and returns the last parsed position.
+///
+/// If `Some(input.len())` is returned, then the entire document was parsed
+/// successfully.
+#[cfg(any(test, feature = "internal_unstable"))]
 #[must_use]
-const fn scan_document(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Option<usize> {
+pub const fn scan_document(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Option<usize> {
     let Some(idx) = scan_prolog(input, pos, opts) else {
         return None;
     };
@@ -566,27 +641,18 @@ const fn is_pubid_char(ch: char) -> bool {
 
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct ScanCharDataOpts {
-    allow_ampersand: bool,
-    allow_cdata_section_close: bool,
+    pub(crate) allow_ampersand: bool,
+    pub(crate) allow_cdata_section_close: bool,
 }
 
 impl ScanCharDataOpts {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "internal_unstable"))]
     #[inline]
     #[must_use]
     pub(crate) const fn new() -> Self {
         Self {
             allow_ampersand: false,
             allow_cdata_section_close: false,
-        }
-    }
-
-    #[inline]
-    #[must_use]
-    pub(crate) const fn new_compatible() -> Self {
-        Self {
-            allow_ampersand: true,
-            allow_cdata_section_close: true,
         }
     }
 }
@@ -884,7 +950,7 @@ impl ScanCdataSectionOpts {
 }
 
 /// Scans for CDATA section
-#[cfg(test)]
+#[cfg(any(test, feature = "internal_unstable"))]
 #[must_use]
 const fn scan_cd_sect(input: &[u8], pos: usize, opts: ScanCdataSectionOpts) -> Option<usize> {
     if input.len() <= pos + 8 {
@@ -966,7 +1032,7 @@ pub(crate) const fn scan_cd_sect_after_prefix(
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "internal_unstable"))]
 #[must_use]
 const fn scan_prolog(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Option<usize> {
     let Some(mut idx) = scan_xml_decl(input, pos) else {
@@ -1016,7 +1082,7 @@ const fn scan_prolog(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Option
     Some(idx)
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "internal_unstable"))]
 #[must_use]
 const fn scan_xml_decl(input: &[u8], pos: usize) -> Option<usize> {
     let idx = expect_ch!(input, pos, '<', '?', 'x', 'm', 'l');
@@ -1038,7 +1104,7 @@ const fn scan_xml_decl(input: &[u8], pos: usize) -> Option<usize> {
     Some(expect_ch!(input, idx, '?', '>'))
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "internal_unstable"))]
 #[must_use]
 const fn scan_version_info(input: &[u8], pos: usize) -> Option<usize> {
     let Some(idx) = scan_space(input, pos) else {
@@ -1077,14 +1143,14 @@ pub(crate) const fn scan_eq(input: &[u8], pos: usize) -> Option<usize> {
     Some(idx)
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "internal_unstable"))]
 #[derive(Debug, Default, Clone, Copy)]
 struct ScanMiscOpts {
     comment: ScanCommentOpts,
     pi: ScanProcessingInstructionOpts,
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "internal_unstable"))]
 #[must_use]
 const fn scan_misc(input: &[u8], pos: usize, opts: ScanMiscOpts) -> Option<usize> {
     // TODO: Should peek at the first character and decide what to do
@@ -1100,7 +1166,7 @@ const fn scan_misc(input: &[u8], pos: usize, opts: ScanMiscOpts) -> Option<usize
     scan_space(input, pos)
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "internal_unstable"))]
 #[must_use]
 const fn scan_doctypedecl(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) -> Option<usize> {
     if input.len() <= pos + 1 {
@@ -1263,7 +1329,7 @@ const fn scan_markupdecl(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) -> 
     None
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "internal_unstable"))]
 #[must_use]
 const fn scan_sd_decl(input: &[u8], pos: usize) -> Option<usize> {
     let Some(idx) = scan_space(input, pos) else {
@@ -1322,23 +1388,37 @@ const fn scan_sd_decl(input: &[u8], pos: usize) -> Option<usize> {
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "internal_unstable"))]
 #[must_use]
 const fn scan_element(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Option<usize> {
     let idx = expect_byte!(input, pos, b'<');
 
-    if let Some(peek_idx) = scan_empty_elem_tag_after_prefix(input, idx, opts.attrs) {
+    if let Some(peek_idx) = scan_empty_elem_tag_after_prefix(
+        input,
+        idx,
+        ScanTagOpts {
+            assume_valid_xml: opts.assume_valid_xml,
+            attrs: opts.attrs,
+        },
+    ) {
         return Some(peek_idx);
     }
 
     // Or...
 
-    let Some(mut idx) = scan_s_tag_after_prefix(input, idx, opts.attrs) else {
+    let Some(mut idx) = scan_s_tag_after_prefix(
+        input,
+        idx,
+        ScanTagOpts {
+            assume_valid_xml: opts.assume_valid_xml,
+            attrs: opts.attrs,
+        },
+    ) else {
         return None;
     };
 
     let Some(start_name_end) = scan_name(input, pos + 1) else {
-        unreachable!();
+        return None;
     };
     let (start_name, _) = input.split_at(start_name_end);
     let (_, start_name) = start_name.split_at(pos + 1);
@@ -1347,12 +1427,19 @@ const fn scan_element(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Optio
 
     let end_tag_start = idx;
 
-    let Some(idx) = scan_e_tag(input, idx, false) else {
+    let Some(idx) = scan_e_tag(
+        input,
+        idx,
+        ScanTagOpts {
+            assume_valid_xml: opts.assume_valid_xml,
+            attrs: opts.attrs,
+        },
+    ) else {
         return None;
     };
 
     let Some(end_name_end) = scan_name(input, end_tag_start + 2) else {
-        unreachable!();
+        return None;
     };
     let (end_name, _) = input.split_at(end_name_end);
     let (_, end_name) = end_name.split_at(end_tag_start + 2);
@@ -1379,28 +1466,101 @@ const fn scan_element(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Optio
     Some(idx)
 }
 
-#[cfg(test)]
-#[must_use]
-const fn scan_s_tag(input: &[u8], pos: usize, opts: ScanAttributeOpts) -> Option<usize> {
-    let idx = expect_byte!(input, pos, b'<');
-    scan_s_tag_after_prefix(input, idx, opts)
+#[derive(Debug, Default, Clone, Copy)]
+pub(crate) struct ScanTagOpts {
+    pub(crate) assume_valid_xml: bool,
+    pub(crate) attrs: ScanAttributeOpts,
+}
+
+impl ScanTagOpts {
+    #[inline]
+    #[must_use]
+    pub(crate) const fn new() -> Self {
+        Self {
+            assume_valid_xml: false,
+            attrs: ScanAttributeOpts::new(),
+        }
+    }
 }
 
 #[cfg(test)]
 #[must_use]
-const fn scan_s_tag_after_prefix(
-    input: &[u8],
-    pos: usize,
-    opts: ScanAttributeOpts,
-) -> Option<usize> {
+const fn scan_s_tag(input: &[u8], pos: usize, opts: ScanTagOpts) -> Option<usize> {
+    let idx = expect_byte!(input, pos, b'<');
+    scan_s_tag_after_prefix(input, idx, opts)
+}
+
+#[cfg(any(test, feature = "internal_unstable"))]
+#[must_use]
+const fn scan_s_tag_after_prefix(input: &[u8], pos: usize, opts: ScanTagOpts) -> Option<usize> {
     debug_assert!(input[pos - 1] == b'<');
+
+    if opts.assume_valid_xml {
+        debug_assert!(!is_name_char('>'));
+        debug_assert!(!is_name_char('"'));
+        debug_assert!(!is_name_char('\''));
+        debug_assert!(!is_name_char('='));
+
+        let mut idx = pos;
+
+        let (byte, peek_idx) = expect_byte!(input, idx);
+        match byte {
+            b'/' | b'!' | b'?' => {
+                return None;
+            }
+            b'>' => {
+                return Some(peek_idx);
+            }
+            b'"' | b'\'' => {
+                let quote_byte = byte;
+                idx = peek_idx;
+                loop {
+                    let (byte, peek_idx) = expect_byte!(input, idx);
+                    idx = peek_idx;
+                    if byte == quote_byte {
+                        break;
+                    }
+                }
+            }
+            _ => {
+                idx = peek_idx;
+            }
+        }
+
+        loop {
+            let (byte, peek_idx) = expect_byte!(input, idx);
+
+            match byte {
+                b'>' => {
+                    if input[idx - 1] == b'/' {
+                        return None;
+                    }
+                    return Some(peek_idx);
+                }
+                b'"' | b'\'' => {
+                    let quote_byte = byte;
+                    idx = peek_idx;
+                    loop {
+                        let (byte, peek_idx) = expect_byte!(input, idx);
+                        idx = peek_idx;
+                        if byte == quote_byte {
+                            break;
+                        }
+                    }
+                }
+                _ => {
+                    idx = peek_idx;
+                }
+            }
+        }
+    }
 
     let Some(mut idx) = scan_name(input, pos) else {
         return None;
     };
 
     while let Some(peek_idx) = scan_space(input, idx) {
-        if let Some(peek_idx) = scan_attribute(input, peek_idx, opts) {
+        if let Some(peek_idx) = scan_attribute(input, peek_idx, opts.attrs) {
             idx = peek_idx;
         } else {
             idx = peek_idx;
@@ -1450,14 +1610,10 @@ pub(crate) const fn scan_attribute(
     scan_att_value(input, idx, opts.attr_value_opts)
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "internal_unstable"))]
 #[inline]
 #[must_use]
-const fn scan_e_tag(
-    input: &[u8],
-    pos: usize,
-    allow_more_than_name_and_trailing_space: bool,
-) -> Option<usize> {
+const fn scan_e_tag(input: &[u8], pos: usize, opts: ScanTagOpts) -> Option<usize> {
     if input.len() <= pos + 1 {
         return None;
     }
@@ -1468,7 +1624,7 @@ const fn scan_e_tag(
         return None;
     }
 
-    scan_e_tag_after_prefix(input, pos + 2, allow_more_than_name_and_trailing_space)
+    scan_e_tag_after_prefix(input, pos + 2, opts)
 }
 
 #[inline]
@@ -1476,12 +1632,12 @@ const fn scan_e_tag(
 pub(crate) const fn scan_e_tag_after_prefix(
     input: &[u8],
     pos: usize,
-    allow_more_than_name_and_trailing_space: bool,
+    opts: ScanTagOpts,
 ) -> Option<usize> {
     debug_assert!(input[pos - 2] == b'<');
     debug_assert!(input[pos - 1] == b'/');
 
-    if allow_more_than_name_and_trailing_space {
+    if opts.assume_valid_xml {
         debug_assert!(!is_name_char('>'));
 
         let mut idx = pos;
@@ -1505,7 +1661,7 @@ pub(crate) const fn scan_e_tag_after_prefix(
     Some(expect_byte!(input, idx, b'>'))
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "internal_unstable"))]
 #[must_use]
 const fn scan_content(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> usize {
     let mut idx = scan_char_data(input, pos, opts.char_data);
@@ -1531,14 +1687,73 @@ const fn scan_content(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> usize
     idx
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "internal_unstable"))]
 #[must_use]
 const fn scan_empty_elem_tag_after_prefix(
     input: &[u8],
     pos: usize,
-    opts: ScanAttributeOpts,
+    opts: ScanTagOpts,
 ) -> Option<usize> {
     debug_assert!(input[pos - 1] == b'<');
+
+    if opts.assume_valid_xml {
+        debug_assert!(!is_name_char('/'));
+        debug_assert!(!is_name_char('>'));
+        debug_assert!(!is_name_char('"'));
+        debug_assert!(!is_name_char('\''));
+        debug_assert!(!is_name_char('='));
+
+        let mut idx = pos;
+
+        let (byte, peek_idx) = expect_byte!(input, idx);
+        match byte {
+            b'/' | b'!' | b'?' | b'>' => {
+                return None;
+            }
+            b'"' | b'\'' => {
+                let quote_byte = byte;
+                idx = peek_idx;
+                loop {
+                    let (byte, peek_idx) = expect_byte!(input, idx);
+                    idx = peek_idx;
+                    if byte == quote_byte {
+                        break;
+                    }
+                }
+            }
+            _ => {
+                idx = peek_idx;
+            }
+        }
+
+        loop {
+            let (byte, peek_idx) = expect_byte!(input, idx);
+
+            match byte {
+                b'>' => {
+                    return None;
+                }
+                b'/' => {
+                    idx = peek_idx;
+                    return Some(expect_byte!(input, idx, b'>'));
+                }
+                b'"' | b'\'' => {
+                    let quote_byte = byte;
+                    idx = peek_idx;
+                    loop {
+                        let (byte, peek_idx) = expect_byte!(input, idx);
+                        idx = peek_idx;
+                        if byte == quote_byte {
+                            break;
+                        }
+                    }
+                }
+                _ => {
+                    idx = peek_idx;
+                }
+            }
+        }
+    }
 
     let Some(mut idx) = scan_name(input, pos) else {
         return None;
@@ -1547,7 +1762,7 @@ const fn scan_empty_elem_tag_after_prefix(
     debug_assert!(!is_name_char('/'));
 
     while let Some(peek_idx) = scan_space(input, idx) {
-        if let Some(peek_idx) = scan_attribute(input, peek_idx, opts) {
+        if let Some(peek_idx) = scan_attribute(input, peek_idx, opts.attrs) {
             idx = peek_idx;
         } else {
             idx = peek_idx;
@@ -1564,12 +1779,11 @@ const fn scan_empty_elem_tag_after_prefix(
 pub(crate) const fn scan_s_or_empty_elem_tag_after_prefix(
     input: &[u8],
     pos: usize,
-    opts: ScanAttributeOpts,
-    assume_valid_xml: bool,
+    opts: ScanTagOpts,
 ) -> Option<usize> {
     debug_assert!(input[pos - 1] == b'<');
 
-    if assume_valid_xml {
+    if opts.assume_valid_xml {
         debug_assert!(!is_name_char('/'));
         debug_assert!(!is_name_char('>'));
         debug_assert!(!is_name_char('"'));
@@ -1613,7 +1827,7 @@ pub(crate) const fn scan_s_or_empty_elem_tag_after_prefix(
     debug_assert!(!is_name_char('/'));
 
     while let Some(peek_idx) = scan_space(input, idx) {
-        if let Some(peek_idx) = scan_attribute(input, peek_idx, opts) {
+        if let Some(peek_idx) = scan_attribute(input, peek_idx, opts.attrs) {
             idx = peek_idx;
         } else {
             idx = peek_idx;
@@ -2110,7 +2324,7 @@ const fn scan_char_ref_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "internal_unstable"))]
 #[must_use]
 const fn scan_reference(input: &[u8], pos: usize) -> Option<usize> {
     let idx = expect_byte!(input, pos, b'&');
@@ -2282,7 +2496,7 @@ const fn scan_n_data_decl(input: &[u8], pos: usize) -> Option<usize> {
     scan_name(input, idx)
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "internal_unstable"))]
 #[must_use]
 const fn scan_encoding_decl(input: &[u8], pos: usize) -> Option<usize> {
     let Some(idx) = scan_space(input, pos) else {
@@ -2321,7 +2535,7 @@ const fn scan_encoding_decl(input: &[u8], pos: usize) -> Option<usize> {
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "internal_unstable"))]
 #[must_use]
 const fn is_enc_name_char(ch: char) -> bool {
     matches!(ch,
@@ -2615,12 +2829,15 @@ mod tests {
             scan_s_tag(
                 input.as_bytes(),
                 0,
-                ScanAttributeOpts {
-                    allow_no_value: false,
-                    attr_value_opts: ScanAttributeValueOpts {
-                        allow_less_than: false,
-                        allow_ampersand: false,
-                        allow_no_quote: true
+                ScanTagOpts {
+                    assume_valid_xml: false,
+                    attrs: ScanAttributeOpts {
+                        allow_no_value: false,
+                        attr_value_opts: ScanAttributeValueOpts {
+                            allow_less_than: false,
+                            allow_ampersand: false,
+                            allow_no_quote: true
+                        }
                     }
                 }
             )
@@ -2753,11 +2970,35 @@ mod tests {
             Some(large_1_xml.len()),
             scan_document(large_1_xml.as_bytes(), 0, ScanDocumentOpts::new())
         );
+        assert_eq!(
+            Some(large_1_xml.len()),
+            scan_document(large_1_xml.as_bytes(), 0, ScanDocumentOpts::relaxed())
+        );
+        assert_eq!(
+            Some(large_1_xml.len()),
+            scan_document(
+                large_1_xml.as_bytes(),
+                0,
+                ScanDocumentOpts::assume_valid_xml()
+            )
+        );
 
         let rss_1_xml = include_str!("../../tests/resources/rss-1.xml");
         assert_eq!(
             Some(rss_1_xml.len()),
             scan_document(rss_1_xml.as_bytes(), 0, ScanDocumentOpts::new())
+        );
+        assert_eq!(
+            Some(rss_1_xml.len()),
+            scan_document(rss_1_xml.as_bytes(), 0, ScanDocumentOpts::relaxed())
+        );
+        assert_eq!(
+            Some(rss_1_xml.len()),
+            scan_document(
+                rss_1_xml.as_bytes(),
+                0,
+                ScanDocumentOpts::assume_valid_xml()
+            )
         );
 
         let simple_1_xml = include_str!("../../tests/resources/simple-1.xml");
@@ -2765,11 +3006,35 @@ mod tests {
             Some(simple_1_xml.len()),
             scan_document(simple_1_xml.as_bytes(), 0, ScanDocumentOpts::new())
         );
+        assert_eq!(
+            Some(simple_1_xml.len()),
+            scan_document(simple_1_xml.as_bytes(), 0, ScanDocumentOpts::relaxed())
+        );
+        assert_eq!(
+            Some(simple_1_xml.len()),
+            scan_document(
+                simple_1_xml.as_bytes(),
+                0,
+                ScanDocumentOpts::assume_valid_xml()
+            )
+        );
 
         let svg_1_xml = include_str!("../../tests/resources/svg-1.xml");
         assert_eq!(
             Some(svg_1_xml.len()),
             scan_document(svg_1_xml.as_bytes(), 0, ScanDocumentOpts::new())
+        );
+        assert_eq!(
+            Some(svg_1_xml.len()),
+            scan_document(svg_1_xml.as_bytes(), 0, ScanDocumentOpts::relaxed())
+        );
+        assert_eq!(
+            Some(svg_1_xml.len()),
+            scan_document(
+                svg_1_xml.as_bytes(),
+                0,
+                ScanDocumentOpts::assume_valid_xml()
+            )
         );
     }
 }

@@ -27,5 +27,8 @@ std = []
 
 alloc = []
 
+# Exposing internal and unstable APIs
+internal_unstable = []
+
 [dev-dependencies]
 proptest = "1.4.0"

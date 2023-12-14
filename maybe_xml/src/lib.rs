@@ -121,3 +121,9 @@ pub use read::{IntoIter, Iter, Reader};
 const fn is_utf8_boundary(byte: u8) -> bool {
     byte as i8 >= -0x40
 }
+
+#[cfg(feature = "internal_unstable")]
+pub use read::parser::scan_document;
+
+#[cfg(feature = "internal_unstable")]
+pub use read::parser::ScanDocumentOpts;

@@ -57,6 +57,33 @@ fn main() -> io::Result<()> {
         return Err(io::Error::new(io::ErrorKind::Other, error));
     }
 
+    #[cfg(feature = "internal_unstable")]
+    {
+        use maybe_xml::ScanDocumentOpts;
+
+        if maybe_xml::scan_document(stdin.as_bytes(), 0, ScanDocumentOpts::new())
+            != Some(stdin.len())
+        {
+            let error = "scan_document with DEFAULT options should have read the entire stdin";
+            return Err(io::Error::new(io::ErrorKind::Other, error));
+        }
+
+        if maybe_xml::scan_document(stdin.as_bytes(), 0, ScanDocumentOpts::relaxed())
+            != Some(stdin.len())
+        {
+            let error = "scan_document with RELAXED options should have read the entire stdin";
+            return Err(io::Error::new(io::ErrorKind::Other, error));
+        }
+
+        if maybe_xml::scan_document(stdin.as_bytes(), 0, ScanDocumentOpts::assume_valid_xml())
+            != Some(stdin.len())
+        {
+            let error =
+                "scan_document with ASSUME VALID XML options should have read the entire stdin";
+            return Err(io::Error::new(io::ErrorKind::Other, error));
+        }
+    }
+
     println!("Start Tag: {}", counters.start_tag);
     println!("Empty Element Tag: {}", counters.empty_element_tag);
     println!("End Tag: {}", counters.end_tag);
