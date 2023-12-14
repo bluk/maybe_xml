@@ -7,7 +7,7 @@ const UTF8_CONTINUATION_BYTE_MASK: u8 = 0b0011_1111;
 /// be a complete Unicode scalar value.
 #[must_use]
 const fn next_ch(input: &[u8], pos: usize) -> Option<(char, usize)> {
-    if input.len() == pos {
+    if input.len() <= pos {
         return None;
     }
 
@@ -148,7 +148,7 @@ macro_rules! expect_byte {
     };
     ($input:expr, $pos:expr, else $else_ret_expr:expr $(,)?) => {
         {
-            if $input.len() == $pos {
+            if $input.len() <= $pos {
                 return $else_ret_expr;
             }
             ($input[$pos], $pos + 1)
@@ -159,7 +159,7 @@ macro_rules! expect_byte {
     };
     ($input:expr, $pos:expr, else $else_ret_expr:expr, $expected:literal $(,)?) => {
         {
-            if $input.len() == $pos {
+            if $input.len() <= $pos {
                 return $else_ret_expr;
             }
             if $input[$pos] != $expected {
@@ -173,7 +173,7 @@ macro_rules! expect_byte {
     };
     ($input:expr, $pos:expr, else $else_ret_expr:expr, $expected:expr $(,)?) => {
         {
-            if $input.len() == $pos {
+            if $input.len() <= $pos {
                 return $else_ret_expr;
             }
             if !$expected($input[$pos]) {
@@ -1145,7 +1145,7 @@ pub(crate) const fn scan_doctype_decl_after_prefix(
         }
     }
 
-    if input.len() == idx {
+    if input.len() <= idx {
         return None;
     }
 
