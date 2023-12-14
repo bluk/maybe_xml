@@ -1565,8 +1565,46 @@ pub(crate) const fn scan_s_or_empty_elem_tag_after_prefix(
     input: &[u8],
     pos: usize,
     opts: ScanAttributeOpts,
+    assume_valid_xml: bool,
 ) -> Option<usize> {
     debug_assert!(input[pos - 1] == b'<');
+
+    if assume_valid_xml {
+        debug_assert!(!is_name_char('/'));
+        debug_assert!(!is_name_char('>'));
+        debug_assert!(!is_name_char('"'));
+        debug_assert!(!is_name_char('\''));
+        debug_assert!(!is_name_char('='));
+
+        let mut idx = pos;
+        loop {
+            let (byte, peek_idx) = expect_byte!(input, idx);
+
+            match byte {
+                b'>' => {
+                    return Some(peek_idx);
+                }
+                b'/' => {
+                    idx = peek_idx;
+                    return Some(expect_byte!(input, idx, b'>'));
+                }
+                b'"' | b'\'' => {
+                    let quote_byte = byte;
+                    idx = peek_idx;
+                    loop {
+                        let (byte, peek_idx) = expect_byte!(input, idx);
+                        idx = peek_idx;
+                        if byte == quote_byte {
+                            break;
+                        }
+                    }
+                }
+                _ => {
+                    idx = peek_idx;
+                }
+            }
+        }
+    }
 
     let Some(mut idx) = scan_name(input, pos) else {
         return None;

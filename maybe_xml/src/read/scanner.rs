@@ -51,7 +51,12 @@ const fn scan_start_or_empty_element_tag(input: &[u8], pos: usize) -> Option<usi
     debug_assert!(input[pos + 1] != b'?');
     debug_assert!(input[pos + 1] != b'!');
 
-    parser::scan_s_or_empty_elem_tag_after_prefix(input, pos + OFFSET, ScanAttributeOpts::new())
+    parser::scan_s_or_empty_elem_tag_after_prefix(
+        input,
+        pos + OFFSET,
+        ScanAttributeOpts::new(),
+        false,
+    )
 }
 
 #[must_use]
