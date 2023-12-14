@@ -17,11 +17,13 @@ struct TokenCounters {
 fn main() -> io::Result<()> {
     let stdin = io::read_to_string(io::stdin())?;
 
-    let reader = Reader::from_str(&stdin);
-
     let mut counters = TokenCounters::default();
 
-    for token in reader {
+    let reader = Reader::from_str(&stdin);
+
+    let mut pos = 0;
+
+    while let Some(token) = reader.tokenize(&mut pos) {
         match token.ty() {
             token::Ty::StartTag(_) => {
                 counters.start_tag += 1;
@@ -48,6 +50,11 @@ fn main() -> io::Result<()> {
                 counters.cdata += 1;
             }
         }
+    }
+
+    if pos != stdin.len() {
+        let error = format!("should have read the entire stdin but only read to {pos} bytes");
+        return Err(io::Error::new(io::ErrorKind::Other, error));
     }
 
     println!("Start Tag: {}", counters.start_tag);
