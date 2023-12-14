@@ -180,7 +180,7 @@ impl<'a> StartTag<'a> {
     pub const fn name(&self) -> TagName<'a> {
         let bytes = self.0.as_bytes();
         let Some(idx) = parser::scan_name(bytes, '<'.len_utf8()) else {
-            unreachable!();
+            return TagName::from_str("");
         };
 
         let (bytes, _) = bytes.split_at(idx);
@@ -199,23 +199,10 @@ impl<'a> StartTag<'a> {
         let bytes = self.0.as_bytes();
 
         let Some(begin) = parser::scan_name(bytes, '<'.len_utf8()) else {
-            unreachable!();
+            return None;
         };
 
-        let mut end = bytes.len() - '>'.len_utf8() - 1;
-        loop {
-            if end <= begin {
-                return None;
-            }
-
-            let byte = bytes[end];
-            if !is_space(byte) {
-                end += 1;
-                break;
-            }
-
-            end -= 1;
-        }
+        let end = bytes.len() - '>'.len_utf8();
 
         let (bytes, _) = bytes.split_at(end);
         let (_, bytes) = bytes.split_at(begin);
@@ -240,7 +227,7 @@ impl<'a> EmptyElementTag<'a> {
     pub const fn name(&self) -> TagName<'a> {
         let bytes = self.0.as_bytes();
         let Some(idx) = parser::scan_name(bytes, '<'.len_utf8()) else {
-            unreachable!();
+            return TagName::from_str("");
         };
 
         let (bytes, _) = bytes.split_at(idx);
@@ -259,23 +246,10 @@ impl<'a> EmptyElementTag<'a> {
         let bytes = self.0.as_bytes();
 
         let Some(begin) = parser::scan_name(bytes, '<'.len_utf8()) else {
-            unreachable!();
+            return None;
         };
 
-        let mut end = bytes.len() - '/'.len_utf8() - '>'.len_utf8() - 1;
-        loop {
-            if end <= begin {
-                return None;
-            }
-
-            let byte = bytes[end];
-            if !is_space(byte) {
-                end += 1;
-                break;
-            }
-
-            end -= 1;
-        }
+        let end = bytes.len() - '/'.len_utf8() - '>'.len_utf8();
 
         let (bytes, _) = bytes.split_at(end);
         let (_, bytes) = bytes.split_at(begin);
@@ -299,7 +273,7 @@ impl<'a> EndTag<'a> {
         let bytes = self.0.as_bytes();
 
         let Some(idx) = parser::scan_name(bytes, '<'.len_utf8() + '/'.len_utf8()) else {
-            unreachable!();
+            return TagName::from_str("");
         };
 
         let (bytes, _) = bytes.split_at(idx);
@@ -341,7 +315,7 @@ impl<'a> ProcessingInstruction<'a> {
         let bytes = self.0.as_bytes();
 
         let Some(idx) = parser::scan_name(bytes, '<'.len_utf8() + '?'.len_utf8()) else {
-            unreachable!();
+            return Target::from_str("");
         };
 
         let (bytes, _) = bytes.split_at(idx);
@@ -358,7 +332,7 @@ impl<'a> ProcessingInstruction<'a> {
         let bytes = self.0.as_bytes();
 
         let Some(idx) = parser::scan_name(bytes, '<'.len_utf8() + '?'.len_utf8()) else {
-            unreachable!();
+            return None;
         };
 
         let begin = parser::scan_optional_space(bytes, idx);
@@ -419,6 +393,8 @@ converters!(Cdata);
 
 #[cfg(test)]
 mod tests {
+    use crate::token::prop::Attribute;
+
     use super::*;
 
     #[test]
@@ -447,11 +423,14 @@ mod tests {
         assert_eq!(start_tag.as_bytes(), "<abc>".as_bytes());
     }
 
-    #[should_panic(expected = "unreachable")]
     #[test]
     fn empty_start_tag_name() {
         let start_tag = StartTag::from_str("<>");
-        let _ = start_tag.name();
+        assert_eq!(start_tag.name().as_str(), "");
+        assert_eq!(start_tag.name().as_bytes(), "".as_bytes());
+        assert_eq!(start_tag.name().local().as_str(), "");
+        assert_eq!(start_tag.name().namespace_prefix(), None);
+        assert_eq!(start_tag.attributes(), None);
     }
 
     #[test]
@@ -472,23 +451,32 @@ mod tests {
     #[test]
     fn start_tag_attributes_space() {
         let start_tag = StartTag::from_str("<abc  attr=\"1\" >");
-        assert_eq!(
-            start_tag.attributes(),
-            Some(Attributes::from_str("  attr=\"1\""))
-        );
+        let attrs = start_tag.attributes().unwrap();
+        assert_eq!(attrs, Attributes::from_str("  attr=\"1\" "));
+        let mut attrs = attrs.into_iter();
+        assert_eq!(attrs.next(), Some(Attribute::from_str("  attr=\"1\"")));
+        assert_eq!(attrs.next(), None);
 
         let start_tag = StartTag::from_str("<abc   attr=\"1\" id=\"#example\"  >");
+        let attrs = start_tag.attributes().unwrap();
         assert_eq!(
-            start_tag.attributes(),
-            Some(Attributes::from_str("   attr=\"1\" id=\"#example\""))
+            attrs,
+            Attributes::from_str("   attr=\"1\" id=\"#example\"  ")
         );
+        let mut attrs = attrs.into_iter();
+        assert_eq!(attrs.next(), Some(Attribute::from_str("   attr=\"1\"")));
+        assert_eq!(attrs.next(), Some(Attribute::from_str(" id=\"#example\"")));
+        assert_eq!(attrs.next(), None);
     }
 
-    #[should_panic(expected = "unreachable")]
     #[test]
     fn empty_empty_element_tag_name() {
         let empty_element_tag = EmptyElementTag::from_str("</>");
-        let _ = empty_element_tag.name();
+        assert_eq!(empty_element_tag.name().as_str(), "");
+        assert_eq!(empty_element_tag.name().as_bytes(), "".as_bytes());
+        assert_eq!(empty_element_tag.name().local().as_str(), "");
+        assert_eq!(empty_element_tag.name().namespace_prefix(), None);
+        assert_eq!(empty_element_tag.attributes(), None);
     }
 
     #[test]
@@ -509,31 +497,39 @@ mod tests {
     #[test]
     fn empty_element_tag_attributes_space() {
         let empty_element_tag = EmptyElementTag::from_str("<abc  attr=\"1\" />");
-        assert_eq!(
-            empty_element_tag.attributes(),
-            Some(Attributes::from_str("  attr=\"1\""))
-        );
+        let attrs = empty_element_tag.attributes().unwrap();
+        assert_eq!(attrs, Attributes::from_str("  attr=\"1\" "));
+        let mut attrs = attrs.into_iter();
+        assert_eq!(attrs.next(), Some(Attribute::from_str("  attr=\"1\"")));
+        assert_eq!(attrs.next(), None);
 
         let empty_element_tag =
             EmptyElementTag::from_str("<abc   attr=\"1\" id=\"#example\"     />");
+        let attrs = empty_element_tag.attributes().unwrap();
         assert_eq!(
-            empty_element_tag.attributes(),
-            Some(Attributes::from_str("   attr=\"1\" id=\"#example\""))
+            attrs,
+            Attributes::from_str("   attr=\"1\" id=\"#example\"     ")
         );
+        let mut attrs = attrs.into_iter();
+        assert_eq!(attrs.next(), Some(Attribute::from_str("   attr=\"1\"")));
+        assert_eq!(attrs.next(), Some(Attribute::from_str(" id=\"#example\"")));
+        assert_eq!(attrs.next(), None);
     }
 
-    #[should_panic(expected = "unreachable")]
     #[test]
     fn empty_end_tag_name() {
         let end_tag = EndTag::from_str("</>");
-        let _ = end_tag.name();
+        assert_eq!(end_tag.name().as_str(), "");
+        assert_eq!(end_tag.name().as_bytes(), "".as_bytes());
+        assert_eq!(end_tag.name().local().as_str(), "");
+        assert_eq!(end_tag.name().namespace_prefix(), None);
     }
 
-    #[should_panic(expected = "unreachable")]
     #[test]
     fn pi_no_content() {
         let pi = ProcessingInstruction::from_str("<??>");
-        let _ = pi.target();
+        assert_eq!(Target::from_str(""), pi.target());
+        assert_eq!(None, pi.instructions());
     }
 
     #[test]

@@ -288,9 +288,12 @@ impl<'a> Attribute<'a> {
     #[must_use]
     pub const fn name(&self) -> AttributeName<'a> {
         let bytes = self.0.as_bytes();
+        // XXX: The spacing is already parsed in `iter_attr`, but it must be
+        // parsed again because the assumption is that Attributes.len() is the
+        // total space for the attribute.
         let begin = parser::scan_optional_space(bytes, 0);
         let Some(end) = parser::scan_name(bytes, begin) else {
-            unreachable!()
+            return AttributeName::from_str("");
         };
 
         let (bytes, _) = bytes.split_at(end);
@@ -305,9 +308,12 @@ impl<'a> Attribute<'a> {
     #[must_use]
     pub const fn value(&self) -> Option<AttributeValue<'a>> {
         let bytes = self.0.as_bytes();
+        // XXX: The spacing is already parsed in `iter_attr`, but it must be
+        // parsed again because the assumption is that Attributes.len() is the
+        // total space for the attribute.
         let begin = parser::scan_optional_space(bytes, 0);
         let Some(begin) = parser::scan_name(bytes, begin) else {
-            unreachable!()
+            return None;
         };
         let Some(mut begin) = parser::scan_eq(bytes, begin) else {
             return None;
@@ -453,6 +459,30 @@ mod tests {
     }
 
     #[test]
+    fn tag_name_empty() {
+        let tag_name = TagName::from_str("");
+        assert_eq!(tag_name.as_str(), "");
+        assert_eq!(tag_name.as_bytes(), b"");
+        assert_eq!(tag_name.local().as_str(), "");
+        assert_eq!(tag_name.local().as_bytes(), b"");
+        assert_eq!(tag_name.namespace_prefix(), None);
+
+        let tag_name = TagName::from_str(" ");
+        assert_eq!(tag_name.as_str(), " ");
+        assert_eq!(tag_name.as_bytes(), b" ");
+        assert_eq!(tag_name.local().as_str(), " ");
+        assert_eq!(tag_name.local().as_bytes(), b" ");
+        assert_eq!(tag_name.namespace_prefix(), None);
+
+        let tag_name = TagName::from_str("   ");
+        assert_eq!(tag_name.as_str(), "   ");
+        assert_eq!(tag_name.as_bytes(), b"   ");
+        assert_eq!(tag_name.local().as_str(), "   ");
+        assert_eq!(tag_name.local().as_bytes(), b"   ");
+        assert_eq!(tag_name.namespace_prefix(), None);
+    }
+
+    #[test]
     fn attribute_standalone_space() {
         let attr = Attribute::from_str("attr");
         assert_eq!("attr", attr.name().as_str());
@@ -529,8 +559,68 @@ mod tests {
     }
 
     #[test]
+    fn attribute_empty() {
+        let att = Attribute::from_str("");
+        assert_eq!(AttributeName::from_str(""), att.name());
+        assert_eq!(None, att.value());
+
+        let att = Attribute::from_str(" ");
+        assert_eq!(AttributeName::from_str(""), att.name());
+        assert_eq!(None, att.value());
+
+        let att = Attribute::from_str("   ");
+        assert_eq!(AttributeName::from_str(""), att.name());
+        assert_eq!(None, att.value());
+    }
+
+    #[test]
+    fn attribute_name_empty() {
+        let att_name = AttributeName::from_str("");
+        assert_eq!(att_name.as_str(), "");
+        assert_eq!(att_name.as_bytes(), b"");
+        assert_eq!(att_name.local(), LocalName::from_str(""));
+        assert_eq!(att_name.namespace_prefix(), None);
+
+        let att_name = AttributeName::from_str(" ");
+        assert_eq!(att_name.as_str(), " ");
+        assert_eq!(att_name.as_bytes(), b" ");
+        assert_eq!(att_name.local(), LocalName::from_str(" "));
+        assert_eq!(att_name.namespace_prefix(), None);
+
+        let att_name = AttributeName::from_str("   ");
+        assert_eq!(att_name.as_str(), "   ");
+        assert_eq!(att_name.as_bytes(), b"   ");
+        assert_eq!(att_name.local(), LocalName::from_str("   "));
+        assert_eq!(att_name.namespace_prefix(), None);
+    }
+
+    #[test]
+    fn attribute_value_empty() {
+        let att_value = AttributeValue::from_str("");
+        assert_eq!(att_value.as_str(), "");
+        assert_eq!(att_value.as_bytes(), b"");
+
+        let att_value = AttributeValue::from_str(" ");
+        assert_eq!(att_value.as_str(), " ");
+        assert_eq!(att_value.as_bytes(), b" ");
+
+        let att_value = AttributeValue::from_str("   ");
+        assert_eq!(att_value.as_str(), "   ");
+        assert_eq!(att_value.as_bytes(), b"   ");
+    }
+
+    #[test]
     fn empty_attributes() {
         let attributes = Attributes::from_str("");
+        assert_eq!(attributes.parse(0), None);
+        assert_eq!(attributes.into_iter().next(), None);
+
+        let attributes = Attributes::from_str(" ");
+        assert_eq!(attributes.parse(0), None);
+        assert_eq!(attributes.into_iter().next(), None);
+
+        let attributes = Attributes::from_str("   ");
+        assert_eq!(attributes.parse(0), None);
         assert_eq!(attributes.into_iter().next(), None);
     }
 
