@@ -147,6 +147,8 @@ macro_rules! converters {
 
 pub(crate) use converters;
 
+use crate::read::parser::{self};
+
 /// Type of token
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Ty<'a> {
@@ -176,21 +178,12 @@ impl<'a> StartTag<'a> {
     /// The name of the tag.
     #[must_use]
     pub const fn name(&self) -> TagName<'a> {
-        let mut index = 0;
         let bytes = self.0.as_bytes();
-        loop {
-            if index == bytes.len() {
-                index -= '>'.len_utf8();
-                break;
-            }
-            let byte = bytes[index];
-            if is_space(byte) {
-                break;
-            }
-            index += 1;
-        }
+        let Some(idx) = parser::scan_name(bytes, '<'.len_utf8()) else {
+            unreachable!();
+        };
 
-        let (bytes, _) = bytes.split_at(index);
+        let (bytes, _) = bytes.split_at(idx);
         let (_, bytes) = bytes.split_at('<'.len_utf8());
 
         let value = unsafe { core::str::from_utf8_unchecked(bytes) };
@@ -203,29 +196,11 @@ impl<'a> StartTag<'a> {
     pub const fn attributes(&self) -> Option<Attributes<'a>> {
         let bytes = self.0.as_bytes();
 
-        let mut index = 0;
-        loop {
-            if index == bytes.len() {
-                return None;
-            }
-            let byte = bytes[index];
-            if is_space(byte) {
-                break;
-            }
-            index += 1;
-        }
+        let Some(idx) = parser::scan_name(bytes, '<'.len_utf8()) else {
+            unreachable!();
+        };
 
-        let mut begin = index + 1;
-        loop {
-            if begin == bytes.len() {
-                return None;
-            }
-            let byte = bytes[begin];
-            if !is_space(byte) {
-                break;
-            }
-            begin += 1;
-        }
+        let begin = parser::scan_optional_space(bytes, idx);
 
         let mut end = bytes.len() - '>'.len_utf8() - 1;
         loop {
@@ -263,22 +238,12 @@ impl<'a> EmptyElementTag<'a> {
     /// The name of the tag.
     #[must_use]
     pub const fn name(&self) -> TagName<'a> {
-        let mut index = 0;
         let bytes = self.0.as_bytes();
-        loop {
-            if index == bytes.len() {
-                index -= '/'.len_utf8();
-                index -= '>'.len_utf8();
-                break;
-            }
-            let byte = bytes[index];
-            if is_space(byte) {
-                break;
-            }
-            index += 1;
-        }
+        let Some(idx) = parser::scan_name(bytes, '<'.len_utf8()) else {
+            unreachable!();
+        };
 
-        let (bytes, _) = bytes.split_at(index);
+        let (bytes, _) = bytes.split_at(idx);
         let (_, bytes) = bytes.split_at('<'.len_utf8());
 
         let value = unsafe { core::str::from_utf8_unchecked(bytes) };
@@ -291,29 +256,11 @@ impl<'a> EmptyElementTag<'a> {
     pub const fn attributes(&self) -> Option<Attributes<'a>> {
         let bytes = self.0.as_bytes();
 
-        let mut index = 0;
-        loop {
-            if index == bytes.len() {
-                return None;
-            }
-            let byte = bytes[index];
-            if is_space(byte) {
-                break;
-            }
-            index += 1;
-        }
+        let Some(idx) = parser::scan_name(bytes, '<'.len_utf8()) else {
+            unreachable!();
+        };
 
-        let mut begin = index + 1;
-        loop {
-            if begin == bytes.len() {
-                return None;
-            }
-            let byte = bytes[begin];
-            if !is_space(byte) {
-                break;
-            }
-            begin += 1;
-        }
+        let begin = parser::scan_optional_space(bytes, idx);
 
         let mut end = bytes.len() - '/'.len_utf8() - '>'.len_utf8() - 1;
         loop {
@@ -349,21 +296,13 @@ impl<'a> EndTag<'a> {
     /// The name of the tag.
     #[must_use]
     pub const fn name(&self) -> TagName<'a> {
-        let mut index = 0;
         let bytes = self.0.as_bytes();
-        loop {
-            if index == bytes.len() {
-                index -= '>'.len_utf8();
-                break;
-            }
-            let byte = bytes[index];
-            if is_space(byte) {
-                break;
-            }
-            index += 1;
-        }
 
-        let (bytes, _) = bytes.split_at(index);
+        let Some(idx) = parser::scan_name(bytes, '<'.len_utf8() + '/'.len_utf8()) else {
+            unreachable!();
+        };
+
+        let (bytes, _) = bytes.split_at(idx);
         let (_, bytes) = bytes.split_at('<'.len_utf8() + '/'.len_utf8());
 
         let value = unsafe { core::str::from_utf8_unchecked(bytes) };
@@ -399,22 +338,13 @@ impl<'a> ProcessingInstruction<'a> {
     /// The target of the tag.
     #[must_use]
     pub const fn target(&self) -> Target<'a> {
-        let mut index = 0;
         let bytes = self.0.as_bytes();
-        loop {
-            if index == bytes.len() {
-                index -= '?'.len_utf8();
-                index -= '>'.len_utf8();
-                break;
-            }
-            let byte = bytes[index];
-            if is_space(byte) {
-                break;
-            }
-            index += 1;
-        }
 
-        let (bytes, _) = bytes.split_at(index);
+        let Some(idx) = parser::scan_name(bytes, '<'.len_utf8() + '?'.len_utf8()) else {
+            unreachable!();
+        };
+
+        let (bytes, _) = bytes.split_at(idx);
         let (_, bytes) = bytes.split_at('<'.len_utf8() + '?'.len_utf8());
 
         let value = unsafe { core::str::from_utf8_unchecked(bytes) };
@@ -425,30 +355,13 @@ impl<'a> ProcessingInstruction<'a> {
     /// The instructions of the tag.
     #[must_use]
     pub const fn instructions(&self) -> Option<Instructions<'a>> {
-        let mut index = 0;
         let bytes = self.0.as_bytes();
-        loop {
-            if index == bytes.len() {
-                return None;
-            }
-            let byte = bytes[index];
-            if is_space(byte) {
-                break;
-            }
-            index += 1;
-        }
 
-        let mut begin = index + 1;
-        loop {
-            if begin == bytes.len() {
-                return None;
-            }
-            let byte = bytes[begin];
-            if !is_space(byte) {
-                break;
-            }
-            begin += 1;
-        }
+        let Some(idx) = parser::scan_name(bytes, '<'.len_utf8() + '?'.len_utf8()) else {
+            unreachable!();
+        };
+
+        let begin = parser::scan_optional_space(bytes, idx);
 
         let mut end = bytes.len() - '?'.len_utf8() - '>'.len_utf8() - 1;
         loop {
@@ -534,11 +447,11 @@ mod tests {
         assert_eq!(start_tag.as_bytes(), "<abc>".as_bytes());
     }
 
+    #[should_panic(expected = "unreachable")]
     #[test]
     fn empty_start_tag_name() {
         let start_tag = StartTag::from_str("<>");
-        assert_eq!(start_tag.name().as_bytes(), b"");
-        assert_eq!(start_tag.name().as_str(), "");
+        let _ = start_tag.name();
     }
 
     #[test]
@@ -571,11 +484,11 @@ mod tests {
         );
     }
 
+    #[should_panic(expected = "unreachable")]
     #[test]
     fn empty_empty_element_tag_name() {
         let empty_element_tag = EmptyElementTag::from_str("</>");
-        assert_eq!(empty_element_tag.name().as_bytes(), b"");
-        assert_eq!(empty_element_tag.name().as_str(), "");
+        let _ = empty_element_tag.name();
     }
 
     #[test]
@@ -609,18 +522,18 @@ mod tests {
         );
     }
 
+    #[should_panic(expected = "unreachable")]
     #[test]
     fn empty_end_tag_name() {
         let end_tag = EndTag::from_str("</>");
-        assert_eq!(end_tag.name().as_bytes(), b"");
-        assert_eq!(end_tag.name().as_str(), "");
+        let _ = end_tag.name();
     }
 
+    #[should_panic(expected = "unreachable")]
     #[test]
     fn pi_no_content() {
         let pi = ProcessingInstruction::from_str("<??>");
-        assert_eq!(Target::from_str(""), pi.target());
-        assert_eq!(None, pi.instructions());
+        let _ = pi.target();
     }
 
     #[test]

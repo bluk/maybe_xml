@@ -2,7 +2,7 @@
 
 use crate::token::Token;
 
-mod parser;
+pub(crate) mod parser;
 mod scanner;
 
 use scanner::scan;

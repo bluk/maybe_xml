@@ -277,7 +277,7 @@ const fn is_space(byte: u8) -> bool {
 }
 
 #[must_use]
-const fn scan_space(input: &[u8], pos: usize) -> Option<usize> {
+pub(crate) const fn scan_space(input: &[u8], pos: usize) -> Option<usize> {
     let mut idx = expect_byte!(input, pos, is_space);
 
     loop {
@@ -287,7 +287,7 @@ const fn scan_space(input: &[u8], pos: usize) -> Option<usize> {
 
 #[inline]
 #[must_use]
-const fn scan_optional_space(input: &[u8], pos: usize) -> usize {
+pub(crate) const fn scan_optional_space(input: &[u8], pos: usize) -> usize {
     if let Some(peek_idx) = scan_space(input, pos) {
         peek_idx
     } else {
@@ -322,7 +322,7 @@ const fn is_name_char(ch: char) -> bool {
 }
 
 #[must_use]
-const fn scan_name(input: &[u8], pos: usize) -> Option<usize> {
+pub(crate) const fn scan_name(input: &[u8], pos: usize) -> Option<usize> {
     let mut idx = expect_ch!(input, pos, is_name_start_char);
 
     loop {
