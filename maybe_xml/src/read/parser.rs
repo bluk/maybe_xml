@@ -378,10 +378,10 @@ const fn scan_entity_value(input: &[u8], pos: usize) -> Option<usize> {
 
 #[allow(clippy::struct_field_names)]
 #[derive(Debug, Default, Clone, Copy)]
-struct ScanAttributeValueOpts {
-    allow_less_than: bool,
-    allow_ampersand: bool,
-    allow_no_quote: bool,
+pub(crate) struct ScanAttributeValueOpts {
+    pub(crate) allow_less_than: bool,
+    pub(crate) allow_ampersand: bool,
+    pub(crate) allow_no_quote: bool,
 }
 
 impl ScanAttributeValueOpts {
@@ -1070,7 +1070,7 @@ const fn scan_version_info(input: &[u8], pos: usize) -> Option<usize> {
 
 #[inline]
 #[must_use]
-const fn scan_eq(input: &[u8], pos: usize) -> Option<usize> {
+pub(crate) const fn scan_eq(input: &[u8], pos: usize) -> Option<usize> {
     let idx = scan_optional_space(input, pos);
     let idx = expect_byte!(input, idx, b'=');
     let idx = scan_optional_space(input, idx);
@@ -1413,8 +1413,8 @@ const fn scan_s_tag_after_prefix(
 
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct ScanAttributeOpts {
-    allow_no_value: bool,
-    attr_value_opts: ScanAttributeValueOpts,
+    pub(crate) allow_no_value: bool,
+    pub(crate) attr_value_opts: ScanAttributeValueOpts,
 }
 
 impl ScanAttributeOpts {
@@ -1430,7 +1430,11 @@ impl ScanAttributeOpts {
 
 #[inline]
 #[must_use]
-const fn scan_attribute(input: &[u8], pos: usize, opts: ScanAttributeOpts) -> Option<usize> {
+pub(crate) const fn scan_attribute(
+    input: &[u8],
+    pos: usize,
+    opts: ScanAttributeOpts,
+) -> Option<usize> {
     let Some(idx) = scan_name(input, pos) else {
         return None;
     };

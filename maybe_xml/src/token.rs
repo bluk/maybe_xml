@@ -194,13 +194,13 @@ impl<'a> StartTag<'a> {
     /// The attributes of the tag.
     #[must_use]
     pub const fn attributes(&self) -> Option<Attributes<'a>> {
+        // TODO: Should return an Attributes without Option
+
         let bytes = self.0.as_bytes();
 
-        let Some(idx) = parser::scan_name(bytes, '<'.len_utf8()) else {
+        let Some(begin) = parser::scan_name(bytes, '<'.len_utf8()) else {
             unreachable!();
         };
-
-        let begin = parser::scan_optional_space(bytes, idx);
 
         let mut end = bytes.len() - '>'.len_utf8() - 1;
         loop {
@@ -254,13 +254,13 @@ impl<'a> EmptyElementTag<'a> {
     /// The attributes of the tag.
     #[must_use]
     pub const fn attributes(&self) -> Option<Attributes<'a>> {
+        // TODO: Should return an Attributes without Option
+
         let bytes = self.0.as_bytes();
 
-        let Some(idx) = parser::scan_name(bytes, '<'.len_utf8()) else {
+        let Some(begin) = parser::scan_name(bytes, '<'.len_utf8()) else {
             unreachable!();
         };
-
-        let begin = parser::scan_optional_space(bytes, idx);
 
         let mut end = bytes.len() - '/'.len_utf8() - '>'.len_utf8() - 1;
         loop {
@@ -459,13 +459,13 @@ mod tests {
         let start_tag = StartTag::from_str("<abc attr=\"1\">");
         assert_eq!(
             start_tag.attributes(),
-            Some(Attributes::from_str("attr=\"1\""))
+            Some(Attributes::from_str(" attr=\"1\""))
         );
 
         let start_tag = StartTag::from_str("<abc attr=\"1\" id=\"#example\">");
         assert_eq!(
             start_tag.attributes(),
-            Some(Attributes::from_str("attr=\"1\" id=\"#example\""))
+            Some(Attributes::from_str(" attr=\"1\" id=\"#example\""))
         );
     }
 
@@ -474,13 +474,13 @@ mod tests {
         let start_tag = StartTag::from_str("<abc  attr=\"1\" >");
         assert_eq!(
             start_tag.attributes(),
-            Some(Attributes::from_str("attr=\"1\""))
+            Some(Attributes::from_str("  attr=\"1\""))
         );
 
         let start_tag = StartTag::from_str("<abc   attr=\"1\" id=\"#example\"  >");
         assert_eq!(
             start_tag.attributes(),
-            Some(Attributes::from_str("attr=\"1\" id=\"#example\""))
+            Some(Attributes::from_str("   attr=\"1\" id=\"#example\""))
         );
     }
 
@@ -496,13 +496,13 @@ mod tests {
         let empty_element_tag = EmptyElementTag::from_str("<abc attr=\"1\"/>");
         assert_eq!(
             empty_element_tag.attributes(),
-            Some(Attributes::from_str("attr=\"1\""))
+            Some(Attributes::from_str(" attr=\"1\""))
         );
 
         let empty_element_tag = EmptyElementTag::from_str("<abc attr=\"1\" id=\"#example\"/>");
         assert_eq!(
             empty_element_tag.attributes(),
-            Some(Attributes::from_str("attr=\"1\" id=\"#example\""))
+            Some(Attributes::from_str(" attr=\"1\" id=\"#example\""))
         );
     }
 
@@ -511,14 +511,14 @@ mod tests {
         let empty_element_tag = EmptyElementTag::from_str("<abc  attr=\"1\" />");
         assert_eq!(
             empty_element_tag.attributes(),
-            Some(Attributes::from_str("attr=\"1\""))
+            Some(Attributes::from_str("  attr=\"1\""))
         );
 
         let empty_element_tag =
             EmptyElementTag::from_str("<abc   attr=\"1\" id=\"#example\"     />");
         assert_eq!(
             empty_element_tag.attributes(),
-            Some(Attributes::from_str("attr=\"1\" id=\"#example\""))
+            Some(Attributes::from_str("   attr=\"1\" id=\"#example\""))
         );
     }
 

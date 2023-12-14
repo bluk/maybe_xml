@@ -115,12 +115,6 @@ pub mod token;
 
 pub use read::{IntoIter, Iter, Reader};
 
-enum QuoteState {
-    None,
-    Single,
-    Double,
-}
-
 #[allow(clippy::cast_possible_wrap)]
 #[inline]
 #[must_use]

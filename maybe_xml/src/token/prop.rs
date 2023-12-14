@@ -4,7 +4,7 @@
 //! there may be interesting "properties" within the token such as the name of the
 //! tag or the contents of a Characters/CDATA token.
 
-use crate::QuoteState;
+use crate::read::parser::{self, ScanAttributeOpts, ScanAttributeValueOpts};
 
 use core::str;
 
@@ -219,96 +219,24 @@ impl<'a> IntoIterator for Attributes<'a> {
 
 #[must_use]
 const fn iter_attr(index: usize, bytes: &[u8]) -> Option<usize> {
-    if bytes.len() <= index {
+    let Some(index) = parser::scan_space(bytes, index) else {
         return None;
-    }
-
-    let mut begin = index;
-    loop {
-        if bytes.len() <= begin {
-            return None;
-        }
-
-        let byte = bytes[begin];
-        if !super::is_space(byte) {
-            break;
-        }
-
-        begin += 1;
-    }
-
-    let byte = bytes[begin];
-
-    let mut quote_state = match byte {
-        b'"' => QuoteState::Double,
-        b'\'' => QuoteState::Single,
-        _ => QuoteState::None,
     };
 
-    let mut saw_space_before_equals = false;
-    let mut last_nonspace_index_before_equals = 0;
-    let mut saw_equals = byte == b'=';
-    let mut saw_characters_after_equals = false;
+    // TODO: Adjust options to be more strict if necessary
 
-    let mut end = begin + 1;
-    loop {
-        if bytes.len() <= end {
-            return Some(bytes.len());
-        }
-
-        match bytes[end] {
-            b'"' => match quote_state {
-                QuoteState::None => quote_state = QuoteState::Double,
-                QuoteState::Single => {}
-                QuoteState::Double => {
-                    if saw_equals {
-                        let end = end + '"'.len_utf8();
-                        return Some(end);
-                    }
-                }
+    parser::scan_attribute(
+        bytes,
+        index,
+        ScanAttributeOpts {
+            allow_no_value: true,
+            attr_value_opts: ScanAttributeValueOpts {
+                allow_less_than: true,
+                allow_ampersand: true,
+                allow_no_quote: true,
             },
-            b'\'' => match quote_state {
-                QuoteState::None => quote_state = QuoteState::Single,
-                QuoteState::Single => {
-                    if saw_equals {
-                        let end = end + '\''.len_utf8();
-                        return Some(end);
-                    }
-                }
-                QuoteState::Double => {}
-            },
-            b'=' => saw_equals = true,
-            byte if super::is_space(byte) => {
-                if !saw_equals {
-                    saw_space_before_equals = true;
-                    // For the case of `name = value`, the space is
-                    // acknowledged first only. If an `=` is seen after any
-                    // spaces, the space is ignored. If an `=` is not seen
-                    // after space, then return the name only (this is handled below).
-                } else if saw_characters_after_equals {
-                    match quote_state {
-                        QuoteState::None => {
-                            let end = end;
-                            return Some(end);
-                        }
-                        QuoteState::Single | QuoteState::Double => {}
-                    }
-                }
-            }
-            _ => {
-                if saw_equals {
-                    saw_characters_after_equals = true;
-                } else if saw_space_before_equals {
-                    let end = last_nonspace_index_before_equals;
-                    return Some(end);
-                } else {
-                    last_nonspace_index_before_equals = end + 1;
-                }
-            }
-        }
-
-        end += 1;
-    }
+        },
+    )
 }
 
 /// An iterator which returns an individual attribute on every `next()` call.
@@ -360,61 +288,10 @@ impl<'a> Attribute<'a> {
     #[must_use]
     pub const fn name(&self) -> AttributeName<'a> {
         let bytes = self.0.as_bytes();
-
-        let mut begin = 0;
-        loop {
-            if bytes.len() <= begin {
-                return AttributeName::from_str(self.0);
-            }
-
-            let byte = bytes[begin];
-            if !super::is_space(byte) {
-                break;
-            }
-
-            begin += 1;
-        }
-
-        let mut index = begin;
-
-        loop {
-            if index == bytes.len() {
-                let (_, bytes) = bytes.split_at(begin);
-                let value = unsafe { core::str::from_utf8_unchecked(bytes) };
-                return AttributeName::from_str(value);
-            }
-
-            let byte = bytes[index];
-            if byte == b'=' {
-                break;
-            } else if super::is_space(byte) {
-                let (bytes, _) = bytes.split_at(index);
-                let (_, bytes) = bytes.split_at(begin);
-                let value = unsafe { core::str::from_utf8_unchecked(bytes) };
-                return AttributeName::from_str(value);
-            }
-
-            index += 1;
-        }
-
-        let (bytes, _) = bytes.split_at(index);
-
-        let mut end = bytes.len() - 1;
-        loop {
-            if end == 0 {
-                let (_, bytes) = bytes.split_at(begin);
-                let value = unsafe { core::str::from_utf8_unchecked(bytes) };
-                return AttributeName::from_str(value);
-            }
-
-            let byte = bytes[end];
-            if !super::is_space(byte) {
-                end += 1;
-                break;
-            }
-
-            end -= 1;
-        }
+        let begin = parser::scan_optional_space(bytes, 0);
+        let Some(end) = parser::scan_name(bytes, begin) else {
+            unreachable!()
+        };
 
         let (bytes, _) = bytes.split_at(end);
         let (_, bytes) = bytes.split_at(begin);
@@ -427,82 +304,30 @@ impl<'a> Attribute<'a> {
     /// The optional attribute value with the quotes removed.
     #[must_use]
     pub const fn value(&self) -> Option<AttributeValue<'a>> {
-        let mut index = 0;
         let bytes = self.0.as_bytes();
+        let begin = parser::scan_optional_space(bytes, 0);
+        let Some(begin) = parser::scan_name(bytes, begin) else {
+            unreachable!()
+        };
+        let Some(mut begin) = parser::scan_eq(bytes, begin) else {
+            return None;
+        };
 
-        loop {
-            if index == bytes.len() {
-                return None;
-            }
+        if bytes.len() <= begin {
+            return None;
+        }
+        let is_quote_ch = bytes[begin] == b'"' || bytes[begin] == b'\'';
 
-            let byte = bytes[index];
-            if byte == b'=' {
-                break;
-            }
-            index += 1;
+        let mut end = bytes.len();
+        if is_quote_ch {
+            begin += 1;
+            end -= 1;
         }
 
-        let after_equal_index = index + '='.len_utf8();
-        let mut quote_state = QuoteState::None;
-        let mut begin = after_equal_index;
-        let mut first_nonspace = None;
-        let mut last_nonspace = after_equal_index;
-
-        let mut loop_index = after_equal_index;
-        loop {
-            if loop_index == bytes.len() {
-                break;
-            }
-
-            let byte = bytes[loop_index];
-            match byte {
-                b'"' => match quote_state {
-                    QuoteState::None => {
-                        begin = loop_index + '"'.len_utf8();
-                        quote_state = QuoteState::Double;
-                    }
-                    QuoteState::Single => {}
-                    QuoteState::Double => {
-                        let (bytes, _) = bytes.split_at(loop_index);
-                        let (_, bytes) = bytes.split_at(begin);
-                        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
-                        return Some(AttributeValue::from_str(value));
-                    }
-                },
-                b'\'' => match quote_state {
-                    QuoteState::None => {
-                        begin = loop_index + '\''.len_utf8();
-                        quote_state = QuoteState::Single;
-                    }
-                    QuoteState::Single => {
-                        let (bytes, _) = bytes.split_at(loop_index);
-                        let (_, bytes) = bytes.split_at(begin);
-                        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
-                        return Some(AttributeValue::from_str(value));
-                    }
-                    QuoteState::Double => {}
-                },
-                byte => {
-                    if !super::is_space(byte) {
-                        last_nonspace = loop_index + 1;
-                        if first_nonspace.is_none() {
-                            first_nonspace = Some(loop_index);
-                        }
-                    }
-                }
-            }
-
-            loop_index += 1;
-        }
-
-        if let Some(begin) = first_nonspace {
-            let (bytes, _) = bytes.split_at(last_nonspace);
-            let (_, bytes) = bytes.split_at(begin);
-            let value = unsafe { core::str::from_utf8_unchecked(bytes) };
-            return Some(AttributeValue::from_str(value));
-        }
-
-        None
+        let (bytes, _) = bytes.split_at(end);
+        let (_, bytes) = bytes.split_at(begin);
+        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+        Some(AttributeValue::from_str(value))
     }
 }
 
@@ -648,11 +473,11 @@ mod tests {
         assert_eq!("attr", attr.name().as_str());
         assert_eq!(Some("test"), attr.value().map(|a| a.as_str()));
 
-        let attr = Attribute::from_str(" attr = test ");
+        let attr = Attribute::from_str(" attr = test");
         assert_eq!("attr", attr.name().as_str());
         assert_eq!(Some("test"), attr.value().map(|a| a.as_str()));
 
-        let attr = Attribute::from_str("  attr  =  test  ");
+        let attr = Attribute::from_str("  attr  =  test");
         assert_eq!("attr", attr.name().as_str());
         assert_eq!(Some("test"), attr.value().map(|a| a.as_str()));
     }
@@ -663,19 +488,19 @@ mod tests {
         assert_eq!("attr", attr.name().as_str());
         assert_eq!(Some("test"), attr.value().map(|a| a.as_str()));
 
-        let attr = Attribute::from_str(" attr = 'test' ");
+        let attr = Attribute::from_str(" attr = 'test'");
         assert_eq!("attr", attr.name().as_str());
         assert_eq!(Some("test"), attr.value().map(|a| a.as_str()));
 
-        let attr = Attribute::from_str("  attr  =  'test'  ");
+        let attr = Attribute::from_str("  attr  =  'test'");
         assert_eq!("attr", attr.name().as_str());
         assert_eq!(Some("test"), attr.value().map(|a| a.as_str()));
 
-        let attr = Attribute::from_str("  attr  =  ' test '  ");
+        let attr = Attribute::from_str("  attr  =  ' test '");
         assert_eq!("attr", attr.name().as_str());
         assert_eq!(Some(" test "), attr.value().map(|a| a.as_str()));
 
-        let attr = Attribute::from_str("  attr  =  '  test  '  ");
+        let attr = Attribute::from_str("  attr  =  '  test  '");
         assert_eq!("attr", attr.name().as_str());
         assert_eq!(Some("  test  "), attr.value().map(|a| a.as_str()));
     }
@@ -686,19 +511,19 @@ mod tests {
         assert_eq!("attr", attr.name().as_str());
         assert_eq!(Some("test"), attr.value().map(|a| a.as_str()));
 
-        let attr = Attribute::from_str(r#" attr = "test" "#);
+        let attr = Attribute::from_str(r#" attr = "test""#);
         assert_eq!("attr", attr.name().as_str());
         assert_eq!(Some("test"), attr.value().map(|a| a.as_str()));
 
-        let attr = Attribute::from_str(r#"  attr  =  "test"  "#);
+        let attr = Attribute::from_str(r#"  attr  =  "test""#);
         assert_eq!("attr", attr.name().as_str());
         assert_eq!(Some("test"), attr.value().map(|a| a.as_str()));
 
-        let attr = Attribute::from_str(r#"  attr  =  " test "  "#);
+        let attr = Attribute::from_str(r#"  attr  =  " test ""#);
         assert_eq!("attr", attr.name().as_str());
         assert_eq!(Some(" test "), attr.value().map(|a| a.as_str()));
 
-        let attr = Attribute::from_str(r#"  attr  =  "  test  "  "#);
+        let attr = Attribute::from_str(r#"  attr  =  "  test  ""#);
         assert_eq!("attr", attr.name().as_str());
         assert_eq!(Some("  test  "), attr.value().map(|a| a.as_str()));
     }
@@ -711,10 +536,10 @@ mod tests {
 
     #[test]
     fn attributes_single() {
-        let attributes = Attributes::from_str("attr=\"1\"");
+        let attributes = Attributes::from_str(" attr=\"1\"");
         let mut attributes_into_iter = attributes.into_iter();
         let attr = attributes_into_iter.next().unwrap();
-        assert_eq!(Attribute::from_str("attr=\"1\""), attr);
+        assert_eq!(Attribute::from_str(" attr=\"1\""), attr);
         assert_eq!("attr", attr.name().as_str());
         assert_eq!("1", attr.value().unwrap().as_str());
         assert_eq!(attributes_into_iter.next(), None);
@@ -735,11 +560,11 @@ mod tests {
     #[test]
     fn attributes_multiple() {
         let attributes =
-            Attributes::from_str("attr=\"1\" id='test' name=invalid name=\"multiple example\"");
+            Attributes::from_str(" attr=\"1\" id='test' name=invalid name=\"multiple example\"");
         let mut attributes_into_iter = attributes.into_iter();
 
         let attr = attributes_into_iter.next().unwrap();
-        assert_eq!(Attribute::from_str("attr=\"1\""), attr);
+        assert_eq!(Attribute::from_str(" attr=\"1\""), attr);
         assert_eq!("attr", attr.name().as_str());
         assert_eq!("1", attr.value().unwrap().as_str());
 
