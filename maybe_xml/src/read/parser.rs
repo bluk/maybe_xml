@@ -404,6 +404,7 @@ pub(crate) const fn scan_space(input: &[u8], pos: usize) -> Option<usize> {
     }
 }
 
+#[inline]
 #[must_use]
 pub(crate) const fn scan_optional_space(input: &[u8], pos: usize) -> usize {
     if let Some(peek_idx) = scan_space(input, pos) {
