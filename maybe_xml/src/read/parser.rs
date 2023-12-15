@@ -1105,9 +1105,28 @@ const fn scan_prolog(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Option
 }
 
 #[cfg(any(test, feature = "internal_unstable"))]
+#[inline]
 #[must_use]
 const fn scan_xml_decl(input: &[u8], pos: usize) -> Option<usize> {
-    let idx = expect_ch!(input, pos, '<', '?', 'x', 'm', 'l');
+    if input.len() <= pos + 4 {
+        return None;
+    }
+    if input[pos] != b'<' {
+        return None;
+    }
+    if input[pos + 1] != b'?' {
+        return None;
+    }
+    if input[pos + 2] != b'x' {
+        return None;
+    }
+    if input[pos + 3] != b'm' {
+        return None;
+    }
+    if input[pos + 4] != b'l' {
+        return None;
+    }
+    let idx = pos + 5;
 
     let Some(mut idx) = scan_version_info(input, idx) else {
         return None;
@@ -1123,32 +1142,66 @@ const fn scan_xml_decl(input: &[u8], pos: usize) -> Option<usize> {
 
     let idx = scan_optional_space(input, idx);
 
-    Some(expect_ch!(input, idx, '?', '>'))
+    if input.len() <= idx + 1 {
+        return None;
+    }
+    if input[idx] != b'?' {
+        return None;
+    }
+    if input[idx + 1] != b'>' {
+        return None;
+    }
+    Some(idx + 2)
 }
 
 #[cfg(any(test, feature = "internal_unstable"))]
+#[inline]
 #[must_use]
 const fn scan_version_info(input: &[u8], pos: usize) -> Option<usize> {
     let Some(idx) = scan_space(input, pos) else {
         return None;
     };
 
-    let idx = expect_ch!(input, idx, 'v', 'e', 'r', 's', 'i', 'o', 'n');
+    if input.len() <= idx + 6 {
+        return None;
+    }
+    if input[idx] != b'v' {
+        return None;
+    }
+    if input[idx + 1] != b'e' {
+        return None;
+    }
+    if input[idx + 2] != b'r' {
+        return None;
+    }
+    if input[idx + 3] != b's' {
+        return None;
+    }
+    if input[idx + 4] != b'i' {
+        return None;
+    }
+    if input[idx + 5] != b'o' {
+        return None;
+    }
+    if input[idx + 6] != b'n' {
+        return None;
+    }
+    let idx = idx + 7;
 
     let Some(idx) = scan_eq(input, idx) else {
         return None;
     };
 
-    let (quote_ch, mut idx) = expect_ch!(input, idx);
+    let (quote_byte, mut idx) = expect_byte!(input, idx);
 
-    if quote_ch != '"' && quote_ch != '\'' {
+    if quote_byte != b'"' && quote_byte != b'\'' {
         return None;
     }
 
     loop {
-        let (ch, peek_idx) = expect_ch!(input, idx);
+        let (byte, peek_idx) = expect_byte!(input, idx);
 
-        if ch == quote_ch {
+        if byte == quote_byte {
             return Some(peek_idx);
         }
 
@@ -1175,17 +1228,33 @@ struct ScanMiscOpts {
 #[cfg(any(test, feature = "internal_unstable"))]
 #[must_use]
 const fn scan_misc(input: &[u8], pos: usize, opts: ScanMiscOpts) -> Option<usize> {
-    // TODO: Should peek at the first character and decide what to do
+    let (byte, idx) = expect_byte!(input, pos);
 
-    if let Some(idx) = scan_comment(input, pos, opts.comment) {
-        return Some(idx);
+    match byte {
+        b'<' => {
+            let (byte, idx) = expect_byte!(input, idx);
+
+            match byte {
+                b'!' => {
+                    if input.len() <= idx + 1 {
+                        return None;
+                    }
+                    if input[idx] != b'-' {
+                        return None;
+                    }
+                    if input[idx + 1] != b'-' {
+                        return None;
+                    }
+
+                    scan_comment_after_prefix(input, idx + 2, opts.comment)
+                }
+                b'?' => scan_pi_after_prefix(input, idx, opts.pi),
+                _ => None,
+            }
+        }
+        _ if is_space(byte) => Some(scan_optional_space(input, idx)),
+        _ => None,
     }
-
-    if let Some(idx) = scan_pi(input, pos, opts.pi) {
-        return Some(idx);
-    }
-
-    scan_space(input, pos)
 }
 
 #[cfg(any(test, feature = "internal_unstable"))]
@@ -1286,12 +1355,15 @@ const fn scan_decl_sep(input: &[u8], pos: usize) -> Option<usize> {
     }
 }
 
+#[inline]
 #[must_use]
 const fn scan_int_subset(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) -> usize {
-    // TODO: Should peek at the first character and decide what to do
     let mut idx = pos;
 
     loop {
+        // TODO: Should peek at the first character and decide what to do
+        // TODO: Inline both functions here and do one byte check
+
         if let Some(peek_idx) = scan_markupdecl(input, idx, opts) {
             idx = peek_idx;
         } else if let Some(peek_idx) = scan_decl_sep(input, idx) {
@@ -1323,37 +1395,50 @@ impl ScanMarkupDeclOpts {
     }
 }
 
+#[inline]
 #[must_use]
 const fn scan_markupdecl(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) -> Option<usize> {
-    // TODO: Should peek at the first character and decide what to do
-    if let Some(idx) = scan_elementdecl(input, pos) {
-        return Some(idx);
-    }
+    let (byte, idx) = expect_byte!(input, pos);
 
-    if let Some(idx) = scan_attlist_decl(input, pos, opts.attr_value) {
-        return Some(idx);
-    }
+    match byte {
+        b'<' => {
+            let (byte, idx) = expect_byte!(input, idx);
 
-    if let Some(idx) = scan_entity_decl(input, pos) {
-        return Some(idx);
+            match byte {
+                b'!' => {
+                    let (byte, idx) = expect_byte!(input, idx);
+                    match byte {
+                        b'E' => {
+                            let (byte, idx) = expect_byte!(input, idx);
+                            match byte {
+                                b'L' => scan_elementdecl_after_prefix(input, idx),
+                                b'N' => scan_entity_decl_after_prefix(input, idx),
+                                _ => None,
+                            }
+                        }
+                        b'A' => scan_attlist_decl_after_prefix(input, idx, opts.attr_value),
+                        b'N' => scan_notiation_decl_after_prefix(input, idx),
+                        b'-' => {
+                            let (byte, idx) = expect_byte!(input, idx);
+                            if byte == b'-' {
+                                scan_comment_after_prefix(input, idx, opts.comment)
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    }
+                }
+                b'?' => scan_pi_after_prefix(input, idx, opts.pi),
+                _ => None,
+            }
+        }
+        _ => None,
     }
-
-    if let Some(idx) = scan_notiation_decl(input, pos) {
-        return Some(idx);
-    }
-
-    if let Some(idx) = scan_pi(input, pos, opts.pi) {
-        return Some(idx);
-    }
-
-    if let Some(idx) = scan_comment(input, pos, opts.comment) {
-        return Some(idx);
-    }
-
-    None
 }
 
 #[cfg(any(test, feature = "internal_unstable"))]
+#[inline]
 #[must_use]
 const fn scan_sd_decl(input: &[u8], pos: usize) -> Option<usize> {
     let Some(idx) = scan_space(input, pos) else {
@@ -1794,8 +1879,16 @@ const fn scan_empty_elem_tag_after_prefix(
         }
     }
 
-    let idx = expect_byte!(input, idx, b'/');
-    Some(expect_byte!(input, idx, b'>'))
+    if input.len() <= idx + 1 {
+        return None;
+    }
+    if input[idx] != b'/' {
+        return None;
+    }
+    if input[idx + 1] != b'>' {
+        return None;
+    }
+    Some(idx + 2)
 }
 
 #[inline]
@@ -1871,10 +1964,51 @@ pub(crate) const fn scan_s_or_empty_elem_tag_after_prefix(
     }
 }
 
+#[cfg(test)]
+#[inline]
 #[must_use]
 const fn scan_elementdecl(input: &[u8], pos: usize) -> Option<usize> {
-    // TODO: Can optimize because the leading characters may have been peeked at
-    let idx = expect_ch!(input, pos, '<', '!', 'E', 'L', 'E', 'M', 'E', 'N', 'T');
+    if input.len() <= pos + 3 {
+        return None;
+    }
+    if input[pos] != b'<' {
+        return None;
+    }
+    if input[pos + 1] != b'!' {
+        return None;
+    }
+    if input[pos + 2] != b'E' {
+        return None;
+    }
+    if input[pos + 3] != b'L' {
+        return None;
+    }
+
+    scan_elementdecl_after_prefix(input, pos + 4)
+}
+
+#[must_use]
+const fn scan_elementdecl_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
+    if input.len() <= pos + 4 {
+        return None;
+    }
+    if input[pos] != b'E' {
+        return None;
+    }
+    if input[pos + 1] != b'M' {
+        return None;
+    }
+    if input[pos + 2] != b'E' {
+        return None;
+    }
+    if input[pos + 3] != b'N' {
+        return None;
+    }
+    if input[pos + 4] != b'T' {
+        return None;
+    }
+    let idx = pos + 5;
+
     let Some(idx) = scan_space(input, idx) else {
         return None;
     };
@@ -1894,6 +2028,7 @@ const fn scan_elementdecl(input: &[u8], pos: usize) -> Option<usize> {
     Some(expect_ch!(input, idx, '>'))
 }
 
+#[inline]
 #[must_use]
 const fn scan_contentspec(input: &[u8], pos: usize) -> Option<usize> {
     // TODO: Should peek to decide which branch
@@ -2114,13 +2249,36 @@ const fn scan_mixed(input: &[u8], pos: usize) -> Option<usize> {
     }
 }
 
+#[inline]
 #[must_use]
-const fn scan_attlist_decl(
+const fn scan_attlist_decl_after_prefix(
     input: &[u8],
     pos: usize,
     opts: ScanAttributeValueOpts,
 ) -> Option<usize> {
-    let idx = expect_ch!(input, pos, '<', '!', 'A', 'T', 'T', 'L', 'I', 'S', 'T');
+    if input.len() <= pos + 5 {
+        return None;
+    }
+    if input[pos] != b'T' {
+        return None;
+    }
+    if input[pos + 1] != b'T' {
+        return None;
+    }
+    if input[pos + 2] != b'L' {
+        return None;
+    }
+    if input[pos + 3] != b'I' {
+        return None;
+    }
+    if input[pos + 4] != b'S' {
+        return None;
+    }
+    if input[pos + 5] != b'T' {
+        return None;
+    }
+    let idx = pos + 6;
+
     let Some(idx) = scan_space(input, idx) else {
         return None;
     };
@@ -2134,7 +2292,7 @@ const fn scan_attlist_decl(
 
     let idx = scan_optional_space(input, idx);
 
-    Some(expect_ch!(input, idx, '>'))
+    Some(expect_byte!(input, idx, b'>'))
 }
 
 #[must_use]
@@ -2393,14 +2551,35 @@ const fn scan_pe_reference_after_prefix(input: &[u8], pos: usize) -> Option<usiz
 }
 
 #[must_use]
-const fn scan_entity_decl(input: &[u8], pos: usize) -> Option<usize> {
+const fn scan_entity_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
+    if input.len() <= pos + 3 {
+        return None;
+    }
+    if input[pos] != b'T' {
+        return None;
+    }
+    if input[pos + 1] != b'I' {
+        return None;
+    }
+    if input[pos + 2] != b'T' {
+        return None;
+    }
+    if input[pos + 3] != b'Y' {
+        return None;
+    }
+    let idx = pos + 4;
+
     // TODO: Should peek at the first character and decide what to do
 
-    if let Some(idx) = scan_ge_decl(input, pos) {
+    let Some(idx) = scan_space(input, idx) else {
+        return None;
+    };
+
+    if let Some(idx) = scan_ge_decl_after_prefix(input, idx) {
         return Some(idx);
     }
 
-    if let Some(idx) = scan_pe_decl(input, pos) {
+    if let Some(idx) = scan_pe_decl_after_prefix(input, idx) {
         return Some(idx);
     }
 
@@ -2408,12 +2587,8 @@ const fn scan_entity_decl(input: &[u8], pos: usize) -> Option<usize> {
 }
 
 #[must_use]
-const fn scan_ge_decl(input: &[u8], pos: usize) -> Option<usize> {
-    let idx = expect_ch!(input, pos, '<', '!', 'E', 'N', 'T', 'I', 'T', 'Y');
-    let Some(idx) = scan_space(input, idx) else {
-        return None;
-    };
-    let Some(idx) = scan_name(input, idx) else {
+const fn scan_ge_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
+    let Some(idx) = scan_name(input, pos) else {
         return None;
     };
     let Some(idx) = scan_space(input, idx) else {
@@ -2428,12 +2603,8 @@ const fn scan_ge_decl(input: &[u8], pos: usize) -> Option<usize> {
 }
 
 #[must_use]
-const fn scan_pe_decl(input: &[u8], pos: usize) -> Option<usize> {
-    let idx = expect_ch!(input, pos, '<', '!', 'E', 'N', 'T', 'I', 'T', 'Y');
-    let Some(idx) = scan_space(input, idx) else {
-        return None;
-    };
-    let idx = expect_ch!(input, idx, '%');
+const fn scan_pe_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
+    let idx = expect_ch!(input, pos, '%');
     let Some(idx) = scan_space(input, idx) else {
         return None;
     };
@@ -2521,6 +2692,7 @@ const fn scan_n_data_decl(input: &[u8], pos: usize) -> Option<usize> {
 }
 
 #[cfg(any(test, feature = "internal_unstable"))]
+#[inline]
 #[must_use]
 const fn scan_encoding_decl(input: &[u8], pos: usize) -> Option<usize> {
     let Some(idx) = scan_space(input, pos) else {
@@ -2567,11 +2739,37 @@ const fn is_enc_name_char(ch: char) -> bool {
     )
 }
 
+#[inline]
 #[must_use]
-const fn scan_notiation_decl(input: &[u8], pos: usize) -> Option<usize> {
+const fn scan_notiation_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
+    if input.len() <= pos + 6 {
+        return None;
+    }
+    if input[pos] != b'O' {
+        return None;
+    }
+    if input[pos + 1] != b'T' {
+        return None;
+    }
+    if input[pos + 2] != b'A' {
+        return None;
+    }
+    if input[pos + 3] != b'T' {
+        return None;
+    }
+    if input[pos + 4] != b'I' {
+        return None;
+    }
+    if input[pos + 5] != b'O' {
+        return None;
+    }
+    if input[pos + 6] != b'N' {
+        return None;
+    }
+    let idx = pos + 7;
+
     // TODO: Can optimize because the leading characters may have been peeked at
 
-    let idx = expect_ch!(input, pos, '<', '!', 'N', 'O', 'T', 'A', 'T', 'I', 'O', 'N');
     let Some(idx) = scan_space(input, idx) else {
         return None;
     };
@@ -2593,7 +2791,7 @@ const fn scan_notiation_decl(input: &[u8], pos: usize) -> Option<usize> {
 
     let idx = scan_optional_space(input, idx);
 
-    Some(expect_ch!(input, idx, '>'))
+    Some(expect_byte!(input, idx, b'>'))
 }
 
 #[must_use]
