@@ -1105,22 +1105,30 @@ const fn scan_xml_decl(input: &[u8], pos: usize) -> Option<usize> {
     if let Some(peek_idx) = scan_space(input, idx) {
         idx = peek_idx;
 
-        // TODO: Could peek at next character to determine if standalone or encoding
+        let (byte, peek_idx) = expect_byte!(input, idx);
 
-        if let Some(peek_idx) = scan_encoding_decl_after_space(input, idx) {
-            idx = peek_idx;
-
-            if let Some(peek_idx) = scan_space(input, idx) {
-                idx = peek_idx;
-
-                if let Some(peek_idx) = scan_sd_decl_after_space(input, idx) {
+        match byte {
+            b's' => {
+                if let Some(peek_idx) = scan_sd_decl_after_space_and_s(input, peek_idx) {
                     idx = peek_idx;
                     idx = scan_optional_space(input, idx);
                 }
             }
-        } else if let Some(peek_idx) = scan_sd_decl_after_space(input, idx) {
-            idx = peek_idx;
-            idx = scan_optional_space(input, idx);
+            b'e' => {
+                if let Some(peek_idx) = scan_encoding_decl_after_space_and_e(input, peek_idx) {
+                    idx = peek_idx;
+
+                    if let Some(peek_idx) = scan_space(input, idx) {
+                        idx = peek_idx;
+
+                        if let Some(peek_idx) = scan_sd_decl_after_space(input, idx) {
+                            idx = peek_idx;
+                            idx = scan_optional_space(input, idx);
+                        }
+                    }
+                }
+            }
+            _ => {}
         }
     }
 
@@ -1333,7 +1341,18 @@ impl ScanMarkupDeclOpts {
 #[must_use]
 const fn scan_sd_decl_after_space(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(is_space(input[pos - 1]));
-    let idx = expect_bytes!(input, pos, b's', b't', b'a', b'n', b'd', b'a', b'l', b'o', b'n', b'e');
+
+    let idx = expect_byte!(input, pos, b's');
+    scan_sd_decl_after_space_and_s(input, idx)
+}
+
+#[cfg(any(test, feature = "internal_unstable"))]
+#[must_use]
+const fn scan_sd_decl_after_space_and_s(input: &[u8], pos: usize) -> Option<usize> {
+    debug_assert!(is_space(input[pos - 2]));
+    debug_assert!(input[pos - 1] == b's');
+
+    let idx = expect_bytes!(input, pos, b't', b'a', b'n', b'd', b'a', b'l', b'o', b'n', b'e');
 
     let Some(idx) = scan_eq(input, idx) else {
         return None;
@@ -2411,6 +2430,7 @@ const fn scan_entity_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize
     None
 }
 
+#[inline]
 #[must_use]
 const fn scan_ge_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(is_space(input[pos - 1]));
@@ -2429,6 +2449,7 @@ const fn scan_ge_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
     Some(expect_byte!(input, idx, b'>'))
 }
 
+#[inline]
 #[must_use]
 const fn scan_pe_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(is_space(input[pos - 1]));
@@ -2451,6 +2472,7 @@ const fn scan_pe_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
     Some(expect_byte!(input, idx, b'>'))
 }
 
+#[inline]
 #[must_use]
 const fn scan_entity_def(input: &[u8], pos: usize) -> Option<usize> {
     // TODO: Should peek at the first character and decide what to do
@@ -2527,9 +2549,11 @@ const fn scan_n_data_decl(input: &[u8], pos: usize) -> Option<usize> {
 #[cfg(any(test, feature = "internal_unstable"))]
 #[inline]
 #[must_use]
-const fn scan_encoding_decl_after_space(input: &[u8], pos: usize) -> Option<usize> {
-    debug_assert!(is_space(input[pos - 1]));
-    let idx = expect_bytes!(input, pos, b'e', b'n', b'c', b'o', b'd', b'i', b'n', b'g');
+const fn scan_encoding_decl_after_space_and_e(input: &[u8], pos: usize) -> Option<usize> {
+    debug_assert!(is_space(input[pos - 2]));
+    debug_assert!(input[pos - 1] == b'e');
+
+    let idx = expect_bytes!(input, pos, b'n', b'c', b'o', b'd', b'i', b'n', b'g');
 
     let Some(idx) = scan_eq(input, idx) else {
         return None;
