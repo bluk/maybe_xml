@@ -261,6 +261,7 @@ impl ScanDocumentOpts {
                 allow_cdata_section_close: true,
             },
             pi: ScanProcessingInstructionOpts {
+                assume_valid_xml: false,
                 allow_xml_target_name: true,
                 allow_all_chars: true,
             },
@@ -294,6 +295,7 @@ impl ScanDocumentOpts {
                 allow_cdata_section_close: false,
             },
             pi: ScanProcessingInstructionOpts {
+                assume_valid_xml: true,
                 allow_xml_target_name: false,
                 allow_all_chars: false,
             },
@@ -832,9 +834,9 @@ pub(crate) const fn scan_comment_after_prefix(
     }
 }
 
-#[allow(clippy::struct_field_names)]
 #[derive(Debug, Default, Clone, Copy)]
 pub(crate) struct ScanProcessingInstructionOpts {
+    pub(crate) assume_valid_xml: bool,
     pub(crate) allow_xml_target_name: bool,
     pub(crate) allow_all_chars: bool,
 }
@@ -844,6 +846,7 @@ impl ScanProcessingInstructionOpts {
     #[must_use]
     const fn new() -> Self {
         Self {
+            assume_valid_xml: false,
             allow_xml_target_name: false,
             allow_all_chars: false,
         }
@@ -875,6 +878,22 @@ pub(crate) const fn scan_pi_after_prefix(
     debug_assert!(input[pos - 2] == b'<');
     debug_assert!(input[pos - 1] == b'?');
 
+    debug_assert!(!is_name_char('?'));
+    debug_assert!(!is_name_char('>'));
+
+    if opts.assume_valid_xml {
+        let mut idx = pos;
+        loop {
+            let (byte, peek_idx) = expect_byte!(input, idx);
+
+            if byte == b'>' && pos < idx && input[idx - 1] == b'?' {
+                return Some(peek_idx);
+            }
+
+            idx = peek_idx;
+        }
+    }
+
     let start_pi_target = pos;
     let Some(mut idx) = scan_name(input, pos) else {
         return None;
@@ -889,9 +908,6 @@ pub(crate) const fn scan_pi_after_prefix(
         // TODO: Would return error here on parsing errors
         return None;
     }
-
-    debug_assert!(!is_name_char('?'));
-    debug_assert!(!is_name_char('>'));
 
     if let Some(peek_idx) = scan_space(input, idx) {
         idx = peek_idx;
@@ -2883,6 +2899,30 @@ mod tests {
                 input.as_bytes(),
                 1,
                 ScanProcessingInstructionOpts::default()
+            )
+        );
+
+        let input = r#" <?test? > a="v"?> "#;
+        assert_eq!(
+            None,
+            scan_pi(
+                input.as_bytes(),
+                1,
+                ScanProcessingInstructionOpts::default()
+            )
+        );
+
+        let input = r#" <?test? > a="v"?> "#;
+        assert_eq!(
+            Some(input.len() - 1),
+            scan_pi(
+                input.as_bytes(),
+                1,
+                ScanProcessingInstructionOpts {
+                    assume_valid_xml: true,
+                    allow_xml_target_name: false,
+                    allow_all_chars: false
+                }
             )
         );
     }

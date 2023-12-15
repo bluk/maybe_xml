@@ -569,12 +569,6 @@ mod tests {
     }
 
     #[test]
-    fn processing_instruction_with_broken_delimiter() {
-        let input = r#"<?test? > a="v"?>"#;
-        verify_tokenize(input, 0, &[], 0);
-    }
-
-    #[test]
     fn pi_with_single_quotes_attribute() {
         let input = "<?goodbye a='val>'?>Content";
         verify_tokenize_all(
@@ -582,6 +576,15 @@ mod tests {
             &[
                 Ty::ProcessingInstruction(ProcessingInstruction::from_str("<?goodbye a='val>'?>")),
                 Ty::Characters(Characters::from_str("Content")),
+            ],
+        );
+
+        let input = "<?goodbye a='val>?>'Content";
+        verify_tokenize_all(
+            input,
+            &[
+                Ty::ProcessingInstruction(ProcessingInstruction::from_str("<?goodbye a='val>?>")),
+                Ty::Characters(Characters::from_str("'Content")),
             ],
         );
     }
@@ -596,6 +599,15 @@ mod tests {
                     "<?goodbye a=\"val>\"?>",
                 )),
                 Ty::Characters(Characters::from_str("Content")),
+            ],
+        );
+
+        let input = r#"<?goodbye a="val>?>"Content"#;
+        verify_tokenize_all(
+            input,
+            &[
+                Ty::ProcessingInstruction(ProcessingInstruction::from_str("<?goodbye a=\"val>?>")),
+                Ty::Characters(Characters::from_str("\"Content")),
             ],
         );
     }

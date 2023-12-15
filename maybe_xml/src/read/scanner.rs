@@ -89,6 +89,7 @@ const fn scan_processing_instruction(input: &[u8], pos: usize) -> Option<usize> 
         input,
         pos + OFFSET,
         ScanProcessingInstructionOpts {
+            assume_valid_xml: false,
             allow_xml_target_name: true,
             allow_all_chars: false,
         },
