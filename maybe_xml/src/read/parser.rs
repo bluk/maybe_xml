@@ -737,6 +737,7 @@ impl ScanCommentOpts {
 }
 
 /// Scans for a comment.
+#[cfg(test)]
 #[must_use]
 const fn scan_comment(input: &[u8], pos: usize, opts: ScanCommentOpts) -> Option<usize> {
     if input.len() <= pos + 3 {
@@ -856,6 +857,7 @@ impl ScanProcessingInstructionOpts {
     }
 }
 
+#[cfg(test)]
 #[must_use]
 const fn scan_pi(input: &[u8], pos: usize, opts: ScanProcessingInstructionOpts) -> Option<usize> {
     if input.len() <= pos + 1 {
@@ -970,7 +972,7 @@ impl ScanCdataSectionOpts {
 }
 
 /// Scans for CDATA section
-#[cfg(any(test, feature = "internal_unstable"))]
+#[cfg(test)]
 #[must_use]
 const fn scan_cd_sect(input: &[u8], pos: usize, opts: ScanCdataSectionOpts) -> Option<usize> {
     if input.len() <= pos + 8 {
@@ -1430,7 +1432,41 @@ const fn scan_sd_decl(input: &[u8], pos: usize) -> Option<usize> {
         return None;
     };
 
-    let idx = expect_ch!(input, idx, 's', 't', 'a', 'n', 'd', 'a', 'l', 'o', 'n', 'e');
+    if input.len() <= idx + 9 {
+        return None;
+    }
+    if input[idx] != b's' {
+        return None;
+    }
+    if input[idx + 1] != b't' {
+        return None;
+    }
+    if input[idx + 2] != b'a' {
+        return None;
+    }
+    if input[idx + 3] != b'n' {
+        return None;
+    }
+    if input[idx + 4] != b'd' {
+        return None;
+    }
+    if input[idx + 5] != b'a' {
+        return None;
+    }
+    if input[idx + 6] != b'l' {
+        return None;
+    }
+    if input[idx + 7] != b'o' {
+        return None;
+    }
+    if input[idx + 8] != b'n' {
+        return None;
+    }
+    if input[idx + 9] != b'e' {
+        return None;
+    }
+    let idx = idx + 10;
+
     let Some(idx) = scan_eq(input, idx) else {
         return None;
     };
@@ -1483,13 +1519,23 @@ const fn scan_sd_decl(input: &[u8], pos: usize) -> Option<usize> {
 }
 
 #[cfg(any(test, feature = "internal_unstable"))]
+#[inline]
 #[must_use]
 const fn scan_element(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Option<usize> {
     let idx = expect_byte!(input, pos, b'<');
+    scan_element_after_prefix(input, idx, opts)
+}
 
+#[cfg(any(test, feature = "internal_unstable"))]
+#[must_use]
+const fn scan_element_after_prefix(
+    input: &[u8],
+    pos: usize,
+    opts: ScanDocumentOpts,
+) -> Option<usize> {
     if let Some(peek_idx) = scan_empty_elem_tag_after_prefix(
         input,
-        idx,
+        pos,
         ScanTagOpts {
             assume_valid_xml: opts.assume_valid_xml,
             attrs: opts.attrs,
@@ -1498,11 +1544,9 @@ const fn scan_element(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Optio
         return Some(peek_idx);
     }
 
-    // Or...
-
     let Some(mut idx) = scan_s_tag_after_prefix(
         input,
-        idx,
+        pos,
         ScanTagOpts {
             assume_valid_xml: opts.assume_valid_xml,
             attrs: opts.attrs,
@@ -1511,11 +1555,11 @@ const fn scan_element(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Optio
         return None;
     };
 
-    let Some(start_name_end) = scan_name(input, pos + 1) else {
+    let Some(start_name_end) = scan_name(input, pos) else {
         return None;
     };
     let (start_name, _) = input.split_at(start_name_end);
-    let (_, start_name) = start_name.split_at(pos + 1);
+    let (_, start_name) = start_name.split_at(pos);
 
     idx = scan_content(input, idx, opts);
 
@@ -1578,6 +1622,7 @@ impl ScanTagOpts {
 }
 
 #[cfg(test)]
+#[inline]
 #[must_use]
 const fn scan_s_tag(input: &[u8], pos: usize, opts: ScanTagOpts) -> Option<usize> {
     let idx = expect_byte!(input, pos, b'<');
@@ -1585,6 +1630,7 @@ const fn scan_s_tag(input: &[u8], pos: usize, opts: ScanTagOpts) -> Option<usize
 }
 
 #[cfg(any(test, feature = "internal_unstable"))]
+#[inline]
 #[must_use]
 const fn scan_s_tag_after_prefix(input: &[u8], pos: usize, opts: ScanTagOpts) -> Option<usize> {
     debug_assert!(input[pos - 1] == b'<');
@@ -1756,26 +1802,73 @@ pub(crate) const fn scan_e_tag_after_prefix(
 }
 
 #[cfg(any(test, feature = "internal_unstable"))]
+#[inline]
 #[must_use]
 const fn scan_content(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> usize {
+    #[inline]
+    #[must_use]
+    const fn scan_content_internal(
+        input: &[u8],
+        pos: usize,
+        opts: ScanDocumentOpts,
+    ) -> Option<usize> {
+        let (byte, idx) = expect_byte!(input, pos);
+        match byte {
+            b'<' => {
+                let (byte, peek_idx) = expect_byte!(input, idx);
+                match byte {
+                    b'!' => {
+                        let (byte, idx) = expect_byte!(input, peek_idx);
+                        match byte {
+                            b'-' => {
+                                let (byte, idx) = expect_byte!(input, idx);
+                                match byte {
+                                    b'-' => scan_comment_after_prefix(input, idx, opts.comment),
+                                    _ => None,
+                                }
+                            }
+                            b'[' => {
+                                if input.len() <= idx + 5 {
+                                    return None;
+                                }
+                                if input[idx] != b'C' {
+                                    return None;
+                                }
+                                if input[idx + 1] != b'D' {
+                                    return None;
+                                }
+                                if input[idx + 2] != b'A' {
+                                    return None;
+                                }
+                                if input[idx + 3] != b'T' {
+                                    return None;
+                                }
+                                if input[idx + 4] != b'A' {
+                                    return None;
+                                }
+                                if input[idx + 5] != b'[' {
+                                    return None;
+                                }
+                                let idx = idx + 6;
+
+                                scan_cd_sect_after_prefix(input, idx, opts.cd_sect)
+                            }
+                            _ => None,
+                        }
+                    }
+                    b'?' => scan_pi_after_prefix(input, peek_idx, opts.pi),
+                    _ => scan_element_after_prefix(input, idx, opts),
+                }
+            }
+            b'&' => scan_reference_after_ampersand(input, idx),
+            _ => None,
+        }
+    }
+
     let mut idx = scan_char_data(input, pos, opts.char_data);
 
-    loop {
-        if let Some(peek_idx) = scan_element(input, idx, opts) {
-            idx = peek_idx;
-        } else if let Some(peek_idx) = scan_reference(input, idx) {
-            idx = peek_idx;
-        } else if let Some(peek_idx) = scan_cd_sect(input, idx, opts.cd_sect) {
-            idx = peek_idx;
-        } else if let Some(peek_idx) = scan_pi(input, idx, opts.pi) {
-            idx = peek_idx;
-        } else if let Some(peek_idx) = scan_comment(input, idx, opts.comment) {
-            idx = peek_idx;
-        } else {
-            break;
-        }
-
-        idx = scan_char_data(input, idx, opts.char_data);
+    while let Some(peek_idx) = scan_content_internal(input, idx, opts) {
+        idx = scan_char_data(input, peek_idx, opts.char_data);
     }
 
     idx
@@ -2491,13 +2584,6 @@ const fn scan_char_ref_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
     }
 }
 
-#[cfg(any(test, feature = "internal_unstable"))]
-#[must_use]
-const fn scan_reference(input: &[u8], pos: usize) -> Option<usize> {
-    let idx = expect_byte!(input, pos, b'&');
-    scan_reference_after_ampersand(input, idx)
-}
-
 #[must_use]
 const fn scan_reference_after_ampersand(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(input[pos - 1] == b'&');
@@ -2691,7 +2777,6 @@ const fn scan_encoding_decl(input: &[u8], pos: usize) -> Option<usize> {
     let (quote_ch, idx) = expect_ch!(input, idx);
 
     if quote_ch != '"' && quote_ch != '\'' {
-        // TODO: Allow no quotes?
         return None;
     }
 
