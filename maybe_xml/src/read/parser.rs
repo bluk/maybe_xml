@@ -209,6 +209,47 @@ macro_rules! expect_byte {
     };
 }
 
+macro_rules! replace_expr {
+    ($_l:literal $sub:expr) => {
+        $sub
+    };
+}
+
+macro_rules! count_literals {
+    ($($lit:literal),*) => {0usize $(+ replace_expr!($lit 1usize))*};
+}
+
+macro_rules! expect_bytes {
+    ($input:expr, $pos:expr, $($expected:literal),+ $(,)?) => {
+        expect_bytes!($input, $pos, else None, $($expected),+)
+    };
+    ($input:expr, $pos:expr, else $else_ret_expr:expr, $($expected:literal),+ $(,)?) => {
+        {
+            if $input.len() < $pos + count_literals!($($expected),+) {
+                return None;
+            }
+
+            expect_bytes!(internal $input, $pos, else $else_ret_expr, $($expected),+)
+        }
+    };
+    (internal $input:expr, $pos:expr, else $else_ret_expr:expr, $expected:literal $(,)?) => {
+        {
+            if $input[$pos] != $expected {
+                return $else_ret_expr;
+            }
+            $pos + 1
+        }
+    };
+    (internal $input:expr, $pos:expr, else $else_ret_expr:expr, $expected:literal, $($expected_rem:literal),+ $(,)?) => {
+        {
+            if $input[$pos] != $expected {
+                return $else_ret_expr;
+            }
+            expect_bytes!(internal $input, $pos + 1, else $else_ret_expr, $($expected_rem),+)
+        }
+    };
+}
+
 /// Options for scanning a document.
 #[cfg(any(test, feature = "internal_unstable"))]
 #[derive(Debug, Clone, Copy)]
@@ -740,24 +781,8 @@ impl ScanCommentOpts {
 #[cfg(test)]
 #[must_use]
 const fn scan_comment(input: &[u8], pos: usize, opts: ScanCommentOpts) -> Option<usize> {
-    if input.len() <= pos + 3 {
-        return None;
-    }
-
-    if input[pos] != b'<' {
-        return None;
-    }
-    if input[pos + 1] != b'!' {
-        return None;
-    }
-    if input[pos + 2] != b'-' {
-        return None;
-    }
-    if input[pos + 3] != b'-' {
-        return None;
-    }
-
-    scan_comment_after_prefix(input, pos + 4, opts)
+    let idx = expect_bytes!(input, pos, b'<', b'!', b'-', b'-');
+    scan_comment_after_prefix(input, idx, opts)
 }
 
 /// Scans for a comment.
@@ -860,17 +885,8 @@ impl ScanProcessingInstructionOpts {
 #[cfg(test)]
 #[must_use]
 const fn scan_pi(input: &[u8], pos: usize, opts: ScanProcessingInstructionOpts) -> Option<usize> {
-    if input.len() <= pos + 1 {
-        return None;
-    }
-    if input[pos] != b'<' {
-        return None;
-    }
-    if input[pos + 1] != b'?' {
-        return None;
-    }
-
-    scan_pi_after_prefix(input, pos + 2, opts)
+    let idx = expect_bytes!(input, pos, b'<', b'?');
+    scan_pi_after_prefix(input, idx, opts)
 }
 
 /// Scans for Processing Instructions
@@ -975,38 +991,8 @@ impl ScanCdataSectionOpts {
 #[cfg(test)]
 #[must_use]
 const fn scan_cd_sect(input: &[u8], pos: usize, opts: ScanCdataSectionOpts) -> Option<usize> {
-    if input.len() <= pos + 8 {
-        return None;
-    }
-    if input[pos] != b'<' {
-        return None;
-    }
-    if input[pos + 1] != b'!' {
-        return None;
-    }
-    if input[pos + 2] != b'[' {
-        return None;
-    }
-    if input[pos + 3] != b'C' {
-        return None;
-    }
-    if input[pos + 4] != b'D' {
-        return None;
-    }
-    if input[pos + 5] != b'A' {
-        return None;
-    }
-    if input[pos + 6] != b'T' {
-        return None;
-    }
-    if input[pos + 7] != b'A' {
-        return None;
-    }
-    if input[pos + 8] != b'[' {
-        return None;
-    }
-
-    scan_cd_sect_after_prefix(input, pos + 9, opts)
+    let idx = expect_bytes!(input, pos, b'<', b'!', b'[', b'C', b'D', b'A', b'T', b'A', b'[');
+    scan_cd_sect_after_prefix(input, idx, opts)
 }
 
 #[inline]
@@ -1110,26 +1096,7 @@ const fn scan_prolog(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Option
 #[inline]
 #[must_use]
 const fn scan_xml_decl(input: &[u8], pos: usize) -> Option<usize> {
-    if input.len() <= pos + 4 {
-        return None;
-    }
-    if input[pos] != b'<' {
-        return None;
-    }
-    if input[pos + 1] != b'?' {
-        return None;
-    }
-    if input[pos + 2] != b'x' {
-        return None;
-    }
-    if input[pos + 3] != b'm' {
-        return None;
-    }
-    if input[pos + 4] != b'l' {
-        return None;
-    }
-    let idx = pos + 5;
-
+    let idx = expect_bytes!(input, pos, b'<', b'?', b'x', b'm', b'l');
     let Some(mut idx) = scan_version_info(input, idx) else {
         return None;
     };
@@ -1156,16 +1123,7 @@ const fn scan_xml_decl(input: &[u8], pos: usize) -> Option<usize> {
         }
     }
 
-    if input.len() <= idx + 1 {
-        return None;
-    }
-    if input[idx] != b'?' {
-        return None;
-    }
-    if input[idx + 1] != b'>' {
-        return None;
-    }
-    Some(idx + 2)
+    Some(expect_bytes!(input, idx, b'?', b'>'))
 }
 
 #[cfg(any(test, feature = "internal_unstable"))]
@@ -1176,31 +1134,7 @@ const fn scan_version_info(input: &[u8], pos: usize) -> Option<usize> {
         return None;
     };
 
-    if input.len() <= idx + 6 {
-        return None;
-    }
-    if input[idx] != b'v' {
-        return None;
-    }
-    if input[idx + 1] != b'e' {
-        return None;
-    }
-    if input[idx + 2] != b'r' {
-        return None;
-    }
-    if input[idx + 3] != b's' {
-        return None;
-    }
-    if input[idx + 4] != b'i' {
-        return None;
-    }
-    if input[idx + 5] != b'o' {
-        return None;
-    }
-    if input[idx + 6] != b'n' {
-        return None;
-    }
-    let idx = idx + 7;
+    let idx = expect_bytes!(input, idx, b'v', b'e', b'r', b's', b'i', b'o', b'n');
 
     let Some(idx) = scan_eq(input, idx) else {
         return None;
@@ -1250,17 +1184,8 @@ const fn scan_misc(input: &[u8], pos: usize, opts: ScanMiscOpts) -> Option<usize
 
             match byte {
                 b'!' => {
-                    if input.len() <= idx + 1 {
-                        return None;
-                    }
-                    if input[idx] != b'-' {
-                        return None;
-                    }
-                    if input[idx + 1] != b'-' {
-                        return None;
-                    }
-
-                    scan_comment_after_prefix(input, idx + 2, opts.comment)
+                    let idx = expect_bytes!(input, idx, b'-', b'-');
+                    scan_comment_after_prefix(input, idx, opts.comment)
                 }
                 b'?' => scan_pi_after_prefix(input, idx, opts.pi),
                 _ => None,
@@ -1275,16 +1200,8 @@ const fn scan_misc(input: &[u8], pos: usize, opts: ScanMiscOpts) -> Option<usize
 #[inline]
 #[must_use]
 const fn scan_doctypedecl(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) -> Option<usize> {
-    if input.len() <= pos + 1 {
-        return None;
-    }
-    if input[pos] != b'<' {
-        return None;
-    }
-    if input[pos + 1] != b'!' {
-        return None;
-    }
-    scan_doctypedecl_after_prefix(input, pos + 2, opts)
+    let idx = expect_bytes!(input, pos, b'<', b'!');
+    scan_doctypedecl_after_prefix(input, idx, opts)
 }
 
 #[inline]
@@ -1297,32 +1214,7 @@ pub(crate) const fn scan_doctypedecl_after_prefix(
     debug_assert!(input[pos - 2] == b'<');
     debug_assert!(input[pos - 1] == b'!');
 
-    if input.len() <= pos + 6 {
-        return None;
-    }
-    if input[pos] != b'D' {
-        return None;
-    }
-    if input[pos + 1] != b'O' {
-        return None;
-    }
-    if input[pos + 2] != b'C' {
-        return None;
-    }
-    if input[pos + 3] != b'T' {
-        return None;
-    }
-    if input[pos + 4] != b'Y' {
-        return None;
-    }
-    if input[pos + 5] != b'P' {
-        return None;
-    }
-    if input[pos + 6] != b'E' {
-        return None;
-    }
-
-    let idx = pos + 7;
+    let idx = expect_bytes!(input, pos, b'D', b'O', b'C', b'T', b'Y', b'P', b'E');
 
     let Some(idx) = scan_space(input, idx) else {
         return None;
@@ -1440,42 +1332,7 @@ impl ScanMarkupDeclOpts {
 #[must_use]
 const fn scan_sd_decl_after_space(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(is_space(input[pos - 1]));
-    let idx = pos;
-
-    if input.len() <= idx + 9 {
-        return None;
-    }
-    if input[idx] != b's' {
-        return None;
-    }
-    if input[idx + 1] != b't' {
-        return None;
-    }
-    if input[idx + 2] != b'a' {
-        return None;
-    }
-    if input[idx + 3] != b'n' {
-        return None;
-    }
-    if input[idx + 4] != b'd' {
-        return None;
-    }
-    if input[idx + 5] != b'a' {
-        return None;
-    }
-    if input[idx + 6] != b'l' {
-        return None;
-    }
-    if input[idx + 7] != b'o' {
-        return None;
-    }
-    if input[idx + 8] != b'n' {
-        return None;
-    }
-    if input[idx + 9] != b'e' {
-        return None;
-    }
-    let idx = idx + 10;
+    let idx = expect_bytes!(input, pos, b's', b't', b'a', b'n', b'd', b'a', b'l', b'o', b'n', b'e');
 
     let Some(idx) = scan_eq(input, idx) else {
         return None;
@@ -1764,17 +1621,8 @@ pub(crate) const fn scan_attribute(
 #[inline]
 #[must_use]
 const fn scan_e_tag(input: &[u8], pos: usize, opts: ScanTagOpts) -> Option<usize> {
-    if input.len() <= pos + 1 {
-        return None;
-    }
-    if input[pos] != b'<' {
-        return None;
-    }
-    if input[pos + 1] != b'/' {
-        return None;
-    }
-
-    scan_e_tag_after_prefix(input, pos + 2, opts)
+    let idx = expect_bytes!(input, pos, b'<', b'/');
+    scan_e_tag_after_prefix(input, idx, opts)
 }
 
 #[inline]
@@ -1838,29 +1686,8 @@ const fn scan_content(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> usize
                                 }
                             }
                             b'[' => {
-                                if input.len() <= idx + 5 {
-                                    return None;
-                                }
-                                if input[idx] != b'C' {
-                                    return None;
-                                }
-                                if input[idx + 1] != b'D' {
-                                    return None;
-                                }
-                                if input[idx + 2] != b'A' {
-                                    return None;
-                                }
-                                if input[idx + 3] != b'T' {
-                                    return None;
-                                }
-                                if input[idx + 4] != b'A' {
-                                    return None;
-                                }
-                                if input[idx + 5] != b'[' {
-                                    return None;
-                                }
-                                let idx = idx + 6;
-
+                                let idx =
+                                    expect_bytes!(input, idx, b'C', b'D', b'A', b'T', b'A', b'[');
                                 scan_cd_sect_after_prefix(input, idx, opts.cd_sect)
                             }
                             _ => None,
@@ -1968,16 +1795,7 @@ const fn scan_empty_elem_tag_after_prefix(
         }
     }
 
-    if input.len() <= idx + 1 {
-        return None;
-    }
-    if input[idx] != b'/' {
-        return None;
-    }
-    if input[idx + 1] != b'>' {
-        return None;
-    }
-    Some(idx + 2)
+    Some(expect_bytes!(input, idx, b'/', b'>'))
 }
 
 #[inline]
@@ -2057,47 +1875,14 @@ pub(crate) const fn scan_s_or_empty_elem_tag_after_prefix(
 #[inline]
 #[must_use]
 const fn scan_elementdecl(input: &[u8], pos: usize) -> Option<usize> {
-    if input.len() <= pos + 3 {
-        return None;
-    }
-    if input[pos] != b'<' {
-        return None;
-    }
-    if input[pos + 1] != b'!' {
-        return None;
-    }
-    if input[pos + 2] != b'E' {
-        return None;
-    }
-    if input[pos + 3] != b'L' {
-        return None;
-    }
-
-    scan_elementdecl_after_prefix(input, pos + 4)
+    let idx = expect_bytes!(input, pos, b'<', b'!', b'E', b'L');
+    scan_elementdecl_after_prefix(input, idx)
 }
 
 #[inline]
 #[must_use]
 const fn scan_elementdecl_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
-    if input.len() <= pos + 4 {
-        return None;
-    }
-    if input[pos] != b'E' {
-        return None;
-    }
-    if input[pos + 1] != b'M' {
-        return None;
-    }
-    if input[pos + 2] != b'E' {
-        return None;
-    }
-    if input[pos + 3] != b'N' {
-        return None;
-    }
-    if input[pos + 4] != b'T' {
-        return None;
-    }
-    let idx = pos + 5;
+    let idx = expect_bytes!(input, pos, b'E', b'M', b'E', b'N', b'T');
 
     let Some(idx) = scan_space(input, idx) else {
         return None;
@@ -2264,32 +2049,7 @@ const fn scan_mixed(input: &[u8], pos: usize) -> Option<usize> {
     let idx = expect_byte!(input, pos, b'(');
     let idx = scan_optional_space(input, idx);
 
-    if input.len() <= idx + 6 {
-        return None;
-    }
-    if input[idx] != b'#' {
-        return None;
-    }
-    if input[idx + 1] != b'P' {
-        return None;
-    }
-    if input[idx + 2] != b'C' {
-        return None;
-    }
-    if input[idx + 3] != b'D' {
-        return None;
-    }
-    if input[idx + 4] != b'A' {
-        return None;
-    }
-    if input[idx + 5] != b'T' {
-        return None;
-    }
-    if input[idx + 6] != b'A' {
-        return None;
-    }
-
-    let idx = idx + 7;
+    let idx = expect_bytes!(input, idx, b'#', b'P', b'C', b'D', b'A', b'T', b'A');
 
     let idx = scan_optional_space(input, idx);
 
@@ -2346,28 +2106,7 @@ const fn scan_attlist_decl_after_prefix(
     pos: usize,
     opts: ScanAttributeValueOpts,
 ) -> Option<usize> {
-    if input.len() <= pos + 5 {
-        return None;
-    }
-    if input[pos] != b'T' {
-        return None;
-    }
-    if input[pos + 1] != b'T' {
-        return None;
-    }
-    if input[pos + 2] != b'L' {
-        return None;
-    }
-    if input[pos + 3] != b'I' {
-        return None;
-    }
-    if input[pos + 4] != b'S' {
-        return None;
-    }
-    if input[pos + 5] != b'T' {
-        return None;
-    }
-    let idx = pos + 6;
+    let idx = expect_bytes!(input, pos, b'T', b'T', b'L', b'I', b'S', b'T');
 
     let Some(idx) = scan_space(input, idx) else {
         return None;
@@ -2458,7 +2197,7 @@ const fn scan_enumerated_type(input: &[u8], pos: usize) -> Option<usize> {
 
 #[must_use]
 const fn scan_notation_type(input: &[u8], pos: usize) -> Option<usize> {
-    let idx = expect_ch!(input, pos, 'N', 'O', 'T', 'A', 'T', 'I', 'O', 'N');
+    let idx = expect_bytes!(input, pos, b'N', b'O', b'T', b'A', b'T', b'I', b'O', b'N');
 
     let Some(idx) = scan_space(input, idx) else {
         return None;
@@ -2495,7 +2234,7 @@ const fn scan_notation_type(input: &[u8], pos: usize) -> Option<usize> {
 
 #[must_use]
 const fn scan_enumeration(input: &[u8], pos: usize) -> Option<usize> {
-    let idx = expect_ch!(input, pos, '(');
+    let idx = expect_byte!(input, pos, b'(');
 
     let idx = scan_optional_space(input, idx);
 
@@ -2520,7 +2259,7 @@ const fn scan_enumeration(input: &[u8], pos: usize) -> Option<usize> {
 
     let idx = scan_optional_space(input, idx);
 
-    Some(expect_ch!(input, idx, ')'))
+    Some(expect_byte!(input, idx, b')'))
 }
 
 #[must_use]
@@ -2636,22 +2375,7 @@ const fn scan_pe_reference_after_prefix(input: &[u8], pos: usize) -> Option<usiz
 
 #[must_use]
 const fn scan_entity_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
-    if input.len() <= pos + 3 {
-        return None;
-    }
-    if input[pos] != b'T' {
-        return None;
-    }
-    if input[pos + 1] != b'I' {
-        return None;
-    }
-    if input[pos + 2] != b'T' {
-        return None;
-    }
-    if input[pos + 3] != b'Y' {
-        return None;
-    }
-    let idx = pos + 4;
+    let idx = expect_bytes!(input, pos, b'T', b'I', b'T', b'Y');
 
     // TODO: Should peek at the first character and decide what to do
 
@@ -2683,12 +2407,12 @@ const fn scan_ge_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
     };
     let idx = scan_optional_space(input, idx);
 
-    Some(expect_ch!(input, idx, '>'))
+    Some(expect_byte!(input, idx, b'>'))
 }
 
 #[must_use]
 const fn scan_pe_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
-    let idx = expect_ch!(input, pos, '%');
+    let idx = expect_byte!(input, pos, b'%');
     let Some(idx) = scan_space(input, idx) else {
         return None;
     };
@@ -2703,7 +2427,7 @@ const fn scan_pe_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
     };
     let idx = scan_optional_space(input, idx);
 
-    Some(expect_ch!(input, idx, '>'))
+    Some(expect_byte!(input, idx, b'>'))
 }
 
 #[must_use]
@@ -2743,25 +2467,7 @@ const fn scan_external_id(input: &[u8], pos: usize) -> Option<usize> {
 
     match byte {
         b'S' => {
-            if input.len() <= idx + 4 {
-                return None;
-            }
-            if input[idx] != b'Y' {
-                return None;
-            }
-            if input[idx + 1] != b'S' {
-                return None;
-            }
-            if input[idx + 2] != b'T' {
-                return None;
-            }
-            if input[idx + 3] != b'E' {
-                return None;
-            }
-            if input[idx + 4] != b'M' {
-                return None;
-            }
-            let idx = idx + 5;
+            let idx = expect_bytes!(input, idx, b'Y', b'S', b'T', b'E', b'M');
 
             let Some(peek_idx) = scan_space(input, idx) else {
                 return None;
@@ -2789,25 +2495,7 @@ const fn scan_n_data_decl(input: &[u8], pos: usize) -> Option<usize> {
         return None;
     };
 
-    if input.len() <= idx + 4 {
-        return None;
-    }
-    if input[idx] != b'N' {
-        return None;
-    }
-    if input[idx + 1] != b'D' {
-        return None;
-    }
-    if input[idx + 2] != b'A' {
-        return None;
-    }
-    if input[idx + 3] != b'T' {
-        return None;
-    }
-    if input[idx + 4] != b'A' {
-        return None;
-    }
-    let idx = idx + 5;
+    let idx = expect_bytes!(input, idx, b'N', b'D', b'A', b'T', b'A');
 
     let Some(idx) = scan_space(input, idx) else {
         return None;
@@ -2820,36 +2508,7 @@ const fn scan_n_data_decl(input: &[u8], pos: usize) -> Option<usize> {
 #[must_use]
 const fn scan_encoding_decl_after_space(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(is_space(input[pos - 1]));
-    let idx = pos;
-
-    if input.len() <= idx + 7 {
-        return None;
-    }
-    if input[idx] != b'e' {
-        return None;
-    }
-    if input[idx + 1] != b'n' {
-        return None;
-    }
-    if input[idx + 2] != b'c' {
-        return None;
-    }
-    if input[idx + 3] != b'o' {
-        return None;
-    }
-    if input[idx + 4] != b'd' {
-        return None;
-    }
-    if input[idx + 5] != b'i' {
-        return None;
-    }
-    if input[idx + 6] != b'n' {
-        return None;
-    }
-    if input[idx + 7] != b'g' {
-        return None;
-    }
-    let idx = idx + 8;
+    let idx = expect_bytes!(input, pos, b'e', b'n', b'c', b'o', b'd', b'i', b'n', b'g');
 
     let Some(idx) = scan_eq(input, idx) else {
         return None;
@@ -2893,31 +2552,7 @@ const fn is_enc_name_char(ch: char) -> bool {
 #[inline]
 #[must_use]
 const fn scan_notiation_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
-    if input.len() <= pos + 6 {
-        return None;
-    }
-    if input[pos] != b'O' {
-        return None;
-    }
-    if input[pos + 1] != b'T' {
-        return None;
-    }
-    if input[pos + 2] != b'A' {
-        return None;
-    }
-    if input[pos + 3] != b'T' {
-        return None;
-    }
-    if input[pos + 4] != b'I' {
-        return None;
-    }
-    if input[pos + 5] != b'O' {
-        return None;
-    }
-    if input[pos + 6] != b'N' {
-        return None;
-    }
-    let idx = pos + 7;
+    let idx = expect_bytes!(input, pos, b'O', b'T', b'A', b'T', b'I', b'O', b'N');
 
     // TODO: Can optimize because the leading characters may have been peeked at
 
@@ -2955,26 +2590,7 @@ const fn scan_public_id(input: &[u8], pos: usize) -> Option<usize> {
 #[inline]
 #[must_use]
 const fn scan_public_id_after_p(input: &[u8], pos: usize) -> Option<usize> {
-    if input.len() <= pos + 4 {
-        return None;
-    }
-    if input[pos] != b'U' {
-        return None;
-    }
-    if input[pos + 1] != b'B' {
-        return None;
-    }
-    if input[pos + 2] != b'L' {
-        return None;
-    }
-    if input[pos + 3] != b'I' {
-        return None;
-    }
-    if input[pos + 4] != b'C' {
-        return None;
-    }
-    let idx = pos + 5;
-
+    let idx = expect_bytes!(input, pos, b'U', b'B', b'L', b'I', b'C');
     let Some(idx) = scan_space(input, idx) else {
         return None;
     };
