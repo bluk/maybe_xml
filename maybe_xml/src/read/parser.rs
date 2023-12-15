@@ -312,6 +312,7 @@ impl ScanDocumentOpts {
 /// If `Some(input.len())` is returned, then the entire document was parsed
 /// successfully.
 #[cfg(any(test, feature = "internal_unstable"))]
+#[inline]
 #[must_use]
 pub const fn scan_document(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Option<usize> {
     let Some(idx) = scan_prolog(input, pos, opts) else {
@@ -362,7 +363,6 @@ pub(crate) const fn scan_space(input: &[u8], pos: usize) -> Option<usize> {
     }
 }
 
-#[inline]
 #[must_use]
 pub(crate) const fn scan_optional_space(input: &[u8], pos: usize) -> usize {
     if let Some(peek_idx) = scan_space(input, pos) {
@@ -372,6 +372,7 @@ pub(crate) const fn scan_optional_space(input: &[u8], pos: usize) -> usize {
     }
 }
 
+#[inline]
 #[must_use]
 const fn is_name_start_char(ch: char) -> bool {
     matches!(ch, ':'
@@ -392,6 +393,7 @@ const fn is_name_start_char(ch: char) -> bool {
       | '\u{1_0000}'..='\u{E_FFFF}')
 }
 
+#[inline]
 #[must_use]
 const fn is_name_char(ch: char) -> bool {
     is_name_start_char(ch)
@@ -758,6 +760,7 @@ const fn scan_comment(input: &[u8], pos: usize, opts: ScanCommentOpts) -> Option
 }
 
 /// Scans for a comment.
+#[inline]
 #[must_use]
 pub(crate) const fn scan_comment_after_prefix(
     input: &[u8],
@@ -869,6 +872,7 @@ const fn scan_pi(input: &[u8], pos: usize, opts: ScanProcessingInstructionOpts) 
 }
 
 /// Scans for Processing Instructions
+#[inline]
 #[must_use]
 pub(crate) const fn scan_pi_after_prefix(
     input: &[u8],
@@ -1003,6 +1007,7 @@ const fn scan_cd_sect(input: &[u8], pos: usize, opts: ScanCdataSectionOpts) -> O
     scan_cd_sect_after_prefix(input, pos + 9, opts)
 }
 
+#[inline]
 #[must_use]
 pub(crate) const fn scan_cd_sect_after_prefix(
     input: &[u8],
@@ -1049,6 +1054,7 @@ pub(crate) const fn scan_cd_sect_after_prefix(
 }
 
 #[cfg(any(test, feature = "internal_unstable"))]
+#[inline]
 #[must_use]
 const fn scan_prolog(input: &[u8], pos: usize, opts: ScanDocumentOpts) -> Option<usize> {
     let Some(mut idx) = scan_xml_decl(input, pos) else {
@@ -1183,6 +1189,7 @@ const fn scan_misc(input: &[u8], pos: usize, opts: ScanMiscOpts) -> Option<usize
 }
 
 #[cfg(any(test, feature = "internal_unstable"))]
+#[inline]
 #[must_use]
 const fn scan_doctypedecl(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) -> Option<usize> {
     if input.len() <= pos + 1 {
@@ -1197,6 +1204,7 @@ const fn scan_doctypedecl(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) ->
     scan_doctypedecl_after_prefix(input, pos + 2, opts)
 }
 
+#[inline]
 #[must_use]
 pub(crate) const fn scan_doctypedecl_after_prefix(
     input: &[u8],
