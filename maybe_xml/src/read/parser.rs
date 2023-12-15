@@ -1401,6 +1401,8 @@ const fn scan_element_after_prefix(
     pos: usize,
     opts: ScanDocumentOpts,
 ) -> Option<usize> {
+    debug_assert!(input[pos - 1] == b'<');
+
     if let Some(peek_idx) = scan_empty_elem_tag_after_prefix(
         input,
         pos,
@@ -1883,6 +1885,11 @@ const fn scan_elementdecl(input: &[u8], pos: usize) -> Option<usize> {
 #[inline]
 #[must_use]
 const fn scan_elementdecl_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
+    debug_assert!(input[pos - 4] == b'<');
+    debug_assert!(input[pos - 3] == b'!');
+    debug_assert!(input[pos - 2] == b'E');
+    debug_assert!(input[pos - 1] == b'L');
+
     let idx = expect_bytes!(input, pos, b'E', b'M', b'E', b'N', b'T');
 
     let Some(idx) = scan_space(input, idx) else {
@@ -2107,6 +2114,10 @@ const fn scan_attlist_decl_after_prefix(
     pos: usize,
     opts: ScanAttributeValueOpts,
 ) -> Option<usize> {
+    debug_assert!(input[pos - 3] == b'<');
+    debug_assert!(input[pos - 2] == b'!');
+    debug_assert!(input[pos - 1] == b'A');
+
     let idx = expect_bytes!(input, pos, b'T', b'T', b'L', b'I', b'S', b'T');
 
     let Some(idx) = scan_space(input, idx) else {
@@ -2376,6 +2387,11 @@ const fn scan_pe_reference_after_prefix(input: &[u8], pos: usize) -> Option<usiz
 
 #[must_use]
 const fn scan_entity_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
+    debug_assert!(input[pos - 4] == b'<');
+    debug_assert!(input[pos - 3] == b'!');
+    debug_assert!(input[pos - 2] == b'E');
+    debug_assert!(input[pos - 1] == b'N');
+
     let idx = expect_bytes!(input, pos, b'T', b'I', b'T', b'Y');
 
     // TODO: Should peek at the first character and decide what to do
@@ -2397,6 +2413,8 @@ const fn scan_entity_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize
 
 #[must_use]
 const fn scan_ge_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
+    debug_assert!(is_space(input[pos - 1]));
+
     let Some(idx) = scan_name(input, pos) else {
         return None;
     };
@@ -2413,6 +2431,8 @@ const fn scan_ge_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
 
 #[must_use]
 const fn scan_pe_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
+    debug_assert!(is_space(input[pos - 1]));
+
     let idx = expect_byte!(input, pos, b'%');
     let Some(idx) = scan_space(input, idx) else {
         return None;
@@ -2553,6 +2573,10 @@ const fn is_enc_name_char(ch: char) -> bool {
 #[inline]
 #[must_use]
 const fn scan_notiation_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
+    debug_assert!(input[pos - 3] == b'<');
+    debug_assert!(input[pos - 2] == b'!');
+    debug_assert!(input[pos - 1] == b'N');
+
     let idx = expect_bytes!(input, pos, b'O', b'T', b'A', b'T', b'I', b'O', b'N');
 
     // TODO: Can optimize because the leading characters may have been peeked at
@@ -2591,6 +2615,8 @@ const fn scan_public_id(input: &[u8], pos: usize) -> Option<usize> {
 #[inline]
 #[must_use]
 const fn scan_public_id_after_p(input: &[u8], pos: usize) -> Option<usize> {
+    debug_assert!(input[pos - 1] == b'P');
+
     let idx = expect_bytes!(input, pos, b'U', b'B', b'L', b'I', b'C');
     let Some(idx) = scan_space(input, idx) else {
         return None;
