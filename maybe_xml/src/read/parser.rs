@@ -1342,35 +1342,62 @@ pub(crate) const fn scan_doctypedecl_after_prefix(
 
 #[inline]
 #[must_use]
-const fn scan_decl_sep(input: &[u8], pos: usize) -> Option<usize> {
-    let (byte, peek_idx) = expect_byte!(input, pos);
-
-    match byte {
-        b'%' => scan_pe_reference_after_prefix(input, peek_idx),
-        b if is_space(b) => {
-            // Already scanned a required space
-            Some(scan_optional_space(input, peek_idx))
-        }
-        _ => None,
-    }
-}
-
-#[inline]
-#[must_use]
 const fn scan_int_subset(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) -> usize {
+    #[inline]
+    #[must_use]
+    const fn scan_int_subset_internal(
+        input: &[u8],
+        pos: usize,
+        opts: ScanMarkupDeclOpts,
+    ) -> Option<usize> {
+        let (byte, idx) = expect_byte!(input, pos);
+
+        match byte {
+            b'<' => {
+                let (byte, idx) = expect_byte!(input, idx);
+
+                match byte {
+                    b'!' => {
+                        let (byte, idx) = expect_byte!(input, idx);
+                        match byte {
+                            b'E' => {
+                                let (byte, idx) = expect_byte!(input, idx);
+                                match byte {
+                                    b'L' => scan_elementdecl_after_prefix(input, idx),
+                                    b'N' => scan_entity_decl_after_prefix(input, idx),
+                                    _ => None,
+                                }
+                            }
+                            b'A' => scan_attlist_decl_after_prefix(input, idx, opts.attr_value),
+                            b'N' => scan_notiation_decl_after_prefix(input, idx),
+                            b'-' => {
+                                let (byte, idx) = expect_byte!(input, idx);
+                                if byte == b'-' {
+                                    scan_comment_after_prefix(input, idx, opts.comment)
+                                } else {
+                                    None
+                                }
+                            }
+                            _ => None,
+                        }
+                    }
+                    b'?' => scan_pi_after_prefix(input, idx, opts.pi),
+                    _ => None,
+                }
+            }
+            b'%' => scan_pe_reference_after_prefix(input, idx),
+            b if is_space(b) => {
+                // Already scanned a required space
+                Some(scan_optional_space(input, idx))
+            }
+            _ => None,
+        }
+    }
+
     let mut idx = pos;
 
-    loop {
-        // TODO: Should peek at the first character and decide what to do
-        // TODO: Inline both functions here and do one byte check
-
-        if let Some(peek_idx) = scan_markupdecl(input, idx, opts) {
-            idx = peek_idx;
-        } else if let Some(peek_idx) = scan_decl_sep(input, idx) {
-            idx = peek_idx;
-        } else {
-            break;
-        }
+    while let Some(peek_idx) = scan_int_subset_internal(input, idx, opts) {
+        idx = peek_idx;
     }
 
     idx
@@ -1392,48 +1419,6 @@ impl ScanMarkupDeclOpts {
             comment: ScanCommentOpts::new(),
             attr_value: ScanAttributeValueOpts::new(),
         }
-    }
-}
-
-#[inline]
-#[must_use]
-const fn scan_markupdecl(input: &[u8], pos: usize, opts: ScanMarkupDeclOpts) -> Option<usize> {
-    let (byte, idx) = expect_byte!(input, pos);
-
-    match byte {
-        b'<' => {
-            let (byte, idx) = expect_byte!(input, idx);
-
-            match byte {
-                b'!' => {
-                    let (byte, idx) = expect_byte!(input, idx);
-                    match byte {
-                        b'E' => {
-                            let (byte, idx) = expect_byte!(input, idx);
-                            match byte {
-                                b'L' => scan_elementdecl_after_prefix(input, idx),
-                                b'N' => scan_entity_decl_after_prefix(input, idx),
-                                _ => None,
-                            }
-                        }
-                        b'A' => scan_attlist_decl_after_prefix(input, idx, opts.attr_value),
-                        b'N' => scan_notiation_decl_after_prefix(input, idx),
-                        b'-' => {
-                            let (byte, idx) = expect_byte!(input, idx);
-                            if byte == b'-' {
-                                scan_comment_after_prefix(input, idx, opts.comment)
-                            } else {
-                                None
-                            }
-                        }
-                        _ => None,
-                    }
-                }
-                b'?' => scan_pi_after_prefix(input, idx, opts.pi),
-                _ => None,
-            }
-        }
-        _ => None,
     }
 }
 
