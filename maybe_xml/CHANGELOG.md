@@ -1,5 +1,23 @@
 # CHANGELOG
 
+### [Unreleased]
+
+## [0.11.0] - 2023-12-16
+
+### Updated
+
+- **Breaking change**: While the public API has not changed, the underlying code
+  has been re-written. By default, the parser code is much stricter and follows
+  the XML specification more closely. For this release, the parser only has a
+  strict mode. Future versions may have options to relax the parsing code and allow
+  non-spec behavior.
+
+### Fixed
+
+- Fixed parsing of XML document declarations.
+  Thanks [@Mingun](https://github.com/Mingun).
+  See [Issue #9](https://github.com/bluk/maybe_xml/issues/9)
+
 ## [0.10.1] - 2023-12-01
 
 ### Fixed
@@ -222,7 +240,8 @@
 
 * Initial implementation.
 
-[Unreleased]: https://github.com/bluk/maybe_xml/compare/v0.10.1...HEAD
+[Unreleased]: https://github.com/bluk/maybe_xml/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/bluk/maybe_xml/compare/v0.10.1...v0.11.0
 [0.10.1]: https://github.com/bluk/maybe_xml/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/bluk/maybe_xml/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/bluk/maybe_xml/compare/v0.8.0...v0.9.0
