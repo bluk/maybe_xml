@@ -9,17 +9,22 @@
 #
 # Example:
 #
-# maybe_xml_find_docs "DOCTYPE" 50 | maybe_xml_tc
+# maybe_xml_find_docs "DOCTYPE" 50 | maybe_xml_tc | select url tc.exit_code strict.exit_code relaxed.exit_code assume.exit_code | where strict_exit_code != 0 or relaxed_exit_code != 0 or assume_exit_code != 0
 
 def maybe_xml_tc [] {
   each { |it|
-    let tc = do { http get $it --raw | tokencount } | complete
+    let text = http get $it --raw
+    let tc = do { $text | tokencount count } | complete
+    let strict = do { $text | tokencount verify-strict-xml } | complete
+    let relaxed = do { $text | tokencount verify-relaxed } | complete
+    let assume = do { $text |  tokencount verify-assume-xml } | complete
 
     {
       url: $it,
-      tc_exit_code: $tc.exit_code,
-      tc_stderr: $tc.stderr,
-      tc_stdout: $tc.stdout,
+      tc: $tc
+      strict: $strict
+      relaxed: $relaxed
+      assume: $assume
     }
   }
 }

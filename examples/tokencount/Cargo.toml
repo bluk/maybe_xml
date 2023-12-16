@@ -5,11 +5,6 @@ name = "tokencount"
 publish = false
 version = "0.0.0"
 
-[features]
-default = ["internal_unstable"]
-
-# Exposing internal and unstable APIs
-internal_unstable = ["maybe_xml/internal_unstable"]
-
 [dependencies]
-maybe_xml = { path = "../../maybe_xml" }
+clap = { version = "4.4.11", features = ["derive"] }
+maybe_xml = { path = "../../maybe_xml", features = ["internal_unstable"] }
