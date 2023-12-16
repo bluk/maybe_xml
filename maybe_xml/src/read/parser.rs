@@ -422,9 +422,18 @@ const fn is_name_char(ch: char) -> bool {
         || matches!(ch, '-' | '.' | '0'..='9' | '\u{B7}' | '\u{0300}'..='\u{036F}' | '\u{203F}'..='\u{2040}' )
 }
 
+#[inline]
 #[must_use]
 pub(crate) const fn scan_name(input: &[u8], pos: usize) -> Option<usize> {
-    let mut idx = expect_ch!(input, pos, is_name_start_char);
+    let idx = expect_ch!(input, pos, is_name_start_char);
+
+    scan_name_after_start_char(input, idx)
+}
+
+#[inline]
+#[must_use]
+pub(crate) const fn scan_name_after_start_char(input: &[u8], pos: usize) -> Option<usize> {
+    let mut idx = pos;
 
     loop {
         idx = expect_ch!(input, idx, else Some(idx), is_name_char);
@@ -2171,64 +2180,47 @@ const fn scan_att_def(input: &[u8], pos: usize, opts: ScanAttributeValueOpts) ->
 #[inline]
 #[must_use]
 const fn scan_att_type(input: &[u8], pos: usize) -> Option<usize> {
-    // TODO: Peek first character
+    let (byte, idx) = expect_byte!(input, pos);
 
-    if let Some(peek_idx) = peek_ch!(input, pos, 'C', 'D', 'A', 'T', 'A') {
-        return Some(peek_idx);
-    };
-
-    if let Some(peek_idx) = peek_ch!(input, pos, 'I', 'D') {
-        if let Some(peek_idx) = peek_ch!(input, peek_idx, 'R', 'E', 'F') {
-            if let Some(peek_idx) = peek_ch!(input, peek_idx, 'S') {
-                return Some(peek_idx);
-            };
-            return Some(peek_idx);
-        };
-        return Some(peek_idx);
-    };
-
-    if let Some(peek_idx) = peek_ch!(input, pos, 'E', 'N', 'T', 'I', 'T') {
-        if let Some(peek_idx) = peek_ch!(input, peek_idx, 'Y') {
-            return Some(peek_idx);
-        };
-
-        if let Some(peek_idx) = peek_ch!(input, peek_idx, 'I', 'E', 'S') {
-            return Some(peek_idx);
-        };
+    match byte {
+        b'C' => Some(expect_bytes!(input, idx, b'D', b'A', b'T', b'A')),
+        b'I' => {
+            let idx = expect_byte!(input, idx, b'D');
+            let idx = expect_bytes!(input, idx, else Some(idx), b'R', b'E', b'F');
+            let idx = expect_bytes!(input, idx, else Some(idx), b'S');
+            Some(idx)
+        }
+        b'E' => {
+            let idx = expect_bytes!(input, idx, b'N', b'T', b'I', b'T');
+            let (byte, idx) = expect_byte!(input, idx);
+            match byte {
+                b'Y' => Some(idx),
+                b'I' => Some(expect_bytes!(input, idx, b'E', b'S')),
+                _ => None,
+            }
+        }
+        b'N' => {
+            let (byte, idx) = expect_byte!(input, idx);
+            match byte {
+                b'M' => {
+                    let idx = expect_bytes!(input, idx, b'T', b'O', b'K', b'E', b'N');
+                    Some(expect_byte!(input, idx, else Some(idx), b'S'))
+                }
+                b'O' => scan_notation_type_after_n_and_o(input, idx),
+                _ => None,
+            }
+        }
+        b'(' => scan_enumeration_after_open_paren(input, idx),
+        _ => None,
     }
-
-    if let Some(peek_idx) = peek_ch!(input, pos, 'N', 'M', 'T', 'O', 'K', 'E', 'N') {
-        if let Some(peek_idx) = peek_ch!(input, peek_idx, 'S') {
-            return Some(peek_idx);
-        };
-        return Some(peek_idx);
-    };
-
-    scan_enumerated_type(input, pos)
 }
 
 #[inline]
 #[must_use]
-const fn scan_enumerated_type(input: &[u8], pos: usize) -> Option<usize> {
-    // TODO: Peek first character
+const fn scan_notation_type_after_n_and_o(input: &[u8], pos: usize) -> Option<usize> {
+    debug_assert!(input[pos - 1] == b'N');
 
-    // N
-    if let Some(peek_idx) = scan_notation_type(input, pos) {
-        return Some(peek_idx);
-    }
-
-    // (
-    if let Some(peek_idx) = scan_enumeration(input, pos) {
-        return Some(peek_idx);
-    }
-
-    None
-}
-
-#[inline]
-#[must_use]
-const fn scan_notation_type(input: &[u8], pos: usize) -> Option<usize> {
-    let idx = expect_bytes!(input, pos, b'N', b'O', b'T', b'A', b'T', b'I', b'O', b'N');
+    let idx = expect_bytes!(input, pos, b'T', b'A', b'T', b'I', b'O', b'N');
 
     let Some(idx) = scan_space(input, idx) else {
         return None;
@@ -2269,10 +2261,8 @@ const fn scan_notation_type(input: &[u8], pos: usize) -> Option<usize> {
 
 #[inline]
 #[must_use]
-const fn scan_enumeration(input: &[u8], pos: usize) -> Option<usize> {
-    let idx = expect_byte!(input, pos, b'(');
-
-    let idx = scan_optional_space(input, idx);
+const fn scan_enumeration_after_open_paren(input: &[u8], pos: usize) -> Option<usize> {
+    let idx = scan_optional_space(input, pos);
 
     let Some(mut idx) = scan_nm_token(input, idx) else {
         return None;
@@ -2433,27 +2423,24 @@ const fn scan_entity_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize
         return None;
     };
 
-    // TODO: Should peek at the first character and decide what to do
+    let (ch, idx) = expect_ch!(input, idx);
 
-    // Any start name char
-    if let Some(idx) = scan_ge_decl_after_prefix(input, idx) {
-        return Some(idx);
+    debug_assert!(!is_name_start_char('%'));
+    debug_assert!(!is_name_char('%'));
+
+    match ch {
+        _ if is_name_start_char(ch) => scan_ge_decl_after_prefix_and_name_start_char(input, idx),
+        '%' => scan_pe_decl_after_prefix_and_percent(input, idx),
+        _ => None,
     }
-
-    // %
-    if let Some(idx) = scan_pe_decl_after_prefix(input, idx) {
-        return Some(idx);
-    }
-
-    None
 }
 
 #[inline]
 #[must_use]
-const fn scan_ge_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
-    debug_assert!(is_space(input[pos - 1]));
+const fn scan_ge_decl_after_prefix_and_name_start_char(input: &[u8], pos: usize) -> Option<usize> {
+    // Should add debug_assert for spaces and name start char
 
-    let Some(idx) = scan_name(input, pos) else {
+    let Some(idx) = scan_name_after_start_char(input, pos) else {
         return None;
     };
     let Some(idx) = scan_space(input, idx) else {
@@ -2469,11 +2456,11 @@ const fn scan_ge_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
 
 #[inline]
 #[must_use]
-const fn scan_pe_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
+const fn scan_pe_decl_after_prefix_and_percent(input: &[u8], pos: usize) -> Option<usize> {
+    debug_assert!(input[pos - 2] == b'%');
     debug_assert!(is_space(input[pos - 1]));
 
-    let idx = expect_byte!(input, pos, b'%');
-    let Some(idx) = scan_space(input, idx) else {
+    let Some(idx) = scan_space(input, pos) else {
         return None;
     };
     let Some(idx) = scan_name(input, idx) else {
@@ -2626,8 +2613,6 @@ const fn scan_notiation_decl_after_prefix(input: &[u8], pos: usize) -> Option<us
     debug_assert!(input[pos - 1] == b'N');
 
     let idx = expect_bytes!(input, pos, b'O', b'T', b'A', b'T', b'I', b'O', b'N');
-
-    // TODO: Can optimize because the leading characters may have been peeked at
 
     let Some(idx) = scan_space(input, idx) else {
         return None;
