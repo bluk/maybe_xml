@@ -131,26 +131,6 @@ macro_rules! expect_ch {
     ($input:expr, $pos:expr, $expected:literal $(,)?) => {
         expect_ch!($input, $pos, else None, $expected)
     };
-    ($input:expr, $pos:expr, else $else_ret_expr:expr, $expected:literal $(,)?) => {
-        if let Some((ch, index)) = next_ch($input, $pos) {
-            if $expected == ch {
-                index
-            } else {
-                return $else_ret_expr;
-            }
-        } else {
-            return $else_ret_expr;
-        }
-    };
-    ($input:expr, $pos:expr, $expected:literal, $($expected_rem:literal),+ $(,)?) => {
-        expect_ch!($input, $pos, else None, $expected, $($expected_rem),+)
-    };
-    ($input:expr, $pos:expr, else $else_ret_expr:expr, $expected:literal, $($expected_rem:literal),+ $(,)?) => {
-        {
-            let index = expect_ch!($input, $pos, else $else_ret_expr, $expected);
-            expect_ch!($input, index, else $else_ret_expr, $($expected_rem),+)
-        }
-    };
     ($input:expr, $pos:expr, $expected:expr $(,)?) => {
         expect_ch!($input, $pos, else None, $expected)
     };
@@ -461,12 +441,11 @@ const fn scan_nm_token(input: &[u8], pos: usize) -> Option<usize> {
 }
 
 #[must_use]
-const fn scan_entity_value(input: &[u8], pos: usize) -> Option<usize> {
-    let (quote_byte, mut idx) = expect_byte!(input, pos);
+const fn scan_entity_value_after_quote(input: &[u8], pos: usize, quote_byte: u8) -> Option<usize> {
+    debug_assert!(input[pos - 1] == quote_byte);
+    debug_assert!(quote_byte == b'"' || quote_byte == b'\'');
 
-    if quote_byte != b'"' && quote_byte != b'\'' {
-        return None;
-    }
+    let mut idx = pos;
 
     loop {
         let (byte, peek_idx) = expect_byte!(input, idx);
@@ -928,7 +907,6 @@ pub(crate) const fn scan_pi_after_prefix(
         && (input[start_pi_target + 1] == b'm' || input[start_pi_target + 1] == b'M')
         && (input[start_pi_target + 2] == b'l' || input[start_pi_target + 2] == b'L')
     {
-        // TODO: Would return error here on parsing errors
         return None;
     }
 
@@ -1381,24 +1359,11 @@ const fn scan_sd_decl_after_space_and_s(input: &[u8], pos: usize) -> Option<usiz
     // len includes the quote_ch
     match len {
         3 => {
-            if input[start_value] != b'n' {
-                return None;
-            }
-            if input[start_value + 1] != b'o' {
-                return None;
-            }
+            let _ = expect_bytes!(input, start_value, b'n', b'o');
             Some(idx)
         }
         4 => {
-            if input[start_value] != b'y' {
-                return None;
-            }
-            if input[start_value + 1] != b'e' {
-                return None;
-            }
-            if input[start_value + 2] != b's' {
-                return None;
-            }
+            let _ = expect_bytes!(input, start_value, b'y', b'e', b's');
             Some(idx)
         }
         _ => None,
@@ -1957,50 +1922,61 @@ const fn scan_contentspec(input: &[u8], pos: usize) -> Option<usize> {
 #[must_use]
 const fn scan_children(input: &[u8], pos: usize) -> Option<usize> {
     let mut idx = pos;
+    // TODO: Optimize by peeking the first byte
+    // Order matters
+
     if let Some(peek_idx) = scan_choice(input, idx) {
+        // ( <space> cp |
         idx = peek_idx;
     } else if let Some(peek_idx) = scan_seq(input, idx) {
+        // ( <space> cp , (optional)
         idx = peek_idx;
     } else {
         return None;
     }
 
-    if let Some((ch, peek_idx)) = next_ch(input, idx) {
-        match ch {
-            '?' | '*' | '+' => return Some(peek_idx),
-            _ => return Some(idx),
+    if input.len() <= idx {
+        Some(idx)
+    } else {
+        match input[idx] {
+            b'?' | b'*' | b'+' => Some(idx + 1),
+            _ => Some(idx),
         }
     }
-
-    Some(idx)
 }
 
 #[must_use]
 const fn scan_cp(input: &[u8], pos: usize) -> Option<usize> {
     let mut idx = pos;
+    // TODO: Optimize by peeking the first byte
+    // Order matters
+
     if let Some(peek_idx) = scan_name(input, idx) {
+        // Name character
         idx = peek_idx;
     } else if let Some(peek_idx) = scan_choice(input, idx) {
+        // ( <space> cp |
         idx = peek_idx;
     } else if let Some(peek_idx) = scan_seq(input, idx) {
+        // ( <space> cp , (optional)
         idx = peek_idx;
     } else {
         return None;
     }
 
-    if let Some((ch, peek_idx)) = next_ch(input, idx) {
-        match ch {
-            '?' | '*' | '+' => return Some(peek_idx),
-            _ => return Some(idx),
+    if input.len() <= idx {
+        Some(idx)
+    } else {
+        match input[idx] {
+            b'?' | b'*' | b'+' => Some(idx + 1),
+            _ => Some(idx),
         }
     }
-
-    Some(idx)
 }
 
 #[must_use]
 const fn scan_choice(input: &[u8], pos: usize) -> Option<usize> {
-    let idx = expect_ch!(input, pos, '(');
+    let idx = expect_byte!(input, pos, b'(');
 
     let idx = scan_optional_space(input, idx);
 
@@ -2010,7 +1986,7 @@ const fn scan_choice(input: &[u8], pos: usize) -> Option<usize> {
 
     let idx = scan_optional_space(input, idx);
 
-    let idx = expect_ch!(input, idx, '|');
+    let idx = expect_byte!(input, idx, b'|');
 
     let idx = scan_optional_space(input, idx);
 
@@ -2021,9 +1997,13 @@ const fn scan_choice(input: &[u8], pos: usize) -> Option<usize> {
     loop {
         let choices_idx = scan_optional_space(input, idx);
 
-        let Some(choices_idx) = peek_ch!(input, choices_idx, '|') else {
+        if input.len() <= choices_idx {
             break;
-        };
+        }
+        if input[choices_idx] != b'|' {
+            break;
+        }
+        let choices_idx = choices_idx + 1;
 
         let choices_idx = scan_optional_space(input, choices_idx);
 
@@ -2035,12 +2015,12 @@ const fn scan_choice(input: &[u8], pos: usize) -> Option<usize> {
 
     let idx = scan_optional_space(input, idx);
 
-    Some(expect_ch!(input, idx, ')'))
+    Some(expect_byte!(input, idx, b')'))
 }
 
 #[must_use]
 const fn scan_seq(input: &[u8], pos: usize) -> Option<usize> {
-    let idx = expect_ch!(input, pos, '(');
+    let idx = expect_byte!(input, pos, b'(');
 
     let idx = scan_optional_space(input, idx);
 
@@ -2051,9 +2031,13 @@ const fn scan_seq(input: &[u8], pos: usize) -> Option<usize> {
     loop {
         let seq_idx = scan_optional_space(input, idx);
 
-        let Some(seq_idx) = peek_ch!(input, seq_idx, ',') else {
+        if input.len() <= seq_idx {
             break;
-        };
+        }
+        if input[seq_idx] != b',' {
+            break;
+        }
+        let seq_idx = seq_idx + 1;
 
         let seq_idx = scan_optional_space(input, seq_idx);
 
@@ -2065,14 +2049,12 @@ const fn scan_seq(input: &[u8], pos: usize) -> Option<usize> {
 
     let idx = scan_optional_space(input, idx);
 
-    Some(expect_ch!(input, idx, ')'))
+    Some(expect_byte!(input, idx, b')'))
 }
 
 #[inline]
 #[must_use]
 const fn scan_mixed(input: &[u8], pos: usize) -> Option<usize> {
-    // TODO: Could optimize if the leading character is peaked?
-
     let idx = expect_byte!(input, pos, b'(');
     let idx = scan_optional_space(input, idx);
 
@@ -2084,12 +2066,7 @@ const fn scan_mixed(input: &[u8], pos: usize) -> Option<usize> {
 
     let (byte, idx) = expect_byte!(input, idx);
     if byte == b')' {
-        let (byte, peek_idx) = expect_byte!(input, idx, else Some(idx));
-
-        if byte == b'*' {
-            return Some(peek_idx);
-        }
-
+        let idx = expect_byte!(input, idx, else Some(idx), b'*');
         return Some(idx);
     }
 
@@ -2177,8 +2154,11 @@ const fn scan_att_def(input: &[u8], pos: usize, opts: ScanAttributeValueOpts) ->
     scan_default_decl(input, idx, opts)
 }
 
+#[inline]
 #[must_use]
 const fn scan_att_type(input: &[u8], pos: usize) -> Option<usize> {
+    // TODO: Peek first character
+
     if let Some(peek_idx) = peek_ch!(input, pos, 'C', 'D', 'A', 'T', 'A') {
         return Some(peek_idx);
     };
@@ -2213,12 +2193,17 @@ const fn scan_att_type(input: &[u8], pos: usize) -> Option<usize> {
     scan_enumerated_type(input, pos)
 }
 
+#[inline]
 #[must_use]
 const fn scan_enumerated_type(input: &[u8], pos: usize) -> Option<usize> {
+    // TODO: Peek first character
+
+    // N
     if let Some(peek_idx) = scan_notation_type(input, pos) {
         return Some(peek_idx);
     }
 
+    // (
     if let Some(peek_idx) = scan_enumeration(input, pos) {
         return Some(peek_idx);
     }
@@ -2226,6 +2211,7 @@ const fn scan_enumerated_type(input: &[u8], pos: usize) -> Option<usize> {
     None
 }
 
+#[inline]
 #[must_use]
 const fn scan_notation_type(input: &[u8], pos: usize) -> Option<usize> {
     let idx = expect_bytes!(input, pos, b'N', b'O', b'T', b'A', b'T', b'I', b'O', b'N');
@@ -2234,7 +2220,7 @@ const fn scan_notation_type(input: &[u8], pos: usize) -> Option<usize> {
         return None;
     };
 
-    let idx = expect_ch!(input, idx, '(');
+    let idx = expect_byte!(input, idx, b'(');
 
     let idx = scan_optional_space(input, idx);
 
@@ -2245,9 +2231,13 @@ const fn scan_notation_type(input: &[u8], pos: usize) -> Option<usize> {
     loop {
         let names_idx = scan_optional_space(input, idx);
 
-        let Some(names_idx) = peek_ch!(input, names_idx, '|') else {
+        if input.len() <= idx {
             break;
-        };
+        }
+        if input[idx] != b'|' {
+            break;
+        }
+        idx += 1;
 
         let names_idx = scan_optional_space(input, names_idx);
 
@@ -2260,9 +2250,10 @@ const fn scan_notation_type(input: &[u8], pos: usize) -> Option<usize> {
 
     let idx = scan_optional_space(input, idx);
 
-    Some(expect_ch!(input, idx, ')'))
+    Some(expect_byte!(input, idx, b')'))
 }
 
+#[inline]
 #[must_use]
 const fn scan_enumeration(input: &[u8], pos: usize) -> Option<usize> {
     let idx = expect_byte!(input, pos, b'(');
@@ -2276,9 +2267,13 @@ const fn scan_enumeration(input: &[u8], pos: usize) -> Option<usize> {
     loop {
         let nmtokens_idx = scan_optional_space(input, idx);
 
-        let Some(nmtokens_idx) = peek_ch!(input, nmtokens_idx, '|') else {
+        if input.len() <= idx {
             break;
-        };
+        }
+        if input[idx] != b'|' {
+            break;
+        }
+        idx += 1;
 
         let nmtokens_idx = scan_optional_space(input, nmtokens_idx);
 
@@ -2293,12 +2288,15 @@ const fn scan_enumeration(input: &[u8], pos: usize) -> Option<usize> {
     Some(expect_byte!(input, idx, b')'))
 }
 
+#[inline]
 #[must_use]
 const fn scan_default_decl(
     input: &[u8],
     pos: usize,
     opts: ScanAttributeValueOpts,
 ) -> Option<usize> {
+    // TODO: Use byte checks
+
     if let Some(peek_idx) = peek_ch!(input, pos, '#', 'R', 'E', 'Q', 'U', 'I', 'R', 'E', 'D') {
         return Some(peek_idx);
     }
@@ -2318,6 +2316,7 @@ const fn scan_default_decl(
     scan_att_value(input, idx, opts)
 }
 
+#[inline]
 #[must_use]
 const fn scan_char_ref_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(input[pos - 2] == b'&');
@@ -2413,16 +2412,18 @@ const fn scan_entity_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize
 
     let idx = expect_bytes!(input, pos, b'T', b'I', b'T', b'Y');
 
-    // TODO: Should peek at the first character and decide what to do
-
     let Some(idx) = scan_space(input, idx) else {
         return None;
     };
 
+    // TODO: Should peek at the first character and decide what to do
+
+    // Any start name char
     if let Some(idx) = scan_ge_decl_after_prefix(input, idx) {
         return Some(idx);
     }
 
+    // %
     if let Some(idx) = scan_pe_decl_after_prefix(input, idx) {
         return Some(idx);
     }
@@ -2475,39 +2476,45 @@ const fn scan_pe_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
 #[inline]
 #[must_use]
 const fn scan_entity_def(input: &[u8], pos: usize) -> Option<usize> {
-    // TODO: Should peek at the first character and decide what to do
+    let (byte, idx) = expect_byte!(input, pos);
 
-    if let Some(idx) = scan_entity_value(input, pos) {
-        return Some(idx);
+    match byte {
+        b'"' | b'\'' => scan_entity_value_after_quote(input, idx, byte),
+        _ => {
+            let Some(idx) = scan_external_id_after_byte(input, idx, byte) else {
+                return None;
+            };
+
+            if let Some(peek_idx) = scan_n_data_decl(input, idx) {
+                return Some(peek_idx);
+            }
+
+            Some(idx)
+        }
     }
-
-    let Some(idx) = scan_external_id(input, pos) else {
-        return None;
-    };
-
-    if let Some(peek_idx) = scan_n_data_decl(input, idx) {
-        return Some(peek_idx);
-    }
-
-    Some(idx)
 }
 
 #[inline]
 #[must_use]
 const fn scan_pe_def(input: &[u8], pos: usize) -> Option<usize> {
-    // TODO: Should peek at the first character and decide what to do
+    let (byte, idx) = expect_byte!(input, pos);
 
-    if let Some(peek_idx) = scan_entity_value(input, pos) {
-        return Some(peek_idx);
+    match byte {
+        b'"' | b'\'' => scan_entity_value_after_quote(input, idx, byte),
+        _ => scan_external_id_after_byte(input, idx, byte),
     }
-
-    scan_external_id(input, pos)
 }
 
+#[inline]
 #[must_use]
 const fn scan_external_id(input: &[u8], pos: usize) -> Option<usize> {
     let (byte, idx) = expect_byte!(input, pos);
+    scan_external_id_after_byte(input, idx, byte)
+}
 
+#[must_use]
+const fn scan_external_id_after_byte(input: &[u8], pos: usize, byte: u8) -> Option<usize> {
+    let idx = pos;
     match byte {
         b'S' => {
             let idx = expect_bytes!(input, idx, b'Y', b'S', b'T', b'E', b'M');
@@ -2616,6 +2623,7 @@ const fn scan_notiation_decl_after_prefix(input: &[u8], pos: usize) -> Option<us
     };
 
     // TODO: Can peek at character and look
+    // Order is important here because the external ID requires more data after public ID
     if let Some(peek_idx) = scan_external_id(input, idx) {
         idx = peek_idx;
     } else if let Some(peek_idx) = scan_public_id(input, idx) {
@@ -3016,7 +3024,7 @@ mod tests {
         let input = r#"<?xml version="1.1"?>"#;
         assert_eq!(Some(input.len()), scan_xml_decl(input.as_bytes(), 0));
 
-        let input = r#"<?xml version="1.1" standalone="yes"?>"#;
+        let input = r#"<?xml version="1.1" standalone="no"?>"#;
         assert_eq!(Some(input.len()), scan_xml_decl(input.as_bytes(), 0));
 
         let input = r#"<?xml version="1.1" standalone="yes" ?>"#;
