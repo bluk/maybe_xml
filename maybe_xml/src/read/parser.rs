@@ -431,6 +431,7 @@ pub(crate) const fn scan_name(input: &[u8], pos: usize) -> Option<usize> {
     }
 }
 
+#[inline]
 #[must_use]
 const fn scan_nm_token(input: &[u8], pos: usize) -> Option<usize> {
     let mut idx = expect_ch!(input, pos, is_name_char);
@@ -591,6 +592,7 @@ const fn scan_att_value(input: &[u8], pos: usize, opts: ScanAttributeValueOpts) 
     }
 }
 
+#[inline]
 #[must_use]
 const fn scan_system_literal(input: &[u8], pos: usize) -> Option<usize> {
     let (quote_byte, mut idx) = expect_byte!(input, pos);
@@ -610,6 +612,7 @@ const fn scan_system_literal(input: &[u8], pos: usize) -> Option<usize> {
     }
 }
 
+#[inline]
 #[must_use]
 const fn scan_pubid_literal(input: &[u8], pos: usize) -> Option<usize> {
     let (quote_ch, mut idx) = expect_ch!(input, pos);
@@ -633,6 +636,7 @@ const fn scan_pubid_literal(input: &[u8], pos: usize) -> Option<usize> {
     }
 }
 
+#[inline]
 #[must_use]
 const fn is_pubid_char(ch: char) -> bool {
     matches!(ch,
@@ -759,6 +763,7 @@ impl ScanCommentOpts {
 
 /// Scans for a comment.
 #[cfg(test)]
+#[inline]
 #[must_use]
 const fn scan_comment(input: &[u8], pos: usize, opts: ScanCommentOpts) -> Option<usize> {
     let idx = expect_bytes!(input, pos, b'<', b'!', b'-', b'-');
@@ -863,6 +868,7 @@ impl ScanProcessingInstructionOpts {
 }
 
 #[cfg(test)]
+#[inline]
 #[must_use]
 const fn scan_pi(input: &[u8], pos: usize, opts: ScanProcessingInstructionOpts) -> Option<usize> {
     let idx = expect_bytes!(input, pos, b'<', b'?');
@@ -968,6 +974,7 @@ impl ScanCdataSectionOpts {
 
 /// Scans for CDATA section
 #[cfg(test)]
+#[inline]
 #[must_use]
 const fn scan_cd_sect(input: &[u8], pos: usize, opts: ScanCdataSectionOpts) -> Option<usize> {
     let idx = expect_bytes!(input, pos, b'<', b'!', b'[', b'C', b'D', b'A', b'T', b'A', b'[');
@@ -1161,6 +1168,7 @@ struct ScanMiscOpts {
 }
 
 #[cfg(any(test, feature = "internal_unstable"))]
+#[inline]
 #[must_use]
 const fn scan_misc(input: &[u8], pos: usize, opts: ScanMiscOpts) -> Option<usize> {
     let (byte, idx) = expect_byte!(input, pos);
@@ -1316,6 +1324,7 @@ impl ScanMarkupDeclOpts {
 }
 
 #[cfg(any(test, feature = "internal_unstable"))]
+#[inline]
 #[must_use]
 const fn scan_sd_decl_after_space(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(is_space(input[pos - 1]));
@@ -1325,6 +1334,7 @@ const fn scan_sd_decl_after_space(input: &[u8], pos: usize) -> Option<usize> {
 }
 
 #[cfg(any(test, feature = "internal_unstable"))]
+#[inline]
 #[must_use]
 const fn scan_sd_decl_after_space_and_s(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(is_space(input[pos - 2]));
@@ -1919,6 +1929,7 @@ const fn scan_contentspec(input: &[u8], pos: usize) -> Option<usize> {
     None
 }
 
+#[inline]
 #[must_use]
 const fn scan_children(input: &[u8], pos: usize) -> Option<usize> {
     let mut idx = pos;
@@ -1945,6 +1956,7 @@ const fn scan_children(input: &[u8], pos: usize) -> Option<usize> {
     }
 }
 
+#[inline]
 #[must_use]
 const fn scan_cp(input: &[u8], pos: usize) -> Option<usize> {
     let mut idx = pos;
@@ -1974,6 +1986,7 @@ const fn scan_cp(input: &[u8], pos: usize) -> Option<usize> {
     }
 }
 
+#[inline]
 #[must_use]
 const fn scan_choice(input: &[u8], pos: usize) -> Option<usize> {
     let idx = expect_byte!(input, pos, b'(');
@@ -2018,6 +2031,7 @@ const fn scan_choice(input: &[u8], pos: usize) -> Option<usize> {
     Some(expect_byte!(input, idx, b')'))
 }
 
+#[inline]
 #[must_use]
 const fn scan_seq(input: &[u8], pos: usize) -> Option<usize> {
     let idx = expect_byte!(input, pos, b'(');
@@ -2366,6 +2380,7 @@ const fn scan_char_ref_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
     }
 }
 
+#[inline]
 #[must_use]
 const fn scan_reference_after_ampersand(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(input[pos - 1] == b'&');
@@ -2392,6 +2407,7 @@ const fn scan_entity_ref_after_prefix(input: &[u8], pos: usize) -> Option<usize>
 }
 
 /// Scan parameter-entity reference
+#[inline]
 #[must_use]
 const fn scan_pe_reference_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(input[pos - 1] == b'%');
@@ -2403,6 +2419,7 @@ const fn scan_pe_reference_after_prefix(input: &[u8], pos: usize) -> Option<usiz
     Some(expect_byte!(input, idx, b';'))
 }
 
+#[inline]
 #[must_use]
 const fn scan_entity_decl_after_prefix(input: &[u8], pos: usize) -> Option<usize> {
     debug_assert!(input[pos - 4] == b'<');
