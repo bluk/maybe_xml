@@ -328,6 +328,13 @@ impl ScanDocumentOpts {
     }
 }
 
+#[cfg(any(test, feature = "internal_unstable"))]
+impl Default for ScanDocumentOpts {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Scans a document and returns the last parsed position.
 ///
 /// If `Some(input.len())` is returned, then the entire document was parsed
