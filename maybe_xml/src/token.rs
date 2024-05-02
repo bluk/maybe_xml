@@ -186,7 +186,7 @@ impl<'a> StartTag<'a> {
         let (bytes, _) = bytes.split_at(idx);
         let (_, bytes) = bytes.split_at('<'.len_utf8());
 
-        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+        let value = unsafe { str::from_utf8_unchecked(bytes) };
 
         TagName::from_str(value)
     }
@@ -207,7 +207,7 @@ impl<'a> StartTag<'a> {
         let (bytes, _) = bytes.split_at(end);
         let (_, bytes) = bytes.split_at(begin);
 
-        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+        let value = unsafe { str::from_utf8_unchecked(bytes) };
 
         Some(Attributes::from_str(value))
     }
@@ -233,7 +233,7 @@ impl<'a> EmptyElementTag<'a> {
         let (bytes, _) = bytes.split_at(idx);
         let (_, bytes) = bytes.split_at('<'.len_utf8());
 
-        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+        let value = unsafe { str::from_utf8_unchecked(bytes) };
 
         TagName::from_str(value)
     }
@@ -254,7 +254,7 @@ impl<'a> EmptyElementTag<'a> {
         let (bytes, _) = bytes.split_at(end);
         let (_, bytes) = bytes.split_at(begin);
 
-        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+        let value = unsafe { str::from_utf8_unchecked(bytes) };
 
         Some(Attributes::from_str(value))
     }
@@ -279,7 +279,7 @@ impl<'a> EndTag<'a> {
         let (bytes, _) = bytes.split_at(idx);
         let (_, bytes) = bytes.split_at('<'.len_utf8() + '/'.len_utf8());
 
-        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+        let value = unsafe { str::from_utf8_unchecked(bytes) };
 
         TagName::from_str(value)
     }
@@ -321,7 +321,7 @@ impl<'a> ProcessingInstruction<'a> {
         let (bytes, _) = bytes.split_at(idx);
         let (_, bytes) = bytes.split_at('<'.len_utf8() + '?'.len_utf8());
 
-        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+        let value = unsafe { str::from_utf8_unchecked(bytes) };
 
         Target::from_str(value)
     }
@@ -355,7 +355,7 @@ impl<'a> ProcessingInstruction<'a> {
         let (bytes, _) = bytes.split_at(end);
         let (_, bytes) = bytes.split_at(begin);
 
-        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+        let value = unsafe { str::from_utf8_unchecked(bytes) };
 
         Some(Instructions::from_str(value))
     }
@@ -384,7 +384,7 @@ impl<'a> Cdata<'a> {
         let bytes = self.0.as_bytes();
         let (bytes, _) = bytes.split_at(self.0.len() - "]]>".len());
         let (_, bytes) = bytes.split_at("<![CDATA[".len());
-        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+        let value = unsafe { str::from_utf8_unchecked(bytes) };
         Content::from_str(value)
     }
 }

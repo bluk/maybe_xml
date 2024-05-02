@@ -64,7 +64,7 @@ impl<'a> TagName<'a> {
 
         let (_, bytes) = bytes.split_at(index + 1);
 
-        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+        let value = unsafe { str::from_utf8_unchecked(bytes) };
 
         LocalName::from_str(value)
     }
@@ -92,7 +92,7 @@ impl<'a> TagName<'a> {
 
         let (bytes, _) = bytes.split_at(index);
 
-        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+        let value = unsafe { str::from_utf8_unchecked(bytes) };
 
         Some(NamespacePrefix::from_str(value))
     }
@@ -196,7 +196,7 @@ impl<'a> Attributes<'a> {
         if let Some(end) = iter_attr(pos, input) {
             let (bytes, _) = input.split_at(end);
             let (_, bytes) = bytes.split_at(pos);
-            let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+            let value = unsafe { str::from_utf8_unchecked(bytes) };
             Some(Attribute(value))
         } else {
             None
@@ -255,7 +255,7 @@ impl<'a> Iterator for AttributeIntoIter<'a> {
 
         let (bytes, _) = bytes.split_at(end);
         let (_, bytes) = bytes.split_at(self.index);
-        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+        let value = unsafe { str::from_utf8_unchecked(bytes) };
 
         self.index = end;
 
@@ -299,7 +299,7 @@ impl<'a> Attribute<'a> {
         let (bytes, _) = bytes.split_at(end);
         let (_, bytes) = bytes.split_at(begin);
 
-        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+        let value = unsafe { str::from_utf8_unchecked(bytes) };
 
         AttributeName::from_str(value)
     }
@@ -332,7 +332,7 @@ impl<'a> Attribute<'a> {
 
         let (bytes, _) = bytes.split_at(end);
         let (_, bytes) = bytes.split_at(begin);
-        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+        let value = unsafe { str::from_utf8_unchecked(bytes) };
         Some(AttributeValue::from_str(value))
     }
 }
@@ -366,7 +366,7 @@ impl<'a> AttributeName<'a> {
 
         let (_, bytes) = bytes.split_at(index + 1);
 
-        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+        let value = unsafe { str::from_utf8_unchecked(bytes) };
 
         LocalName::from_str(value)
     }
@@ -394,7 +394,7 @@ impl<'a> AttributeName<'a> {
 
         let (bytes, _) = bytes.split_at(index);
 
-        let value = unsafe { core::str::from_utf8_unchecked(bytes) };
+        let value = unsafe { str::from_utf8_unchecked(bytes) };
 
         Some(NamespacePrefix::from_str(value))
     }
