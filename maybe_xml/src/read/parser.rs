@@ -73,7 +73,7 @@ const fn code_pt(input: &[u8], pos: usize) -> (u32, usize) {
 
     let third = next_byte!();
 
-    let rest = rest << 6 | ((third & UTF8_CONTINUATION_BYTE_MASK) as u32);
+    let rest = (rest << 6) | ((third & UTF8_CONTINUATION_BYTE_MASK) as u32);
 
     if first < 0b1111_0000 {
         let code_pt = (((first & 0b0001_1111) as u32) << 12) | rest;
@@ -82,7 +82,7 @@ const fn code_pt(input: &[u8], pos: usize) -> (u32, usize) {
 
     let fourth = next_byte!();
 
-    let rest = rest << 6 | ((fourth & UTF8_CONTINUATION_BYTE_MASK) as u32);
+    let rest = (rest << 6) | ((fourth & UTF8_CONTINUATION_BYTE_MASK) as u32);
 
     let code_pt = (((first & 0b0000_1111) as u32) << 18) | rest;
 
