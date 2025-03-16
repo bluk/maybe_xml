@@ -62,8 +62,8 @@ impl<'a> Token<'a> {
         }
 
         match bytes[1] {
-            b'/' => return Ty::EndTag(EndTag(self.0)),
-            b'?' => return Ty::ProcessingInstruction(ProcessingInstruction(self.0)),
+            b'/' => Ty::EndTag(EndTag(self.0)),
+            b'?' => Ty::ProcessingInstruction(ProcessingInstruction(self.0)),
             b'!' => {
                 match bytes[2] {
                     b'-' => {
@@ -85,13 +85,13 @@ impl<'a> Token<'a> {
                     }
                     _ => {}
                 }
-                return Ty::Declaration(Declaration(self.0));
+                Ty::Declaration(Declaration(self.0))
             }
             _ => {
                 if bytes[bytes.len() - 2] == b'/' {
                     return Ty::EmptyElementTag(EmptyElementTag(self.0));
                 }
-                return Ty::StartTag(StartTag(self.0));
+                Ty::StartTag(StartTag(self.0))
             }
         }
     }
