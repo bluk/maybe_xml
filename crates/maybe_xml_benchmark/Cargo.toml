@@ -2,17 +2,17 @@
 authors = ["Bryant Luk <code@bryantluk.com>"]
 edition = "2021"
 license = "MIT OR Apache-2.0"
-name = "benchmark"
+name = "maybe_xml_benchmark"
 publish = false
 readme = "README.md"
 repository = "https://github.com/bluk/maybe_xml"
 version = "0.0.0"
 
 [dependencies]
-maybe_xml = { path = "../maybe_xml", features = ["std"] }
+maybe_xml.workspace = true
 
 [dev-dependencies]
-criterion = "0.5.1"
+criterion.workspace = true
 
 [[bench]]
 name = "file_data"

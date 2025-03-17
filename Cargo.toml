@@ -1,10 +1,13 @@
 [workspace]
 resolver = "2"
 members = [
-  "maybe_xml",
-  "examples/tokencount",
+  "crates/*",
 ]
 
-exclude = [
-  "benchmark",
-]
+[workspace.dependencies]
+clap = { version = "4.4.11", features = ["derive"] }
+criterion = "0.5.1"
+maybe_xml = { version = "0.11.0", path = "crates/maybe_xml", features = ["internal_unstable"] }
+
+# [patch.'crates-io']
+# maybe_xml = { path = "libs/maybe_xml" }

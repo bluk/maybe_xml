@@ -1,12 +1,17 @@
 version: 2
 updates:
   - package-ecosystem: cargo
-    directory: "/maybe_xml"
+    directory: "/crates/maybe_xml"
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
   - package-ecosystem: cargo
-    directory: "/benchmark"
+    directory: "/crates/maybe_xml_benchmark"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+  - package-ecosystem: cargo
+    directory: "/crates/tokencount"
     schedule:
       interval: weekly
     open-pull-requests-limit: 10
