@@ -1,4 +1,4 @@
-name: Rust CI
+name: Rust maybe_xml crate CI
 
 permissions:
   contents: read
@@ -7,6 +7,10 @@ on:
   push:
 
   pull_request:
+
+defaults:
+  run:
+    working-directory: ./crates/maybe_xml
 
 jobs:
   build:
@@ -83,7 +87,6 @@ jobs:
           - ubuntu-latest
         rust:
           - stable
-          - nightly
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout sources
@@ -106,7 +109,6 @@ jobs:
           - ubuntu-latest
         rust:
           - stable
-          - nightly
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout sources
@@ -120,33 +122,6 @@ jobs:
           components: clippy
       - name: Run cargo clippy
         run: cargo clippy --all-targets --all-features
-  cargo_deny:
-    name: Cargo Deny
-    strategy:
-      matrix:
-        os:
-          - ubuntu-latest
-        rust:
-          - stable
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Install toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ matrix.rust }}
-          components: rustfmt
-      - name: Rust Version
-        run: rustc --version
-      - run: cargo install cargo-deny
-      - name: Checkout sources
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - run: cargo generate-lockfile
-      - run: cargo deny check
-      - run: cargo deny --all-features check
-      - run: cargo deny --no-default-features --features alloc check
-      - run: cargo deny --no-default-features --features std check
   semver:
     name: Semantic Versioning Check
     strategy:
