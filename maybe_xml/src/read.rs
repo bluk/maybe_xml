@@ -450,6 +450,18 @@ mod tests {
         let _ = reader.tokenize(&mut pos);
     }
 
+    #[test]
+    fn no_panic_on_truncated_comment_start() {
+        let reader = Reader::from_str(".<!-");
+        let mut pos = 0;
+        assert_eq!(
+            Some(Ty::Characters(Characters::from_str("."))),
+            reader.tokenize(&mut pos).map(|token| token.ty())
+        );
+        assert_eq!(None, reader.tokenize(&mut pos));
+        assert_eq!(1, pos);
+    }
+
     fn verify_tokenize_all(input: &str, expected: &[Ty<'_>]) {
         verify_tokenize(input, 0, expected, input.len());
     }
