@@ -115,7 +115,7 @@ const fn scan_declaration_comment_or_cdata(input: &[u8], pos: usize) -> Option<u
     match input[peek3] {
         b'-' => {
             let peek4 = pos + 3;
-            if input.len() < peek4 {
+            if input.len() <= peek4 {
                 return None;
             }
             match input[peek4] {
